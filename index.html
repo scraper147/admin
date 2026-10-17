@@ -157,7 +157,7 @@ tr.tot td{font-weight:800;border-top:2px solid var(--line);border-bottom:none}
 .plan li::before{content:"";flex:none;width:8px;height:8px;border-radius:2px;background:var(--gold);transform:translateY(-1px)}
 .pill{display:inline-block;font-size:12px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;padding:2px 8px;border-radius:6px;background:var(--gold-soft);color:var(--ink);vertical-align:middle;margin-left:8px}
 .band-top .pill{background:transparent;border:1px solid var(--band-line);color:var(--band-muted)}
-.soon-lead{max-width:1180px;margin:8px auto 0;color:var(--band-muted);max-width:62ch}
+.soon-lead{max-width:62ch;margin:8px 0 0 max(0px, calc((100% - 1180px) / 2));color:var(--band-muted)}
 
 /* ---------- Catalogue & Paramètres ---------- */
 .cat-bar{max-width:1180px;margin:14px auto 0;display:flex;flex-direction:column;gap:12px}
@@ -227,8 +227,19 @@ main select,main input[type=date]{font:inherit;color:var(--ink);background:var(-
 .dayhead input[type=date]{height:36px}
 .btn.sm,.ghost.sm{height:32px;padding:0 10px;font-size:13px}
 .evgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px}
-.evcard{display:flex;flex-direction:column;align-items:flex-start;gap:8px;text-align:left;background:var(--bg);border:1px solid var(--line);border-radius:14px;padding:16px 18px;min-width:0}
+.evcard{position:relative;display:flex;flex-direction:column;background:var(--bg);border:1px solid var(--line);border-radius:14px;min-width:0}
 .evcard:hover{border-color:var(--green)}
+.evtitle{display:flex;flex-wrap:wrap;align-items:center;gap:10px 16px}
+.evtitle h1{flex:0 1 auto}
+.delbtn{border-color:var(--band-line);color:#F0A08E}
+.delbtn:hover{border-color:#F0A08E}
+.delpanel{border-color:var(--red)}
+.evcard.danger{border-color:var(--red)}
+.evopen{display:flex;flex-direction:column;align-items:flex-start;gap:8px;text-align:left;background:none;border:none;padding:16px 18px;border-radius:14px;width:100%;min-width:0}
+.evx{position:absolute;right:10px;bottom:8px;background:none;border:none;color:var(--red);font-size:13px;font-weight:700;padding:6px 8px;border-radius:8px}
+.evx:hover{background:var(--red-soft)}
+.evdel{border-top:1px solid var(--line);padding:12px 18px 14px;display:flex;flex-direction:column;gap:10px;margin-top:-30px}
+.evdel p{margin:0;font-size:14px;color:var(--ink)}
 .evcard h3{margin:0;font-size:20px}
 .evcard p{margin:0;color:var(--muted);font-size:14px}
 .crumb{max-width:1180px;margin:0 auto 4px}
@@ -237,7 +248,7 @@ main select,main input[type=date]{font:inherit;color:var(--ink);background:var(-
 .stabs{max-width:1180px;margin:18px auto -30px;display:flex;gap:4px;overflow-x:auto;scrollbar-width:none}
 .stabs button{flex:none;background:none;border:none;border-bottom:3px solid transparent;color:var(--band-muted);height:44px;padding:0 14px;font-size:15px;font-weight:600;white-space:nowrap}
 .stabs button.on{color:var(--band-ink);border-bottom-color:var(--gold)}
-.sv{font-weight:700}.sv.ok{color:#8FC27A}.sv.warn{color:var(--gold)}.sv.err{color:#F0A08E}.sv.demo{color:var(--band-muted)}
+.sv{font-weight:700}.sv.ok{color:#8FC27A}.sv.warn{color:var(--gold)}.sv.err{color:#F0A08E}.sv.sv-demo{color:var(--band-muted)}
 .row-between{display:flex;flex-wrap:wrap;gap:10px;align-items:baseline;justify-content:space-between}
 .prog{font-weight:700;color:var(--green)}
 .chip.add{border-style:dashed}
@@ -1023,7 +1034,7 @@ document.addEventListener('submit', function (e) { var f = e.target.closest('[da
    deux tablettes peuvent compter en même temps sans s'écraser. */
 var DATA_REPO = 'scraper147/admin-donnees';
 var UNITES = ['bouteilles', 'fûts', 'caisses', 'bacs', 'pièces', 'litres', 'cartons', 'sacs'];
-var STK = { list: null, docs: {}, loading: false, err: null, view: 'list', cur: null, tab: 'jour', day: null, msg: null, confirm: null, timer: null, newForm: null };
+var STK = { deleting: false, list: null, docs: {}, loading: false, err: null, view: 'list', cur: null, tab: 'jour', day: null, msg: null, confirm: null, timer: null, newForm: null };
 
 function stkPath(id) { return 'stock/' + id + '.json'; }
 function ghGetFile(path, token) {
@@ -1162,8 +1173,8 @@ function vStkList() {
     var open = STK.list.filter(function (d) { return d.statut !== 'cloture'; }), closed = STK.list.filter(function (d) { return d.statut === 'cloture'; });
     function card(d) {
       var days = Object.keys(d.jours || {}).sort(), last = days[days.length - 1];
-      return '<button class="evcard" data-s="open" data-v="' + esc(d.id) + '"><span class="state ' + (d.statut === 'cloture' ? '' : 'ok') + '">' + (d.statut === 'cloture' ? 'Clôturé' : 'En cours') + '</span><h3>' + esc(d.nom) + '</h3>' +
-        '<p class="num">' + dmy(d.debut) + (last && last !== d.debut ? ' → ' + dmy(last) : '') + ' · ' + days.length + ' jour' + (days.length > 1 ? 's' : '') + ' · ' + d.articles.length + ' article' + (d.articles.length > 1 ? 's' : '') + '</p></button>';
+      return '<div class="evcard"><button class="evopen" data-s="open" data-v="' + esc(d.id) + '"><span class="state ' + (d.statut === 'cloture' ? '' : 'ok') + '">' + (d.statut === 'cloture' ? 'Clôturé' : 'En cours') + '</span><h3>' + esc(d.nom) + '</h3>' +
+        '<p class="num">' + dmy(d.debut) + (last && last !== d.debut ? ' → ' + dmy(last) : '') + ' · ' + days.length + ' jour' + (days.length > 1 ? 's' : '') + ' · ' + d.articles.length + ' article' + (d.articles.length > 1 ? 's' : '') + '</p></button></div>';
     }
     body += '<section><h3>En cours</h3>' + (open.length ? '<div class="evgrid">' + open.map(card).join('') + '</div>' : '<p class="empty">Aucun événement en cours. Créez-en un avec « Nouvel événement ».</p>') + '</section>';
     if (closed.length) body += '<section><h3>Clôturés</h3><div class="evgrid">' + closed.sort(function (a, b) { return a.debut < b.debut ? 1 : -1; }).map(card).join('') + '</div></section>';
@@ -1182,7 +1193,7 @@ function vStkNew() {
 }
 function stkStatusHtml() {
   var c = STK.cur; if (!c) return '';
-  if (c.demo) return '<span class="sv demo">Exemple : rien n’est enregistré sur GitHub</span>';
+  if (c.demo) return '<span class="sv sv-demo">Exemple : rien n’est enregistré sur GitHub</span>';
   if (c.saving) return '<span class="sv">Enregistrement…</span>';
   if (c.err === 'offline') return '<span class="sv warn">Hors ligne : ' + c.ops.length + ' modification' + (c.ops.length > 1 ? 's gardées' : ' gardée') + ' sur l’appareil</span> <button class="ghost sm" data-s="save">Réessayer</button>';
   if (c.err) return '<span class="sv err">' + c.err + '</span> <button class="ghost sm" data-s="save">Réessayer</button>';
@@ -1194,11 +1205,13 @@ function stkStatusRefresh() { var s = document.getElementById('stkStatus'); if (
 function vStkEvent() {
   var c = STK.cur, d = c.doc, closed = d.statut === 'cloture';
   var tabs = [['jour', 'Comptage du jour'], ['articles', 'Articles et stock de départ'], ['bilan', closed ? 'Bilan' : 'Bilan et clôture']];
-  var band = '<div class="band"><p class="crumb"><button class="linkish" data-s="back">← Tous les événements</button></p><div class="band-top"><h1>' + esc(d.nom) + (closed ? '<span class="pill">Clôturé</span>' : '') + '</h1></div>' +
+  var band = '<div class="band"><p class="crumb"><button class="linkish" data-s="back">← Tous les événements</button></p><div class="band-top evtitle"><h1>' + esc(d.nom) + (closed ? '<span class="pill">Clôturé</span>' : '') + '</h1>' + (closed ? '<button class="ghost sm delbtn" data-s="askDel" data-v="' + esc(d.id) + '"' + (STK.deleting ? ' disabled' : '') + '>Supprimer</button>' : '') + '</div>' +
     '<p class="cat-status num" style="max-width:1180px;margin:6px auto 0">Depuis le ' + dmy(d.debut) + ' · <span id="stkStatus">' + stkStatusHtml() + '</span></p>' +
     '<div class="stabs" role="tablist">' + tabs.map(function (t) { return '<button role="tab" aria-selected="' + (STK.tab === t[0]) + '" class="' + (STK.tab === t[0] ? 'on' : '') + '" data-s="tab" data-v="' + t[0] + '">' + t[1] + '</button>'; }).join('') + '</div></div>';
   var body = STK.tab === 'articles' ? vStkArticles(d, closed) : STK.tab === 'bilan' ? vStkBilan(d, closed) : vStkDay(d, closed);
-  return band + '<main>' + (STK.msg ? '<div class="alerts"><div class="alert' + (STK.msg.err ? ' err' : STK.msg.ok ? ' ok' : '') + '">' + STK.msg.t + '</div></div>' : '') + body + '</main>';
+  var delPanel = closed && STK.confirm && STK.confirm.type === 'del' ? '<section class="pubpanel delpanel"><h3>Supprimer « ' + esc(d.nom) + ' » ?</h3><p class="lead">L\u2019événement et tous ses comptages disparaîtront de toutes les tablettes. Exportez d\u2019abord le bilan pour Excel si vous voulez le garder.</p>' +
+    '<div class="cbtns"><button class="btn danger" data-s="del" data-v="' + esc(d.id) + '"' + (STK.deleting ? ' disabled' : '') + '>' + (STK.deleting ? 'Suppression…' : 'Supprimer définitivement') + '</button><button class="btn" data-s="cancel"' + (STK.deleting ? ' disabled' : '') + '>Annuler</button></div></section>' : '';
+  return band + '<main>' + delPanel + (STK.msg ? '<div class="alerts"><div class="alert' + (STK.msg.err ? ' err' : STK.msg.ok ? ' ok' : '') + '">' + STK.msg.t + '</div></div>' : '') + body + '</main>';
 }
 function vStkDay(d, closed) {
   var calc = stkCalc(d), days = calc.days, arts = d.articles.filter(function (a) { return a.actif !== false; });
@@ -1287,6 +1300,8 @@ function stkClick(el) {
   if (s === 'reloadList') { STK.list = null; STK.err = null; stkLoadList(); return; }
   if (s === 'demo') { STK.cur = { id: 'exemple', demo: true, remote: demoEvent(), ops: [], sha: null }; STK.cur.doc = curDoc(); STK.view = 'event'; STK.tab = 'jour'; STK.day = '2026-10-18'; STK.msg = null; STK.confirm = null; render(); window.scrollTo(0, 0); return; }
   if (s === 'open') { stkOpen(v); return; }
+  if (s === 'askDel') { STK.confirm = { type: 'del', id: v }; render(); return; }
+  if (s === 'del') { stkDelete(v); return; }
   if (s === 'tab') { STK.tab = v; STK.confirm = null; STK.msg = null; render(); return; }
   if (s === 'day') { STK.day = v; render(); return; }
   if (s === 'addDay') { addOp({ t: 'day', d: v }); STK.day = v; render(); return; }
@@ -1296,7 +1311,7 @@ function stkClick(el) {
   if (s === 'addArt') { var t = {}; c.doc.articles.forEach(function (a) { t[a.id] = 1; }); var id = uid('a', t), last = c.doc.articles[c.doc.articles.length - 1];
     addOp({ t: 'art', v: { id: id, nom: '', unite: last ? last.unite : 'bouteilles', categorie: last ? last.categorie : '', actif: true } }); render(); var f = document.getElementById('an-' + id); if (f) f.focus(); return; }
   if (s === 'askClose') { STK.confirm = 'close'; render(); return; }
-  if (s === 'cancel') { STK.confirm = null; render(); return; }
+  if (s === 'cancel') { if (STK.deleting) return; STK.confirm = null; render(); return; }
   if (s === 'close') { addOp({ t: 'meta', k: 'statut', v: 'cloture' }); addOp({ t: 'meta', k: 'clotureLe', v: new Date().toISOString() }); STK.confirm = null; saveCur(); STK.msg = { ok: true, t: 'Événement clôturé. Le bilan ci-dessous est définitif.' }; render(); return; }
   if (s === 'reopen') { addOp({ t: 'meta', k: 'statut', v: 'ouvert' }); addOp({ t: 'meta', k: 'clotureLe', v: null }); saveCur(); STK.msg = { t: 'Événement rouvert.' }; render(); return; }
   if (s === 'csv') { stkCsv(); return; }
@@ -1313,6 +1328,28 @@ function stkInput(el) {
   var a = clone(c.doc.articles.filter(function (x) { return x.id === aid; })[0]); if (!a) return;
   if (f === 'actif') { a.actif = el.checked; el.closest('tr').classList.toggle('off', !el.checked); } else a[f] = el.value;
   addOp({ t: 'art', v: a });
+}
+function stkDelete(id) {
+  var c = STK.cur, d = (c && c.id === id ? c.doc : STK.docs[id]) || {};
+  if (d.statut !== 'cloture') { STK.confirm = null; STK.msg = { err: true, t: 'Seul un événement clôturé peut être supprimé.' }; render(); return; }
+  if (c && c.demo) { STK.view = 'list'; STK.cur = null; STK.confirm = null; toast('Exemple supprimé'); return; }
+  var token = getToken(); if (!token) return;
+  STK.deleting = true; STK.err = null; render();
+  ghGetFile(stkPath(id), token).then(function (r) {
+    if (!r) return null;
+    if (r.json.statut !== 'cloture') throw { custom: 'Cet événement a été rouvert sur une autre tablette : il ne peut plus être supprimé.' };
+    return ghFetch('/repos/' + DATA_REPO + '/contents/' + stkPath(id), { method: 'DELETE', body: JSON.stringify({ message: 'Stock ' + (d.nom || id) + ' (suppression)', sha: r.sha }) }, token);
+  }).then(function () {
+    STK.deleting = false; STK.confirm = null; delete STK.docs[id]; lsSet(opsKey(id), null); clearTimeout(STK.timer);
+    STK.view = 'list'; STK.cur = null; STK.msg = null;
+    STK.list = (STK.list || []).filter(function (x) { return x.id !== id; });
+    toast('« ' + (d.nom || id) + ' » supprimé');
+  }, function (e) {
+    STK.deleting = false; STK.confirm = null;
+    var t = e && e.custom ? e.custom : e && (e.status === 409 || e.status === 422) ? 'L\u2019événement vient d\u2019être modifié sur une autre tablette. Rechargez-le puis recommencez.' : e && e.status === 0 ? ghErrText({ status: 0 }) : stkErr(e);
+    if (STK.view === 'event') STK.msg = { err: true, t: t }; else STK.err = t;
+    render();
+  });
 }
 function stkSubmitNew() {
   var nom = document.getElementById('evNom').value.trim(), debut = document.getElementById('evDebut').value, fromEl = document.getElementById('evFrom'), from = fromEl ? fromEl.value : '', carry = document.getElementById('evCarry') ? document.getElementById('evCarry').checked : false;
