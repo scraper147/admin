@@ -915,10 +915,11 @@ function renderParametres() {
   var pub = '<section><h3>Publication sur GitHub</h3><p class="lead">Pour publier le catalogue depuis cet appareil, déverrouillez-le une fois avec la phrase de passe admin. Elle n’est pas enregistrée ; seul le jeton déchiffré reste sur l’appareil.</p>' +
     '<p><span class="state ' + (unlocked ? 'ok' : 'lock') + '">' + (unlocked ? 'Déverrouillé sur cet appareil' : 'Verrouillé') + '</span></p>' +
     (PAR.msg ? '<div class="alert' + (PAR.msg.err ? ' err' : PAR.msg.ok ? ' ok' : '') + '">' + PAR.msg.t + '</div>' : '') +
+    (!CLE_CHIFFREE && lsGet(LOCAL_CLE_KEY) ? '<div class="alert">La clé chiffrée n\u2019existe que sur cet appareil. Copiez-la ci-dessous et envoyez-la à Claude pour que les autres appareils puissent se déverrouiller avec la phrase de passe.</div>' : '') +
     (unlocked ? '<div class="cbtns"><button class="btn" data-p="test"' + (PAR.busy ? ' disabled' : '') + '>Tester l’accès aux dépôts</button><button class="btn danger" data-p="lock">Verrouiller cet appareil</button></div>' + vTests()
       : cle ? '<form class="unlock" data-p-form="unlock"><label class="fl" for="pp">Phrase de passe admin</label><div class="row2"><input type="password" id="pp" autocomplete="current-password" autocapitalize="none" spellcheck="false" required><button class="pick" type="submit"' + (PAR.busy ? ' disabled' : '') + '>' + (PAR.busy ? 'Vérification…' : 'Déverrouiller') + '</button></div><p class="hint">Majuscules et espaces en trop ne comptent pas.</p></form>'
         : '<div class="alert">Aucune clé chiffrée n’est encore installée dans l’app. Préparez-la ci-dessous (une seule fois, sur un appareil de confiance).</div>') + '</section>';
-  var prep = '<section><details' + (cle ? '' : ' open') + '><summary><h3>Préparer la clé chiffrée</h3></summary>' +
+  var prep = '<section><details' + (cle && (CLE_CHIFFREE || !lsGet(LOCAL_CLE_KEY)) ? '' : ' open') + '><summary><h3>Préparer la clé chiffrée</h3></summary>' +
     '<p class="lead">À faire une fois par saison, ou quand le jeton expire. Le jeton est chiffré sur cet appareil ; ni le jeton ni la phrase ne quittent la page.</p>' +
     '<ol class="steps"><li><strong>Créer le jeton sur GitHub</strong> : <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">github.com › Fine-grained token</a>. Expiration : fin de saison. Repository access : <em>Only select repositories</em> → ' + REPOS.map(function (r) { return '<span class="mono">' + esc(r.id.split('/')[1]) + '</span>'; }).join(', ') + '. Permissions → Repository → <em>Contents : Read and write</em>. Rien d’autre.</li>' +
     '<li><strong>Coller le jeton et choisir la phrase de passe</strong>.</li><li><strong>Envoyer le texte obtenu à Claude</strong>, qui l’installe dans l’app. Toutes les tablettes Admin pourront alors se déverrouiller avec la phrase.</li></ol>' +
@@ -928,7 +929,7 @@ function renderParametres() {
     '<label class="fl" for="np2">Retaper la phrase</label><input type="password" id="np2" autocomplete="new-password" autocapitalize="none" spellcheck="false" required>' +
     '<label class="tog"><input type="checkbox" id="alsoUnlock" checked>Déverrouiller aussi cet appareil</label>' +
     '<div><button class="pick" type="submit"' + (PAR.busy ? ' disabled' : '') + '>Chiffrer le jeton</button></div></form>' +
-    (PAR.out ? '<div class="outbox"><label class="fl" for="cleOut">Clé chiffrée à envoyer à Claude</label><textarea id="cleOut" readonly rows="5" class="mono">' + esc(PAR.out) + '</textarea><div class="cbtns"><button class="btn" data-p="copy">Copier</button></div></div>' : '') +
+    ((PAR.out || (!CLE_CHIFFREE && lsGet(LOCAL_CLE_KEY))) ? '<div class="outbox"><label class="fl" for="cleOut">Clé chiffrée à envoyer à Claude</label><p class="hint">Cette clé a été préparée sur cet appareil. Tant qu\u2019elle n\u2019est pas intégrée dans l\u2019app, les autres appareils ne peuvent pas se déverrouiller.</p><textarea id="cleOut" readonly rows="5" class="mono">' + esc(PAR.out || lsGet(LOCAL_CLE_KEY)) + '</textarea><div class="cbtns"><button class="btn" data-p="copy">Copier</button></div></div>' : '') +
     '</details></section>';
   document.getElementById('mod').innerHTML = '<div class="band"><div class="band-top"><h1>Paramètres</h1></div><p class="soon-lead">Réglages de cet appareil.</p></div><main>' + pub + prep + '</main>' + vToast();
 }
@@ -971,7 +972,7 @@ function parClick(el) {
   else if (p === 'copy') {
     var ta = document.getElementById('cleOut');
     var done = function () { toast('Clé copiée'); }, fail = function () { ta.focus(); ta.select(); toast('Sélectionnée : copiez-la avec Ctrl+C'); };
-    try { navigator.clipboard.writeText(PAR.out).then(done, fail); } catch (e) { fail(); }
+    try { navigator.clipboard.writeText(ta.value).then(done, fail); } catch (e) { fail(); }
   }
 }
 document.addEventListener('click', function (e) {
