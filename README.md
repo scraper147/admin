@@ -1,6 +1,6 @@
 # Admin Chlorophylle Night
 
-Application d'administration des caisses : **Bilan des ventes**, **Catalogue** (publié directement sur GitHub) et **Paramètres**. Les modules Points de vente, Stock et Clôture viendront ensuite.
+Application d'administration des caisses : **Bilan des ventes**, **Catalogue** (publié directement sur GitHub), **Stock** (comptage quotidien par événement) et **Paramètres**.
 
 Elle s'installe sur un PC ou une tablette (Chrome / Edge) et fonctionne hors ligne. La publication du catalogue demande internet.
 
@@ -30,7 +30,7 @@ Elle s'installe sur un PC ou une tablette (Chrome / Edge) et fonctionne hors lig
 1. Dans l'app : **Paramètres → Préparer la clé chiffrée**.
 2. Créez le jeton GitHub (lien dans l'app) :
    - type **Fine-grained token**, expiration : fin de saison ;
-   - Repository access : **Only select repositories** → `bar` et `sapin` ;
+   - Repository access : **Only select repositories** → `bar`, `sapin` et `admin-donnees` ;
    - Permissions → Repository → **Contents : Read and write**. Rien d'autre.
 3. Collez le jeton, choisissez une **phrase de passe de 4 à 5 mots**, cliquez **Chiffrer le jeton**.
 4. Envoyez le texte chiffré à Claude : il le place dans `index.html` (constante `CLE_CHIFFREE`). Redéposez `index.html` et augmentez le cache de `sw.js`.
@@ -45,6 +45,24 @@ Ni le jeton ni la phrase ne sont dans le code : seule la version chiffrée y est
 ### En cas de perte d'un appareil ou de fuite de la phrase
 
 Supprimez le jeton sur GitHub (Settings → Developer settings → Personal access tokens), puis refaites une clé chiffrée avec un nouveau jeton et une nouvelle phrase.
+
+## Stock (comptage par événement)
+
+### Une seule fois : le dépôt privé des données
+
+Le stock est enregistré dans un dépôt **privé** `admin-donnees` (un fichier par événement dans `stock/`), pour que toutes les tablettes partagent le même stock.
+
+1. Sur GitHub, **New** : Repository name `admin-donnees`, cochez **Private**, cochez **Add a README file**, **Create repository**.
+2. Ajoutez ce dépôt au jeton existant, sans le changer : **Settings → Developer settings → Personal access tokens → Fine-grained tokens** → votre jeton → **Edit** → Repository access : ajoutez `admin-donnees` → **Update**. La clé chiffrée de l'app reste valable.
+3. Dans l'app : **Paramètres → Tester l'accès aux dépôts** doit indiquer « écriture autorisée » pour les données du stock.
+
+### Pendant l'événement
+
+1. **Stock → Nouvel événement** : nom et premier jour (vous pouvez reprendre les articles et le stock restant d'un événement précédent).
+2. **Articles et stock de départ** : la liste des articles, leur unité et la quantité avant le premier jour.
+3. Chaque jour, **Comptage du jour** : notez les **livraisons** et comptez le **restant** en fin de journée. Consommé = début + livré − restant.
+4. Les modifications sont gardées sur la tablette et envoyées sur GitHub quelques secondes après (ou dès le retour d'internet). Deux tablettes peuvent compter en même temps.
+5. En fin d'événement : **Bilan et clôture → Clôturer l'événement**. Le bilan jour par jour s'exporte pour Excel.
 
 ## Mettre à jour l'app
 

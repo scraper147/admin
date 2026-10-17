@@ -137,7 +137,7 @@ tr.tot td{font-weight:800;border-top:2px solid var(--line);border-bottom:none}
 .home-hero{max-width:1180px;margin:18px auto 4px}
 .home-hero h2{font-family:var(--display);font-weight:600;font-size:clamp(28px,4vw,40px);margin:0 0 6px;color:var(--band-ink);text-wrap:balance}
 .home-hero p{margin:0;color:var(--band-muted);max-width:62ch}
-.mods{max-width:calc(1180px + 2 * clamp(16px,4vw,48px));margin:0 auto;padding:24px clamp(16px,4vw,48px) 60px;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px}
+.mods{max-width:calc(1180px + 2 * clamp(16px,4vw,48px));margin:0 auto;padding:24px clamp(16px,4vw,48px) 60px;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:18px}
 @media (max-width:1000px){.mods{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media (max-width:560px){.mods{grid-template-columns:minmax(0,1fr)}}
 .mod{display:flex;flex-direction:column;gap:10px;text-align:left;background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:20px;min-width:0}
@@ -221,6 +221,39 @@ details:not([open]) summary h3::after{content:" ▸"}
 .outbox{margin-top:16px;display:flex;flex-direction:column;gap:8px;max-width:640px}
 .tests{margin-top:14px}
 @media (max-width:560px){.ptab{min-width:0}.ptab thead{display:none}.ptab,.ptab tbody{display:block}.ptab tr{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:8px;align-items:center;padding:10px 0;border-bottom:1px solid var(--soft)}.ptab td{border:none;padding:0}.ptab td:first-child{grid-column:1/-1;width:auto}.ptab .price{max-width:none;width:120px}.pdv{grid-template-columns:minmax(0,1fr) auto}.pdv .faint{display:none}.row2{flex-direction:column}}
+
+/* ---------- Stock ---------- */
+main select,main input[type=date]{font:inherit;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:0 12px;height:42px;max-width:100%}
+.dayhead input[type=date]{height:36px}
+.btn.sm,.ghost.sm{height:32px;padding:0 10px;font-size:13px}
+.evgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px}
+.evcard{display:flex;flex-direction:column;align-items:flex-start;gap:8px;text-align:left;background:var(--bg);border:1px solid var(--line);border-radius:14px;padding:16px 18px;min-width:0}
+.evcard:hover{border-color:var(--green)}
+.evcard h3{margin:0;font-size:20px}
+.evcard p{margin:0;color:var(--muted);font-size:14px}
+.crumb{max-width:1180px;margin:0 auto 4px}
+.linkish{background:none;border:none;color:var(--band-muted);padding:0;font-size:14px;font-weight:600}
+.linkish:hover{color:var(--band-ink)}
+.stabs{max-width:1180px;margin:18px auto -30px;display:flex;gap:4px;overflow-x:auto;scrollbar-width:none}
+.stabs button{flex:none;background:none;border:none;border-bottom:3px solid transparent;color:var(--band-muted);height:44px;padding:0 14px;font-size:15px;font-weight:600;white-space:nowrap}
+.stabs button.on{color:var(--band-ink);border-bottom-color:var(--gold)}
+.sv{font-weight:700}.sv.ok{color:#8FC27A}.sv.warn{color:var(--gold)}.sv.err{color:#F0A08E}.sv.demo{color:var(--band-muted)}
+.row-between{display:flex;flex-wrap:wrap;gap:10px;align-items:baseline;justify-content:space-between}
+.prog{font-weight:700;color:var(--green)}
+.chip.add{border-style:dashed}
+.stab td{vertical-align:middle}
+.stab td .sub{display:block;font-size:12px;color:var(--muted);font-weight:400}
+.stab .qty{width:110px;text-align:right}
+.stab .cnt{border-color:var(--gold)}
+.stab .qty.bad{border-color:var(--red);background:var(--red-soft)}
+.stab td.neg{color:var(--red);font-weight:700}
+.stab.arts td input[type=text]{min-width:110px}
+.stab.bil th,.stab.bil td{white-space:nowrap}
+.stab.bil td:first-child{white-space:normal;min-width:160px}
+.stab tr.off td{opacity:.55}
+form.stkform{display:flex;flex-direction:column;gap:8px;max-width:520px}
+form.stkform .cbtns{margin-top:10px}
+@media (max-width:560px){.stab:not(.bil):not(.arts) thead{display:none}.stab:not(.bil):not(.arts),.stab:not(.bil):not(.arts) tbody{display:block}.stab:not(.bil):not(.arts) tr{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px 8px;padding:10px 0;border-bottom:1px solid var(--soft)}.stab:not(.bil):not(.arts) tr.cat{display:block}.stab:not(.bil):not(.arts) td{border:none;padding:0}.stab:not(.bil):not(.arts) td:first-child{grid-column:1/-1}.stab:not(.bil):not(.arts) td[data-k=debut]::before{content:"Début ";color:var(--muted);font-size:12px}.stab:not(.bil):not(.arts) td[data-k=conso]::before{content:"Consommé ";color:var(--muted);font-size:12px}.stab:not(.bil):not(.arts) td[data-k]{text-align:left}.stab .qty{width:100%}}
 @media (max-width:860px){section.half{grid-column:span 12}.filters .right{margin-left:0}}
 @media (max-width:560px){.brand .lbl{display:none}.brand img{height:34px}.brand .name b{font-size:18px}.filters{position:static}.band-top img{height:38px}.band-top h1{font-size:18px}section{padding:16px 14px}td,th{padding:8px 6px}.band-top .tools .lbl{display:none}}
 @media print{
@@ -543,15 +576,8 @@ var MODULES = [
     desc: 'Totaux de la soirée par bar, heure par heure et par article, à partir des exports de la Caisse Bar.' },
   { id: 'catalogue', nom: 'Catalogue', court: 'Catalogue', ready: true, render: function () { renderCatalogue(); },
     desc: 'Produits, prix et points de vente des caisses, publiés directement sur GitHub.' },
-  { id: 'pdv', nom: 'Points de vente', court: 'Points de vente', ready: false,
-    desc: 'Liste des bars et des appareils qui leur sont assignés.',
-    plan: ['Les bars se créent et se renomment dans le module Catalogue', 'Voir quel appareil est assigné à quel bar', 'Repérer les bars sans export pour une soirée'] },
-  { id: 'stock', nom: 'Gestion de stock', court: 'Stock', ready: false,
-    desc: 'Stock du matériel et des marchandises, géré à part des caisses.',
-    plan: ['Tenir la liste des articles en stock (boissons, gobelets, matériel…) avec leur quantité', 'Enregistrer les entrées (livraisons) et les sorties (mise en bar, casse, retour)', 'Signaler les articles sous un seuil minimum', 'Indépendant des caisses : les ventes ne décomptent pas le stock automatiquement'] },
-  { id: 'cloture', nom: 'Clôture de caisse', court: 'Clôture', ready: false,
-    desc: 'Fond de caisse, comptage du cash et écarts en fin de soirée.',
-    plan: ['Saisir le fond de caisse de chaque bar en début de soirée', 'Compter le cash en fin de soirée et le comparer aux ventes cash', 'Noter les retraits et éditer la fiche de clôture'] },
+  { id: 'stock', nom: 'Gestion de stock', court: 'Stock', ready: true, render: function () { renderStock(); },
+    desc: 'Stock par événement : départ, comptage du restant chaque jour, consommation jour par jour à la clôture.' },
   { id: 'parametres', nom: 'Paramètres', court: 'Paramètres', ready: true, render: function () { renderParametres(); },
     desc: 'Déverrouiller la publication sur GitHub et préparer la clé chiffrée.' }
 ];
@@ -584,7 +610,7 @@ function renderHome() {
     '<div class="band"><div class="home-hero"><h2>Administration des caisses</h2><p>Choisissez un module. Les fichiers chargés restent sur cet appareil et sont conservés quand vous passez d’un module à l’autre.</p></div></div>' +
     '<div class="mods">' + MODULES.map(function (m) {
       return '<button class="mod' + (m.ready ? '' : ' off') + '" data-a="go" data-v="' + m.id + '"><span class="ic">' + ICONS[m.id] + '</span><h3>' + esc(m.nom) + '</h3><p>' + esc(m.desc) + '</p>' +
-        '<span class="st num">' + (m.ready ? (m.id === 'bilan' ? esc(bilanStatus()) : m.id === 'catalogue' ? esc(catHomeStatus()) : m.id === 'parametres' ? (getToken() ? 'Publication déverrouillée' : 'Publication verrouillée') : 'Disponible') : 'Bientôt disponible') + '</span></button>';
+        '<span class="st num">' + (m.ready ? (m.id === 'bilan' ? esc(bilanStatus()) : m.id === 'catalogue' ? esc(catHomeStatus()) : m.id === 'stock' ? esc(stkHomeStatus()) : m.id === 'parametres' ? (getToken() ? 'Publication déverrouillée' : 'Publication verrouillée') : 'Disponible') : 'Bientôt disponible') + '</span></button>';
     }).join('') + '</div>' + vToast();
 }
 function renderSoon(m) {
@@ -730,7 +756,7 @@ function loadCatFor(repoId, forceGithub) {
   });
 }
 function uid(prefix, taken) { var i = 1, id; do { id = prefix + i++; } while (taken[id]); return id; }
-function slug(s) { return String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 16) || 'cat'; }
+function slug(s, n) { return String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, n || 16).replace(/-$/, '') || 'cat'; }
 function allProductIds() { var t = {}; CAT.data.categories.forEach(function (k) { k.produits.forEach(function (p) { t[p.id] = 1; }); }); return t; }
 function parsePrice(s) { var v = String(s).replace(/\s|€/g, '').replace(',', '.'); return v === '' || isNaN(+v) ? NaN : +v; }
 function catErrors(d) {
@@ -921,7 +947,7 @@ function renderParametres() {
         : '<div class="alert">Aucune clé chiffrée n’est encore installée dans l’app. Préparez-la ci-dessous (une seule fois, sur un appareil de confiance).</div>') + '</section>';
   var prep = '<section><details' + (cle && (CLE_CHIFFREE || !lsGet(LOCAL_CLE_KEY)) ? '' : ' open') + '><summary><h3>Préparer la clé chiffrée</h3></summary>' +
     '<p class="lead">À faire une fois par saison, ou quand le jeton expire. Le jeton est chiffré sur cet appareil ; ni le jeton ni la phrase ne quittent la page.</p>' +
-    '<ol class="steps"><li><strong>Créer le jeton sur GitHub</strong> : <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">github.com › Fine-grained token</a>. Expiration : fin de saison. Repository access : <em>Only select repositories</em> → ' + REPOS.map(function (r) { return '<span class="mono">' + esc(r.id.split('/')[1]) + '</span>'; }).join(', ') + '. Permissions → Repository → <em>Contents : Read and write</em>. Rien d’autre.</li>' +
+    '<ol class="steps"><li><strong>Créer le jeton sur GitHub</strong> : <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">github.com › Fine-grained token</a>. Expiration : fin de saison. Repository access : <em>Only select repositories</em> → ' + REPOS.concat([{ id: DATA_REPO }]).map(function (r) { return '<span class="mono">' + esc(r.id.split('/')[1]) + '</span>'; }).join(', ') + '. Permissions → Repository → <em>Contents : Read and write</em>. Rien d’autre.</li>' +
     '<li><strong>Coller le jeton et choisir la phrase de passe</strong>.</li><li><strong>Envoyer le texte obtenu à Claude</strong>, qui l’installe dans l’app. Toutes les tablettes Admin pourront alors se déverrouiller avec la phrase.</li></ol>' +
     '<form class="prep" data-p-form="prep"><label class="fl" for="tok">Jeton GitHub</label><input type="password" id="tok" autocomplete="off" spellcheck="false" placeholder="github_pat_…" required>' +
     '<label class="fl" for="np1">Phrase de passe (4 à 5 mots)</label><input type="password" id="np1" autocomplete="new-password" autocapitalize="none" spellcheck="false" required data-p-strength>' +
@@ -939,7 +965,7 @@ function vTests() {
 }
 function testRepos() {
   var token = getToken(); PAR.busy = true; PAR.tests = null; render();
-  Promise.all(REPOS.map(function (r) {
+  Promise.all(REPOS.concat([{ id: DATA_REPO, nom: 'Données du stock (' + DATA_REPO.split('/')[1] + ')' }]).map(function (r) {
     return ghFetch('/repos/' + r.id, {}, token).then(function (j) {
       return { nom: r.nom, t: j.permissions && j.permissions.push ? '<span class="good">écriture autorisée</span>' : '<span class="bad">lecture seule : le catalogue ne pourra pas être publié</span>' };
     }, function (e) { return { nom: r.nom, t: '<span class="bad">' + ghErrText(e, 'd’accéder') + '</span>' }; });
@@ -988,6 +1014,325 @@ document.addEventListener('change', function (e) {
   if (e.target.hasAttribute('data-catfile')) { if (e.target.files[0]) catImport(e.target.files[0]); e.target.value = ''; }
 });
 document.addEventListener('submit', function (e) { var f = e.target.closest('[data-p-form]'); if (f) { e.preventDefault(); parSubmit(f); } });
+
+
+/* ================= Module Stock ================= */
+/* Un fichier JSON par événement dans le dépôt PRIVÉ DATA_REPO : stock/<id>.json
+   Mise à jour par comptage du restant : consommé = début + livré − restant.
+   Les modifications sont des « opérations » gardées sur l'appareil puis rejouées sur la dernière version GitHub :
+   deux tablettes peuvent compter en même temps sans s'écraser. */
+var DATA_REPO = 'scraper147/admin-donnees';
+var UNITES = ['bouteilles', 'fûts', 'caisses', 'bacs', 'pièces', 'litres', 'cartons', 'sacs'];
+var STK = { list: null, docs: {}, loading: false, err: null, view: 'list', cur: null, tab: 'jour', day: null, msg: null, confirm: null, timer: null, newForm: null };
+
+function stkPath(id) { return 'stock/' + id + '.json'; }
+function ghGetFile(path, token) {
+  return ghFetch('/repos/' + DATA_REPO + '/contents/' + path, {}, token).then(function (j) { return { sha: j.sha, json: JSON.parse(b64utf8(j.content)) }; },
+    function (e) { if (e.status === 404) return null; throw e; });
+}
+function ghPutFile(path, json, sha, message, token) {
+  var body = { message: message, content: utf8b64(JSON.stringify(json, null, 1) + '\n') }; if (sha) body.sha = sha;
+  return ghFetch('/repos/' + DATA_REPO + '/contents/' + path, { method: 'PUT', body: JSON.stringify(body) }, token);
+}
+function fmtQ(x) { if (x == null || isNaN(x)) return ''; var r = Math.round(x * 100) / 100; return String(r).replace('.', ','); }
+function parseQ(s) { var v = String(s).replace(/\s/g, '').replace(',', '.'); if (v === '') return null; return isNaN(+v) ? NaN : +v; }
+function dmy(iso) { return iso ? iso.split('-').reverse().join('/') : ''; }
+function addDays(iso, n) { var d = dParts(iso); d.setDate(d.getDate() + n); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
+
+/* ---------- Opérations ---------- */
+function applyOp(doc, op) {
+  if (op.t === 'set') { var o = doc, p = op.p; for (var i = 0; i < p.length - 1; i++) { if (!o[p[i]] || typeof o[p[i]] !== 'object') o[p[i]] = {}; o = o[p[i]]; } if (op.v == null) delete o[p[p.length - 1]]; else o[p[p.length - 1]] = op.v; }
+  else if (op.t === 'art') { var k = -1; doc.articles.forEach(function (a, j) { if (a.id === op.v.id) k = j; }); if (k < 0) doc.articles.push(clone(op.v)); else doc.articles[k] = clone(op.v); }
+  else if (op.t === 'meta') { doc[op.k] = op.v; }
+  else if (op.t === 'day') { if (!doc.jours[op.d]) doc.jours[op.d] = { livraisons: {}, restant: {} }; }
+  else if (op.t === 'delday') { var j = doc.jours[op.d]; if (j && !Object.keys(j.livraisons || {}).length && !Object.keys(j.restant || {}).length) delete doc.jours[op.d]; }
+  return doc;
+}
+function curDoc() { var c = STK.cur; return c.ops.reduce(function (d, op) { return applyOp(d, op); }, clone(c.remote)); }
+function opsKey(id) { return 'admin-stock-ops:' + id; }
+function persistCur() { var c = STK.cur; if (!c || c.demo) return; lsSet(opsKey(c.id), JSON.stringify({ remote: c.remote, sha: c.sha, ops: c.ops, isNew: c.isNew })); }
+function addOp(op) {
+  var c = STK.cur;
+  if (op.t === 'set') c.ops = c.ops.filter(function (x) { return !(x.t === 'set' && x.p.join('|') === op.p.join('|')); });
+  if (op.t === 'art') c.ops = c.ops.filter(function (x) { return !(x.t === 'art' && x.v.id === op.v.id); });
+  if (op.t === 'meta') c.ops = c.ops.filter(function (x) { return !(x.t === 'meta' && x.k === op.k); });
+  c.ops.push(op); c.doc = curDoc(); persistCur(); scheduleSave();
+}
+function scheduleSave() { clearTimeout(STK.timer); if (STK.cur && !STK.cur.demo && getToken()) STK.timer = setTimeout(function () { saveCur(); }, 6000); stkStatusRefresh(); }
+function saveCur(tries) {
+  var c = STK.cur; if (!c || c.saving) return;
+  clearTimeout(STK.timer);
+  if (c.demo) { c.remote = curDoc(); c.ops = []; c.savedAt = new Date(); stkStatusRefresh(); return; }
+  var token = getToken(); if (!token || (!c.ops.length && !c.isNew)) { stkStatusRefresh(); return; }
+  tries = tries || 0; c.saving = true; c.err = null; stkStatusRefresh();
+  var n = c.ops.length, id = c.id;
+  ghGetFile(stkPath(id), token).then(function (latest) {
+    if (c.isNew && latest) throw { custom: 'Un événement porte déjà cet identifiant sur GitHub. Choisissez un autre nom.' };
+    var base = latest ? latest.json : c.remote, next = c.ops.slice(0, n).reduce(function (d, op) { return applyOp(d, op); }, clone(base));
+    next.majLe = new Date().toISOString();
+    return ghPutFile(stkPath(id), next, latest && latest.sha, 'Stock ' + next.nom + ' (' + (c.isNew ? 'création' : 'mise à jour') + ')', token).then(function (res) {
+      c.remote = next; c.sha = res.content && res.content.sha; c.ops = c.ops.slice(n); c.isNew = false; c.saving = false; c.savedAt = new Date();
+      c.doc = curDoc(); STK.docs[id] = c.remote; persistCur(); if (!c.ops.length) lsSet(opsKey(id), null);
+      if (STK.list && !STK.list.some(function (x) { return x.id === id; })) STK.list.push(c.remote);
+      stkStatusRefresh(); if (c.ops.length) scheduleSave();
+    });
+  }).catch(function (e) {
+    c.saving = false;
+    if (e && (e.status === 409 || e.status === 422) && tries < 2) return saveCur(tries + 1);
+    c.err = e && e.custom ? e.custom : e && e.status === 0 ? 'offline' : stkErr(e);
+    stkStatusRefresh();
+  });
+}
+function stkErr(e) {
+  if (e && e.status === 404) return 'Le jeton n’a pas accès au dépôt ' + DATA_REPO + '. Créez ce dépôt privé et ajoutez-le au jeton (voir Paramètres).';
+  return ghErrText(e);
+}
+
+/* ---------- Calculs ---------- */
+function stkCalc(doc) {
+  var days = Object.keys(doc.jours || {}).sort(), per = {}, fin = {};
+  doc.articles.forEach(function (a) {
+    var stock = +(doc.stockInitial[a.id] || 0), pend = [];
+    per[a.id] = days.map(function (d) {
+      var j = doc.jours[d], liv = +((j.livraisons || {})[a.id] || 0), r = (j.restant || {})[a.id], row = { debut: stock, liv: liv, dispo: stock + liv, restant: r == null ? null : +r, conso: null, couvre: [] };
+      if (row.restant != null) { row.conso = row.dispo - row.restant; row.couvre = pend; pend = []; stock = row.restant; }
+      else { pend = pend.concat([d]); stock = row.dispo; }
+      return row;
+    });
+    fin[a.id] = stock;
+  });
+  return { days: days, per: per, fin: fin };
+}
+function dayProgress(doc, d) { var arts = doc.articles.filter(function (a) { return a.actif !== false; }), r = (doc.jours[d] || {}).restant || {}; return { n: arts.filter(function (a) { return r[a.id] != null; }).length, tot: arts.length }; }
+function groupArticles(arts) {
+  var g = {}, order = [];
+  arts.forEach(function (a) { var k = (a.categorie || '').trim() || 'Sans catégorie'; if (!g[k]) { g[k] = []; order.push(k); } g[k].push(a); });
+  return order.map(function (k) { return { cat: k, items: g[k] }; });
+}
+
+/* ---------- Chargement ---------- */
+function stkLoadList() {
+  var token = getToken(); if (!token) { STK.list = null; render(); return; }
+  STK.loading = true; STK.err = null; render();
+  ghFetch('/repos/' + DATA_REPO + '/contents/stock', {}, token).then(function (files) {
+    var js = (files || []).filter(function (f) { return /\.json$/.test(f.name); });
+    return Promise.all(js.map(function (f) { return ghGetFile('stock/' + f.name, token).then(function (r) { if (r) STK.docs[r.json.id] = r.json; return r && r.json; }); }));
+  }, function (e) { if (e.status === 404 || e.status === 409) return ghFetch('/repos/' + DATA_REPO, {}, token).then(function () { return []; }); throw e; })
+    .then(function (docs) { STK.loading = false; STK.list = docs.filter(Boolean); render(); })
+    .catch(function (e) { STK.loading = false; STK.err = e.status === 0 ? 'offline' : stkErr(e); STK.list = STK.list || []; render(); });
+}
+function stkOpen(id) {
+  var saved = lsGet(opsKey(id)), o = null; try { o = saved ? JSON.parse(saved) : null; } catch (e) {}
+  var remote = o ? o.remote : STK.docs[id];
+  STK.cur = { id: id, remote: clone(remote), sha: o ? o.sha : null, ops: o ? o.ops : [], isNew: o ? o.isNew : false, saving: false, savedAt: null, err: null };
+  STK.cur.doc = curDoc(); STK.view = 'event'; STK.tab = 'jour'; STK.confirm = null; STK.msg = null;
+  var days = Object.keys(STK.cur.doc.jours).sort(); STK.day = days[days.length - 1] || null;
+  if (!STK.cur.doc.articles.length) STK.tab = 'articles';
+  render(); window.scrollTo(0, 0);
+  if (STK.cur.ops.length || STK.cur.isNew) saveCur();
+  else if (getToken()) ghGetFile(stkPath(id), getToken()).then(function (r) { if (r && STK.cur && STK.cur.id === id && !STK.cur.ops.length) { STK.cur.remote = r.json; STK.cur.sha = r.sha; STK.cur.doc = curDoc(); STK.docs[id] = r.json; render(); } }, function () {});
+}
+function demoEvent() {
+  var arts = [['a1', 'Jupiler fût 50 L', 'fûts', 'Bières'], ['a2', 'Bière spéciale', 'bouteilles', 'Bières'], ['a3', 'Coca-Cola 33 cl', 'canettes', 'Softs'], ['a4', 'Eau plate 50 cl', 'bouteilles', 'Softs'], ['a5', 'Vin rouge', 'bouteilles', 'Vins'], ['a6', 'Cava', 'bouteilles', 'Bulles'], ['a7', 'Gobelets 25 cl', 'pièces', 'Matériel']];
+  var init = { a1: 12, a2: 240, a3: 480, a4: 360, a5: 60, a6: 48, a7: 5000 };
+  var d1 = { a1: 7, a2: 150, a3: 310, a4: 250, a5: 41, a6: 30, a7: 3400 }, d2 = { a1: 3, a2: 60, a3: 120, a4: 160, a5: 22, a6: 14, a7: 1500 };
+  return { format: 'admin/stock', formatVersion: 1, id: 'exemple', nom: 'Chlorophylle Night (exemple)', debut: '2026-10-16', statut: 'ouvert', creeLe: '2026-10-16T10:00:00Z', demo: true,
+    articles: arts.map(function (a) { return { id: a[0], nom: a[1], unite: a[2], categorie: a[3], actif: true }; }), stockInitial: init,
+    jours: { '2026-10-16': { livraisons: {}, restant: d1 }, '2026-10-17': { livraisons: { a1: 4, a3: 240 }, restant: d2 }, '2026-10-18': { livraisons: {}, restant: { a1: 2, a2: 31 } } } };
+}
+
+/* ---------- Rendu ---------- */
+function renderStock() {
+  var el = document.getElementById('mod');
+  if (STK.view === 'event' && STK.cur) { el.innerHTML = vStkEvent() + vToast(); return; }
+  if (STK.view === 'new') { el.innerHTML = vStkNew() + vToast(); return; }
+  if (getToken() && STK.list === null && !STK.loading && !STK.err) { stkLoadList(); return; }
+  el.innerHTML = vStkList() + vToast();
+}
+function vStkList() {
+  var unlocked = !!getToken();
+  var band = '<div class="band"><div class="band-top"><h1>Stock</h1></div><p class="soon-lead">Un stock par événement : encodez le stock de départ, comptez le restant chaque jour, clôturez en fin d’événement pour voir la consommation jour par jour.</p>' +
+    '<div class="cat-acts" style="max-width:1180px;margin:16px auto 0">' + (unlocked ? '<button class="pick" data-s="new">+ Nouvel événement</button>' : '<button class="pick" data-a="go" data-v="parametres">Déverrouiller l’appareil</button>') +
+    '<button class="ghost" data-s="demo">Essayer avec un exemple</button>' + (unlocked ? '<button class="ghost" data-s="reloadList"' + (STK.loading ? ' disabled' : '') + '>Actualiser</button>' : '') + '</div></div>';
+  var body = '';
+  if (!unlocked) body += '<div class="alerts"><div class="alert">Le stock est enregistré dans le dépôt privé <span class="mono">' + esc(DATA_REPO) + '</span>. Déverrouillez l’appareil dans Paramètres pour le consulter et le mettre à jour.</div></div>';
+  if (STK.err) body += '<div class="alerts"><div class="alert err">' + (STK.err === 'offline' ? ghErrText({ status: 0 }) : STK.err) + '</div></div>';
+  if (STK.loading) body += '<section><p class="empty">Chargement des événements…</p></section>';
+  else if (unlocked && STK.list) {
+    var open = STK.list.filter(function (d) { return d.statut !== 'cloture'; }), closed = STK.list.filter(function (d) { return d.statut === 'cloture'; });
+    function card(d) {
+      var days = Object.keys(d.jours || {}).sort(), last = days[days.length - 1];
+      return '<button class="evcard" data-s="open" data-v="' + esc(d.id) + '"><span class="state ' + (d.statut === 'cloture' ? '' : 'ok') + '">' + (d.statut === 'cloture' ? 'Clôturé' : 'En cours') + '</span><h3>' + esc(d.nom) + '</h3>' +
+        '<p class="num">' + dmy(d.debut) + (last && last !== d.debut ? ' → ' + dmy(last) : '') + ' · ' + days.length + ' jour' + (days.length > 1 ? 's' : '') + ' · ' + d.articles.length + ' article' + (d.articles.length > 1 ? 's' : '') + '</p></button>';
+    }
+    body += '<section><h3>En cours</h3>' + (open.length ? '<div class="evgrid">' + open.map(card).join('') + '</div>' : '<p class="empty">Aucun événement en cours. Créez-en un avec « Nouvel événement ».</p>') + '</section>';
+    if (closed.length) body += '<section><h3>Clôturés</h3><div class="evgrid">' + closed.sort(function (a, b) { return a.debut < b.debut ? 1 : -1; }).map(card).join('') + '</div></section>';
+  }
+  return band + '<main>' + body + '</main>';
+}
+function vStkNew() {
+  var f = STK.newForm || (STK.newForm = { nom: '', debut: todayIso(), from: '', carry: true });
+  var prev = (STK.list || []).slice().sort(function (a, b) { return a.debut < b.debut ? 1 : -1; });
+  return '<div class="band"><div class="band-top"><h1>Nouvel événement</h1></div></div><main><section><form class="stkform" data-s-form="new">' +
+    '<label class="fl" for="evNom">Nom de l’événement</label><input type="text" id="evNom" required value="' + esc(f.nom) + '" placeholder="Ex. Chlorophylle Night 2026">' +
+    '<label class="fl" for="evDebut">Premier jour</label><input type="date" id="evDebut" required value="' + esc(f.debut) + '">' +
+    (prev.length ? '<label class="fl" for="evFrom">Reprendre les articles de</label><select id="evFrom"><option value="">Aucun : je crée ma liste</option>' + prev.map(function (d) { return '<option value="' + esc(d.id) + '"' + (f.from === d.id ? ' selected' : '') + '>' + esc(d.nom) + ' (' + dmy(d.debut) + ')</option>'; }).join('') + '</select>' +
+      '<label class="tog"><input type="checkbox" id="evCarry"' + (f.carry ? ' checked' : '') + '>Avec leur stock restant comme stock de départ</label>' : '') +
+    '<div class="cbtns"><button class="pick" type="submit">Créer l’événement</button><button class="btn" type="button" data-s="back">Annuler</button></div></form></section></main>';
+}
+function stkStatusHtml() {
+  var c = STK.cur; if (!c) return '';
+  if (c.demo) return '<span class="sv demo">Exemple : rien n’est enregistré sur GitHub</span>';
+  if (c.saving) return '<span class="sv">Enregistrement…</span>';
+  if (c.err === 'offline') return '<span class="sv warn">Hors ligne : ' + c.ops.length + ' modification' + (c.ops.length > 1 ? 's gardées' : ' gardée') + ' sur l’appareil</span> <button class="ghost sm" data-s="save">Réessayer</button>';
+  if (c.err) return '<span class="sv err">' + c.err + '</span> <button class="ghost sm" data-s="save">Réessayer</button>';
+  if (!getToken() && c.ops.length) return '<span class="sv warn">' + c.ops.length + ' modification(s) non enregistrée(s) : déverrouillez l’appareil</span>';
+  if (c.ops.length) return '<span class="sv warn">' + c.ops.length + ' modification' + (c.ops.length > 1 ? 's' : '') + ' en attente</span> <button class="ghost sm" data-s="save">Enregistrer maintenant</button>';
+  return '<span class="sv ok">Enregistré sur GitHub' + (c.savedAt ? ' à ' + String(c.savedAt.getHours()).padStart(2, '0') + ':' + String(c.savedAt.getMinutes()).padStart(2, '0') : '') + '</span>';
+}
+function stkStatusRefresh() { var s = document.getElementById('stkStatus'); if (s) s.innerHTML = stkStatusHtml(); }
+function vStkEvent() {
+  var c = STK.cur, d = c.doc, closed = d.statut === 'cloture';
+  var tabs = [['jour', 'Comptage du jour'], ['articles', 'Articles et stock de départ'], ['bilan', closed ? 'Bilan' : 'Bilan et clôture']];
+  var band = '<div class="band"><p class="crumb"><button class="linkish" data-s="back">← Tous les événements</button></p><div class="band-top"><h1>' + esc(d.nom) + (closed ? '<span class="pill">Clôturé</span>' : '') + '</h1></div>' +
+    '<p class="cat-status num" style="max-width:1180px;margin:6px auto 0">Depuis le ' + dmy(d.debut) + ' · <span id="stkStatus">' + stkStatusHtml() + '</span></p>' +
+    '<div class="stabs" role="tablist">' + tabs.map(function (t) { return '<button role="tab" aria-selected="' + (STK.tab === t[0]) + '" class="' + (STK.tab === t[0] ? 'on' : '') + '" data-s="tab" data-v="' + t[0] + '">' + t[1] + '</button>'; }).join('') + '</div></div>';
+  var body = STK.tab === 'articles' ? vStkArticles(d, closed) : STK.tab === 'bilan' ? vStkBilan(d, closed) : vStkDay(d, closed);
+  return band + '<main>' + (STK.msg ? '<div class="alerts"><div class="alert' + (STK.msg.err ? ' err' : STK.msg.ok ? ' ok' : '') + '">' + STK.msg.t + '</div></div>' : '') + body + '</main>';
+}
+function vStkDay(d, closed) {
+  var calc = stkCalc(d), days = calc.days, arts = d.articles.filter(function (a) { return a.actif !== false; });
+  if (!arts.length) return '<section><h3>Aucun article</h3><p class="lead">Ajoutez d’abord les articles et leur stock de départ.</p><button class="btn" data-s="tab" data-v="articles">Ajouter des articles</button></section>';
+  if (STK.day && days.indexOf(STK.day) < 0) STK.day = days[days.length - 1] || null;
+  var chips = days.map(function (x) { var p = dayProgress(d, x); return '<button class="chip' + (STK.day === x ? ' on' : '') + '" data-s="day" data-v="' + x + '">' + shortDate(x) + (p.n === p.tot ? ' ✓' : '') + '</button>'; }).join('');
+  var next = days.length ? addDays(days[days.length - 1], 1) : d.debut;
+  var head = '<section class="dayhead"><div class="fgroup"><span>Jour</span>' + chips + (closed ? '' : '<button class="chip add" data-s="addDay" data-v="' + next + '">+ ' + shortDate(next) + '</button>') + '</div>' +
+    (!closed ? '<p class="hint" style="margin-top:8px">Autre date : <input type="date" id="otherDay" aria-label="Ajouter un autre jour"> <button class="btn sm" data-s="addOther">Ajouter</button></p>' : '') + '</section>';
+  if (!STK.day) return head + '<section><p class="empty">Ajoutez le premier jour (' + longDate(d.debut) + ') pour commencer le comptage.</p></section>';
+  var di = days.indexOf(STK.day), p = dayProgress(d, STK.day), j = d.jours[STK.day];
+  var rows = groupArticles(arts).map(function (g) {
+    return '<tr class="cat"><td colspan="5">' + esc(g.cat) + '</td></tr>' + g.items.map(function (a) {
+      var r = calc.per[a.id][di], warn = r.conso != null && r.conso < -0.001;
+      return '<tr id="row-' + esc(a.id) + '"><td><strong>' + esc(a.nom) + '</strong><span class="sub">' + esc(a.unite || '') + '</span></td>' +
+        '<td class="r num" data-k="debut">' + fmtQ(r.debut) + '</td>' +
+        '<td class="r"><input type="text" inputmode="decimal" class="qty num" id="liv-' + esc(a.id) + '" aria-label="Livré ' + esc(a.nom) + '" data-sf="liv" data-v="' + esc(a.id) + '" value="' + fmtQ((j.livraisons || {})[a.id]) + '" placeholder="livré"' + (closed ? ' disabled' : '') + '></td>' +
+        '<td class="r"><input type="text" inputmode="decimal" class="qty num cnt" id="rest-' + esc(a.id) + '" aria-label="Restant compté ' + esc(a.nom) + '" data-sf="rest" data-v="' + esc(a.id) + '" value="' + fmtQ((j.restant || {})[a.id]) + '" placeholder="à compter"' + (closed ? ' disabled' : '') + '></td>' +
+        '<td class="r num' + (warn ? ' neg' : '') + '" data-k="conso">' + vConsoCell(r) + '</td></tr>';
+    }).join('');
+  }).join('');
+  return head + '<section><div class="row-between"><h3>' + longDate(STK.day).replace(/^./, function (c) { return c.toUpperCase(); }) + '</h3><span class="prog num" id="dayProg">' + p.n + ' / ' + p.tot + ' comptés</span></div>' +
+    '<p class="lead">Notez les livraisons du jour et comptez ce qui reste en fin de journée. Consommé = début + livré − restant.</p>' +
+    '<div class="scroll"><table class="stab"><thead><tr><th>Article</th><th class="r">Début</th><th class="r">Livré</th><th class="r">Restant compté</th><th class="r">Consommé</th></tr></thead><tbody>' + rows + '</tbody></table></div>' +
+    (!closed && !Object.keys(j.livraisons || {}).length && !Object.keys(j.restant || {}).length ? '<p style="margin:14px 0 0"><button class="btn danger" data-s="delDay" data-v="' + STK.day + '">Retirer ce jour</button></p>' : '') + '</section>';
+}
+function vConsoCell(r) {
+  if (r.conso == null) return '<span class="faint">—</span>';
+  return fmtQ(r.conso) + (r.conso < -0.001 ? '<span class="sub">restant &gt; disponible</span>' : '') + (r.couvre.length ? '<span class="sub">inclut ' + r.couvre.map(shortDate).join(', ') + '</span>' : '');
+}
+function vStkArticles(d, closed) {
+  var rows = d.articles.map(function (a) {
+    return '<tr class="' + (a.actif === false ? 'off' : '') + '"><td><input type="text" id="an-' + esc(a.id) + '" aria-label="Nom" data-sa="nom" data-v="' + esc(a.id) + '" value="' + esc(a.nom) + '"' + (closed ? ' disabled' : '') + '></td>' +
+      '<td><input type="text" list="unites" id="au-' + esc(a.id) + '" aria-label="Unité" data-sa="unite" data-v="' + esc(a.id) + '" value="' + esc(a.unite || '') + '"' + (closed ? ' disabled' : '') + '></td>' +
+      '<td><input type="text" list="stkcats" id="ac-' + esc(a.id) + '" aria-label="Catégorie" data-sa="categorie" data-v="' + esc(a.id) + '" value="' + esc(a.categorie || '') + '"' + (closed ? ' disabled' : '') + '></td>' +
+      '<td class="r"><input type="text" inputmode="decimal" class="qty num" id="ai-' + esc(a.id) + '" aria-label="Stock de départ" data-sa="init" data-v="' + esc(a.id) + '" value="' + fmtQ(d.stockInitial[a.id]) + '" placeholder="0"' + (closed ? ' disabled' : '') + '></td>' +
+      '<td class="c"><input type="checkbox" aria-label="Suivi" data-sa="actif" data-v="' + esc(a.id) + '"' + (a.actif !== false ? ' checked' : '') + (closed ? ' disabled' : '') + '></td></tr>';
+  }).join('');
+  var cats = {}; d.articles.forEach(function (a) { if (a.categorie) cats[a.categorie] = 1; });
+  return '<section><h3>Articles et stock de départ</h3><p class="lead">Le stock de départ est ce que vous avez avant le premier jour. Un article ajouté en cours d’événement : laissez le départ à 0 et notez sa quantité en « Livré » le jour où il arrive. Décochez « Suivi » pour masquer un article sans perdre son historique.</p>' +
+    '<datalist id="unites">' + UNITES.map(function (u) { return '<option value="' + u + '">'; }).join('') + '</datalist><datalist id="stkcats">' + Object.keys(cats).map(function (k) { return '<option value="' + esc(k) + '">'; }).join('') + '</datalist>' +
+    '<div class="scroll"><table class="stab arts"><thead><tr><th>Article</th><th>Unité</th><th>Catégorie</th><th class="r">Départ</th><th class="c">Suivi</th></tr></thead><tbody>' + (rows || '<tr><td colspan="5" class="empty">Aucun article pour l’instant.</td></tr>') + '</tbody></table></div>' +
+    (closed ? '' : '<p style="margin:14px 0 0"><button class="btn" data-s="addArt">+ Ajouter un article</button></p>') + '</section>';
+}
+function vStkBilan(d, closed) {
+  var calc = stkCalc(d), days = calc.days, arts = d.articles;
+  if (!days.length || !arts.length) return '<section><p class="empty">Le bilan apparaîtra après le premier comptage.</p></section>';
+  var missing = []; days.forEach(function (x) { var p = dayProgress(d, x); if (p.n < p.tot) missing.push(shortDate(x) + ' (' + (p.tot - p.n) + ' non compté' + (p.tot - p.n > 1 ? 's' : '') + ')'); });
+  var head = '<thead><tr><th>Article</th><th class="r">Départ</th><th class="r">Livré</th>' + days.map(function (x) { return '<th class="r">' + shortDate(x) + '</th>'; }).join('') + '<th class="r">Total consommé</th><th class="r">Restant</th></tr></thead>';
+  var body = groupArticles(arts).map(function (g) {
+    return '<tr class="cat"><td colspan="' + (days.length + 5) + '">' + esc(g.cat) + '</td></tr>' + g.items.map(function (a) {
+      var rows = calc.per[a.id], liv = rows.reduce(function (s, r) { return s + r.liv; }, 0), tot = rows.reduce(function (s, r) { return s + (r.conso || 0); }, 0);
+      var pending = rows.length && rows[rows.length - 1].restant == null;
+      return '<tr><td><strong>' + esc(a.nom) + '</strong><span class="sub">' + esc(a.unite || '') + '</span></td><td class="r num">' + fmtQ(+(d.stockInitial[a.id] || 0)) + '</td><td class="r num">' + (liv ? fmtQ(liv) : '<span class="faint">0</span>') + '</td>' +
+        rows.map(function (r) { return '<td class="r num' + (r.conso != null && r.conso < -0.001 ? ' neg' : '') + '">' + (r.conso == null ? '<span class="faint">—</span>' : fmtQ(r.conso)) + '</td>'; }).join('') +
+        '<td class="r num"><strong>' + fmtQ(tot) + '</strong></td><td class="r num">' + fmtQ(calc.fin[a.id]) + (pending ? '<span class="sub">non compté</span>' : '') + '</td></tr>';
+    }).join('');
+  }).join('');
+  var clot = '';
+  if (!closed) {
+    clot = STK.confirm === 'close'
+      ? '<section class="pubpanel"><h3>Clôturer « ' + esc(d.nom) + ' » ?</h3><p class="lead">L’événement passe en lecture seule. Vous pourrez le rouvrir si besoin.</p>' + (missing.length ? '<div class="alert">Comptages incomplets : ' + missing.join(', ') + '. Les jours non comptés sont reportés sur le jour compté suivant.</div>' : '') +
+        '<div class="cbtns" style="margin-top:12px"><button class="pick" data-s="close">Clôturer</button><button class="btn" data-s="cancel">Annuler</button></div></section>'
+      : '<section><h3>Clôture</h3><p class="lead">En fin d’événement, clôturez pour figer les comptages.' + (missing.length ? ' Encore à compter : ' + missing.join(', ') + '.' : ' Tous les jours sont comptés.') + '</p><button class="pick" data-s="askClose">Clôturer l’événement</button></section>';
+  } else clot = '<section><h3>Clôturé le ' + dmy((d.clotureLe || '').slice(0, 10)) + '</h3><p class="lead">Les comptages sont figés.</p><button class="btn" data-s="reopen">Rouvrir l’événement</button></section>';
+  return '<section><div class="row-between"><h3>Consommation jour par jour</h3><button class="btn" data-s="csv">Exporter pour Excel</button></div>' +
+    '<p class="lead">Consommé = début + livré − restant compté. Un « — » signale un jour pas encore compté : sa consommation est comptée le jour compté suivant.</p>' +
+    '<div class="scroll"><table class="stab bil">' + head + '<tbody>' + body + '</tbody></table></div></section>' + clot;
+}
+
+/* ---------- Événements ---------- */
+function stkSoftRow(aid) {
+  var d = STK.cur.doc, calc = stkCalc(d), di = calc.days.indexOf(STK.day), tr = document.getElementById('row-' + aid); if (!tr || di < 0) return;
+  var r = calc.per[aid][di], cell = tr.querySelector('[data-k=conso]'); cell.innerHTML = vConsoCell(r); cell.classList.toggle('neg', r.conso != null && r.conso < -0.001);
+  var p = dayProgress(d, STK.day), pe = document.getElementById('dayProg'); if (pe) pe.textContent = p.n + ' / ' + p.tot + ' comptés';
+}
+function stkCsv() {
+  var d = STK.cur.doc, calc = stkCalc(d), rows = [['Catégorie', 'Article', 'Unité', 'Départ', 'Livré'].concat(calc.days.map(function (x) { return 'Consommé ' + dmy(x); })).concat(['Total consommé', 'Restant'])];
+  d.articles.forEach(function (a) { var r = calc.per[a.id]; rows.push([a.categorie || '', a.nom, a.unite || '', +(d.stockInitial[a.id] || 0), r.reduce(function (s, x) { return s + x.liv; }, 0)].concat(r.map(function (x) { return x.conso == null ? '' : x.conso; })).concat([r.reduce(function (s, x) { return s + (x.conso || 0); }, 0), calc.fin[a.id]])); });
+  download('stock_' + d.id + '.csv', rows); toast('Fichier pour Excel téléchargé');
+}
+function stkClick(el) {
+  var s = el.getAttribute('data-s'), v = el.getAttribute('data-v'), c = STK.cur;
+  if (s === 'new') { STK.view = 'new'; STK.newForm = null; render(); return; }
+  if (s === 'back') { if (c && c.ops.length && !c.demo) saveCur(); STK.view = 'list'; STK.cur = null; STK.msg = null; render(); return; }
+  if (s === 'reloadList') { STK.list = null; STK.err = null; stkLoadList(); return; }
+  if (s === 'demo') { STK.cur = { id: 'exemple', demo: true, remote: demoEvent(), ops: [], sha: null }; STK.cur.doc = curDoc(); STK.view = 'event'; STK.tab = 'jour'; STK.day = '2026-10-18'; STK.msg = null; STK.confirm = null; render(); window.scrollTo(0, 0); return; }
+  if (s === 'open') { stkOpen(v); return; }
+  if (s === 'tab') { STK.tab = v; STK.confirm = null; STK.msg = null; render(); return; }
+  if (s === 'day') { STK.day = v; render(); return; }
+  if (s === 'addDay') { addOp({ t: 'day', d: v }); STK.day = v; render(); return; }
+  if (s === 'addOther') { var o = document.getElementById('otherDay').value; if (!o) { toast('Choisissez une date'); return; } addOp({ t: 'day', d: o }); STK.day = o; render(); return; }
+  if (s === 'delDay') { addOp({ t: 'delday', d: v }); STK.day = null; render(); return; }
+  if (s === 'save') { if (c) { c.err = null; saveCur(); } return; }
+  if (s === 'addArt') { var t = {}; c.doc.articles.forEach(function (a) { t[a.id] = 1; }); var id = uid('a', t), last = c.doc.articles[c.doc.articles.length - 1];
+    addOp({ t: 'art', v: { id: id, nom: '', unite: last ? last.unite : 'bouteilles', categorie: last ? last.categorie : '', actif: true } }); render(); var f = document.getElementById('an-' + id); if (f) f.focus(); return; }
+  if (s === 'askClose') { STK.confirm = 'close'; render(); return; }
+  if (s === 'cancel') { STK.confirm = null; render(); return; }
+  if (s === 'close') { addOp({ t: 'meta', k: 'statut', v: 'cloture' }); addOp({ t: 'meta', k: 'clotureLe', v: new Date().toISOString() }); STK.confirm = null; saveCur(); STK.msg = { ok: true, t: 'Événement clôturé. Le bilan ci-dessous est définitif.' }; render(); return; }
+  if (s === 'reopen') { addOp({ t: 'meta', k: 'statut', v: 'ouvert' }); addOp({ t: 'meta', k: 'clotureLe', v: null }); saveCur(); STK.msg = { t: 'Événement rouvert.' }; render(); return; }
+  if (s === 'csv') { stkCsv(); return; }
+}
+function stkInput(el) {
+  var c = STK.cur; if (!c) return;
+  var f = el.getAttribute('data-sf') || el.getAttribute('data-sa'), aid = el.getAttribute('data-v');
+  if (el.hasAttribute('data-sf')) {
+    var q = parseQ(el.value); el.classList.toggle('bad', q !== null && (isNaN(q) || q < 0)); if (q !== null && (isNaN(q) || q < 0)) return;
+    addOp({ t: 'set', p: ['jours', STK.day, f === 'liv' ? 'livraisons' : 'restant', aid], v: f === 'liv' && q === 0 ? null : q });
+    stkSoftRow(aid); return;
+  }
+  if (f === 'init') { var qi = parseQ(el.value); el.classList.toggle('bad', qi !== null && (isNaN(qi) || qi < 0)); if (qi !== null && (isNaN(qi) || qi < 0)) return; addOp({ t: 'set', p: ['stockInitial', aid], v: qi || null }); return; }
+  var a = clone(c.doc.articles.filter(function (x) { return x.id === aid; })[0]); if (!a) return;
+  if (f === 'actif') { a.actif = el.checked; el.closest('tr').classList.toggle('off', !el.checked); } else a[f] = el.value;
+  addOp({ t: 'art', v: a });
+}
+function stkSubmitNew() {
+  var nom = document.getElementById('evNom').value.trim(), debut = document.getElementById('evDebut').value, fromEl = document.getElementById('evFrom'), from = fromEl ? fromEl.value : '', carry = document.getElementById('evCarry') ? document.getElementById('evCarry').checked : false;
+  STK.newForm = { nom: nom, debut: debut, from: from, carry: carry };
+  if (!nom || !debut) { toast('Indiquez le nom et le premier jour'); return; }
+  var id = slug(nom, 32) + '-' + debut, taken = (STK.list || []).some(function (d) { return d.id === id; });
+  if (taken) { toast('Un événement avec ce nom et cette date existe déjà'); return; }
+  var doc = { format: 'admin/stock', formatVersion: 1, id: id, nom: nom, debut: debut, statut: 'ouvert', creeLe: new Date().toISOString(), articles: [], stockInitial: {}, jours: {} };
+  if (from && STK.docs[from]) { var src = STK.docs[from], fin = stkCalc(src).fin; doc.articles = clone(src.articles); if (carry) src.articles.forEach(function (a) { if (fin[a.id]) doc.stockInitial[a.id] = fin[a.id]; }); }
+  STK.cur = { id: id, remote: doc, sha: null, ops: [], isNew: true, saving: false }; STK.cur.doc = curDoc(); persistCur();
+  STK.view = 'event'; STK.tab = 'articles'; STK.day = null; STK.msg = { ok: true, t: 'Événement créé. Vérifiez les articles et le stock de départ, puis passez au comptage du jour.' };
+  render(); saveCur();
+}
+document.addEventListener('click', function (e) { var b = e.target.closest('[data-s]'); if (b && !b.disabled) stkClick(b); });
+document.addEventListener('input', function (e) { if ((e.target.hasAttribute('data-sf') || e.target.hasAttribute('data-sa')) && e.target.type !== 'checkbox') stkInput(e.target); });
+document.addEventListener('change', function (e) { if (e.target.hasAttribute('data-sa') && e.target.type === 'checkbox') stkInput(e.target); });
+document.addEventListener('submit', function (e) { if (e.target.closest('[data-s-form]')) { e.preventDefault(); stkSubmitNew(); } });
+window.addEventListener('online', function () { if (STK.cur && STK.cur.ops.length) saveCur(); });
+document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'hidden' && STK.cur && STK.cur.ops.length) saveCur(); });
+function stkHomeStatus() { if (!getToken()) return 'Déverrouillez l’appareil pour l’utiliser'; if (!STK.list) return 'Comptage quotidien par événement'; var o = STK.list.filter(function (d) { return d.statut !== 'cloture'; }).length; return o + ' événement' + (o > 1 ? 's' : '') + ' en cours'; }
 
 /* ---------- Événements ---------- */
 document.addEventListener('click', function (e) {
