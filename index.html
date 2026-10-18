@@ -264,7 +264,26 @@ main select,main input[type=date]{font:inherit;color:var(--ink);background:var(-
 .stab tr.off td{opacity:.55}
 form.stkform{display:flex;flex-direction:column;gap:8px;max-width:520px}
 form.stkform .cbtns{margin-top:10px}
-@media (max-width:560px){.stab:not(.bil):not(.arts) thead{display:none}.stab:not(.bil):not(.arts),.stab:not(.bil):not(.arts) tbody{display:block}.stab:not(.bil):not(.arts) tr{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px 8px;padding:10px 0;border-bottom:1px solid var(--soft)}.stab:not(.bil):not(.arts) tr.cat{display:block}.stab:not(.bil):not(.arts) td{border:none;padding:0}.stab:not(.bil):not(.arts) td:first-child{grid-column:1/-1}.stab:not(.bil):not(.arts) td[data-k=debut]::before{content:"Début ";color:var(--muted);font-size:12px}.stab:not(.bil):not(.arts) td[data-k=conso]::before{content:"Consommé ";color:var(--muted);font-size:12px}.stab:not(.bil):not(.arts) td[data-k]{text-align:left}.stab .qty{width:100%}}
+@media (max-width:560px){.stab:not(.bil):not(.arts) thead{display:none}.stab:not(.bil):not(.arts),.stab:not(.bil):not(.arts) tbody{display:block}.stab:not(.bil):not(.arts) tr{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px 8px;padding:10px 0;border-bottom:1px solid var(--soft)}.stab:not(.bil):not(.arts) tr.cat{display:block}.stab:not(.bil):not(.arts) td{border:none;padding:0}.stab:not(.bil):not(.arts) td:first-child{grid-column:1/-1}.stab:not(.bil):not(.arts) td[data-k=debut]::before{content:"Début ";color:var(--muted);font-size:12px}.stab:not(.bil):not(.arts) td[data-k=conso]::before{content:"Consommé ";color:var(--muted);font-size:12px}.stab:not(.bil):not(.arts) td[data-k]{text-align:left}.stab .qty{width:100%}.qwrap{display:flex;flex-wrap:wrap}.qwrap .qty{flex:1;min-width:0}.qadd{flex-wrap:nowrap}.qadd .addin{flex:1;width:auto}}
+
+/* ---------- Bilan : dépôt des ventes ---------- */
+.ghpanel{border:2px solid var(--gold)}
+.ghdays{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:10px}
+.ghday{display:flex;flex-direction:column;gap:6px;border:1px solid var(--line);border-radius:12px;padding:10px 12px;background:var(--bg)}
+.ghdate{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.ghday .tog{white-space:normal}
+.tog.got{cursor:default}
+
+/* Stock : bouton + pour additionner un comptage */
+[hidden]{display:none!important}
+.qwrap{display:inline-flex;flex-wrap:wrap;align-items:center;justify-content:flex-end;gap:6px;max-width:100%}
+.qplus{width:36px;height:36px;flex:none;border-radius:50%;border:1px solid var(--green);background:var(--surface);color:var(--green);font-size:20px;font-weight:700;line-height:1;padding:0}
+.qplus:hover{background:var(--green);color:var(--surface)}
+.qwrap .qplus[hidden]{display:block!important;visibility:hidden}
+.qadd{display:inline-flex;align-items:center;gap:6px;flex-basis:100%;justify-content:flex-end}
+.qadd .qsign{font-weight:800;color:var(--green);font-size:18px}
+.qadd .addin{width:90px;border-color:var(--green)}
+.qadd .btn.sm{height:36px}
 @media (max-width:860px){section.half{grid-column:span 12}.filters .right{margin-left:0}}
 @media (max-width:560px){.brand .lbl{display:none}.brand img{height:34px}.brand .name b{font-size:18px}.filters{position:static}.band-top img{height:38px}.band-top h1{font-size:18px}section{padding:16px 14px}td,th{padding:8px 6px}.band-top .tools .lbl{display:none}}
 @media print{
@@ -395,9 +414,9 @@ function warnings() {
 /* ---------- Rendu ---------- */
 function renderBilan() {
   var app = document.getElementById('mod');
-  if (!activeFiles().length) { app.innerHTML = vBand(null) + (FILES.length ? '<main>' + vAlerts() + '</main>' : '') + vToast(); bindDrop(); return; }
+  if (!activeFiles().length) { app.innerHTML = vBand(null) + (FILES.length || BGH.open ? '<main>' + vGhPanel() + vAlerts() + '</main>' : '') + vToast(); bindDrop(); return; }
   var list = filtered(), S = stats(list);
-  app.innerHTML = vBand(S) + vFilters() + '<main>' + vAlerts() + vBars(S) + vHours(S) + vArticles(S) + vAdjust(S) + vFiles() + '</main>' + vToast();
+  app.innerHTML = vBand(S) + vFilters() + '<main>' + vGhPanel() + vAlerts() + vBars(S) + vHours(S) + vArticles(S) + vAdjust(S) + vFiles() + '</main>' + vToast();
   bindDrop();
 }
 function vToast() { return toastMsg ? '<div class="toast" role="status">' + esc(toastMsg) + '</div>' : ''; }
@@ -410,7 +429,7 @@ function vBand(S) {
     return '<div class="band">' + top + '<div class="drop" id="drop"><h2>Déposez les exports des bars</h2>' +
       '<p>Glissez ici tous les fichiers <strong>ventes_….json</strong> téléchargés depuis la Caisse Bar, de tous les bars et de toutes les soirées. Ils restent sur cet appareil : rien n\u2019est envoyé sur internet.</p>' +
       '<div class="acts"><label class="pick">Choisir des fichiers<input type="file" accept=".json,application/json" multiple data-files></label>' +
-      '<button class="demo" data-a="demo">Essayer avec des exemples</button></div></div></div>';
+      '<button class="demo" data-g="open">Charger depuis le dépôt</button><button class="demo" data-a="demo">Essayer avec des exemples</button></div></div></div>';
   }
   var title = F.soiree === 'all' ? 'Toutes les soirées' : 'Soirée du ' + longDate(F.soiree);
   if (F.bar !== 'all') { var b = bars().filter(function (x) { return x.id === F.bar; })[0]; if (b) title += ', ' + b.nom; }
@@ -432,7 +451,7 @@ function vFilters() {
     (bs.length > 1 ? '<div class="fgroup"><span>Bar</span><button class="chip' + (F.bar === 'all' ? ' on' : '') + '" data-a="bar" data-v="all">Tous</button>' +
       bs.map(function (b) { return '<button class="chip' + (F.bar === b.id ? ' on' : '') + '" data-a="bar" data-v="' + esc(b.id) + '">' + esc(b.nom) + '</button>'; }).join('') + '</div>' : '') +
     '<div class="right"><label class="btn">+ Ajouter des fichiers<input type="file" accept=".json,application/json" multiple data-files></label>' +
-    '<button class="btn" data-a="print">Imprimer</button><button class="btn" data-a="csv">Exporter pour Excel</button></div></div></div>';
+    '<button class="btn" data-g="open">+ Depuis le dépôt</button><button class="btn" data-a="print">Imprimer</button><button class="btn" data-a="csv">Exporter pour Excel</button></div></div></div>';
 }
 function vAlerts() {
   var w = warnings(); if (!w.length) return '';
@@ -644,13 +663,25 @@ function render() {
 /* Jeton GitHub chiffré (AES-GCM, clé dérivée de la phrase de passe par PBKDF2-SHA256).
    null = pas encore installée : la préparer dans Paramètres > Préparer la clé chiffrée. */
 var CLE_CHIFFREE = {"v":1,"kdf":"PBKDF2-SHA256","iter":600000,"salt":"vUwwcs4M/mqMq6WMLCAzNQ==","iv":"gdSuBk0tfqR5VHw2","data":"uLaOeXDUXboZ8ASpQiHBBHaPgCAJg6PMtgAJMViM76s5dAJyIHAEBJvU5m+cQ9E/iG3VXQHag2UBu7cWAQPcRTKc1wqDMkpXimJFi22k4YuKnLiZNS1vgU7ydoOzDBUP/nOtqumJ48Zjf5IpNQ=="};
-var TOKEN_KEY = 'admin-gh-token', LOCAL_CLE_KEY = 'admin-cle-chiffree';
+/* Clés supplémentaires : autres jetons GitHub chiffrés avec la MÊME phrase de passe (un seul déverrouillage pour tous). */
+var CLES_SUPP = [];
+var TOKEN_KEY = 'admin-gh-token', LOCAL_CLE_KEY = 'admin-cle-chiffree', TOKENS_KEY = 'admin-gh-tokens', MAP_KEY = 'admin-gh-map';
+var tokensMem = null;
 var tokenMem = null;
 function lsGet(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
 function lsSet(k, v) { try { if (v == null) localStorage.removeItem(k); else localStorage.setItem(k, v); return true; } catch (e) { return false; } }
 function getToken() { return lsGet(TOKEN_KEY) || tokenMem; }
-function setToken(t) { tokenMem = t; lsSet(TOKEN_KEY, t); }
-function getCle() { if (CLE_CHIFFREE) return CLE_CHIFFREE; var l = lsGet(LOCAL_CLE_KEY); try { return l ? JSON.parse(l) : null; } catch (e) { return null; } }
+function getTokens() { try { var t = JSON.parse(lsGet(TOKENS_KEY) || 'null'); if (Array.isArray(t) && t.length) return t; } catch (e) {} if (tokensMem && tokensMem.length) return tokensMem; var one = getToken(); return one ? [one] : []; }
+function setTokens(list) { list = list && list.length ? list : null; tokensMem = list; tokenMem = list ? list[0] : null; lsSet(TOKENS_KEY, list ? JSON.stringify(list) : null); lsSet(TOKEN_KEY, list ? list[0] : null); lsSet(MAP_KEY, null); }
+function setToken(t) { setTokens(t ? [t] : null); }
+function addToken(t) { var l = getTokens().slice(); if (l.indexOf(t) < 0) l.push(t); setTokens(l); }
+/* Jeton à utiliser pour un dépôt (établi par « Tester l'accès aux dépôts », fait aussi au déverrouillage) */
+function tokenFor(repo) { var ts = getTokens(); if (ts.length < 2) return ts[0] || null; var m = {}; try { m = JSON.parse(lsGet(MAP_KEY) || '{}'); } catch (e) {} return ts[m[repo]] || ts[0]; }
+function localCles() { var l = lsGet(LOCAL_CLE_KEY); if (!l) return []; try { var o = JSON.parse(l); return Array.isArray(o) ? o : [o]; } catch (e) { return []; } }
+function embeddedCles() { return (CLE_CHIFFREE ? [CLE_CHIFFREE] : []).concat(CLES_SUPP); }
+function pendingLocalCles() { var emb = embeddedCles(); return localCles().filter(function (c) { return !emb.some(function (x) { return x.data === c.data; }); }); }
+function allCles() { return embeddedCles().concat(pendingLocalCles()); }
+function getCle() { return allCles()[0] || null; }
 function normPass(p) { return String(p || '').normalize('NFC').trim().replace(/\s+/g, ' ').toLowerCase(); }
 function b64e(buf) { var s = '', a = new Uint8Array(buf); for (var i = 0; i < a.length; i++) s += String.fromCharCode(a[i]); return btoa(s); }
 function b64d(str) { var s = atob(str), a = new Uint8Array(s.length); for (var i = 0; i < s.length; i++) a[i] = s.charCodeAt(i); return a; }
@@ -687,6 +718,7 @@ function GhError(status, msg) { this.status = status; this.message = msg; }
 function ghFetch(path, opts, token) {
   opts = opts || {};
   var h = { 'Accept': 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28' };
+  if (token && !opts.exact) { var rm = /^\/repos\/([^/]+\/[^/?]+)/.exec(path); if (rm) token = tokenFor(rm[1]) || token; }
   if (token) h.Authorization = 'Bearer ' + token;
   if (opts.body) h['Content-Type'] = 'application/json';
   return fetch('https://api.github.com' + path, { method: opts.method || 'GET', headers: h, body: opts.body, cache: 'no-store' })
@@ -952,21 +984,22 @@ function renderParametres() {
   var pub = '<section><h3>Publication sur GitHub</h3><p class="lead">Pour publier le catalogue depuis cet appareil, déverrouillez-le une fois avec la phrase de passe admin. Elle n’est pas enregistrée ; seul le jeton déchiffré reste sur l’appareil.</p>' +
     '<p><span class="state ' + (unlocked ? 'ok' : 'lock') + '">' + (unlocked ? 'Déverrouillé sur cet appareil' : 'Verrouillé') + '</span></p>' +
     (PAR.msg ? '<div class="alert' + (PAR.msg.err ? ' err' : PAR.msg.ok ? ' ok' : '') + '">' + PAR.msg.t + '</div>' : '') +
-    (!CLE_CHIFFREE && lsGet(LOCAL_CLE_KEY) ? '<div class="alert">La clé chiffrée n\u2019existe que sur cet appareil. Copiez-la ci-dessous et envoyez-la à Claude pour que les autres appareils puissent se déverrouiller avec la phrase de passe.</div>' : '') +
+    (pendingLocalCles().length ? '<div class="alert">' + (pendingLocalCles().length > 1 ? pendingLocalCles().length + ' clés chiffrées n\u2019existent' : 'Une clé chiffrée n\u2019existe') + ' que sur cet appareil. Copiez-la ci-dessous et envoyez-la à Claude pour que les autres appareils en profitent.</div>' : '') +
+    (unlocked && getTokens().length > 1 ? '<p class="hint">' + getTokens().length + ' jetons GitHub déverrouillés sur cet appareil.</p>' : '') +
     (unlocked ? '<div class="cbtns"><button class="btn" data-p="test"' + (PAR.busy ? ' disabled' : '') + '>Tester l’accès aux dépôts</button><button class="btn danger" data-p="lock">Verrouiller cet appareil</button></div>' + vTests()
       : cle ? '<form class="unlock" data-p-form="unlock"><label class="fl" for="pp">Phrase de passe admin</label><div class="row2"><input type="password" id="pp" autocomplete="current-password" autocapitalize="none" spellcheck="false" required><button class="pick" type="submit"' + (PAR.busy ? ' disabled' : '') + '>' + (PAR.busy ? 'Vérification…' : 'Déverrouiller') + '</button></div><p class="hint">Majuscules et espaces en trop ne comptent pas.</p></form>'
         : '<div class="alert">Aucune clé chiffrée n’est encore installée dans l’app. Préparez-la ci-dessous (une seule fois, sur un appareil de confiance).</div>') + '</section>';
-  var prep = '<section><details' + (cle && (CLE_CHIFFREE || !lsGet(LOCAL_CLE_KEY)) ? '' : ' open') + '><summary><h3>Préparer la clé chiffrée</h3></summary>' +
-    '<p class="lead">À faire une fois par saison, ou quand le jeton expire. Le jeton est chiffré sur cet appareil ; ni le jeton ni la phrase ne quittent la page.</p>' +
-    '<ol class="steps"><li><strong>Créer le jeton sur GitHub</strong> : <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">github.com › Fine-grained token</a>. Expiration : fin de saison. Repository access : <em>Only select repositories</em> → ' + REPOS.concat([{ id: DATA_REPO }]).map(function (r) { return '<span class="mono">' + esc(r.id.split('/')[1]) + '</span>'; }).join(', ') + '. Permissions → Repository → <em>Contents : Read and write</em>. Rien d’autre.</li>' +
+  var prep = '<section><details' + (cle && !pendingLocalCles().length ? '' : ' open') + '><summary><h3>Préparer une clé chiffrée</h3></summary>' +
+    '<p class="lead">À faire une fois par saison, quand un jeton expire, ou pour <strong>ajouter un deuxième jeton</strong>. Chaque jeton donne une clé ; les clés s\u2019ajoutent, elles ne se remplacent pas. Utilisez <strong>la même phrase de passe</strong> pour toutes : un seul déverrouillage suffit. Ni le jeton ni la phrase ne quittent la page.</p>' +
+    '<ol class="steps"><li><strong>Créer le jeton sur GitHub</strong> : <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">github.com › Fine-grained token</a>. Expiration : fin de saison. Repository access : <em>Only select repositories</em> → ' + REPOS.concat([{ id: DATA_REPO }, { id: SALES_REPO }]).map(function (r) { return '<span class="mono">' + esc(r.id.split('/')[1]) + '</span>'; }).join(', ') + '. Permissions → Repository → <em>Contents : Read and write</em>. Rien d’autre.</li>' +
     '<li><strong>Coller le jeton et choisir la phrase de passe</strong>.</li><li><strong>Envoyer le texte obtenu à Claude</strong>, qui l’installe dans l’app. Toutes les tablettes Admin pourront alors se déverrouiller avec la phrase.</li></ol>' +
     '<form class="prep" data-p-form="prep"><label class="fl" for="tok">Jeton GitHub</label><input type="password" id="tok" autocomplete="off" spellcheck="false" placeholder="github_pat_…" required>' +
     '<label class="fl" for="np1">Phrase de passe (4 à 5 mots)</label><input type="password" id="np1" autocomplete="new-password" autocapitalize="none" spellcheck="false" required data-p-strength>' +
     '<p class="hint" id="strength">Au moins 20 caractères.</p>' +
     '<label class="fl" for="np2">Retaper la phrase</label><input type="password" id="np2" autocomplete="new-password" autocapitalize="none" spellcheck="false" required>' +
-    '<label class="tog"><input type="checkbox" id="alsoUnlock" checked>Déverrouiller aussi cet appareil</label>' +
-    '<div><button class="pick" type="submit"' + (PAR.busy ? ' disabled' : '') + '>Chiffrer le jeton</button></div></form>' +
-    ((PAR.out || (!CLE_CHIFFREE && lsGet(LOCAL_CLE_KEY))) ? '<div class="outbox"><label class="fl" for="cleOut">Clé chiffrée à envoyer à Claude</label><p class="hint">Cette clé a été préparée sur cet appareil. Tant qu\u2019elle n\u2019est pas intégrée dans l\u2019app, les autres appareils ne peuvent pas se déverrouiller.</p><textarea id="cleOut" readonly rows="5" class="mono">' + esc(PAR.out || lsGet(LOCAL_CLE_KEY)) + '</textarea><div class="cbtns"><button class="btn" data-p="copy">Copier</button></div></div>' : '') +
+    '<label class="tog"><input type="checkbox" id="alsoUnlock" checked>Utiliser aussi ce jeton sur cet appareil</label>' +
+    '<div><button class="pick" type="submit"' + (PAR.busy ? ' disabled' : '') + '>' + (PAR.busy ? 'Chiffrement…' : 'Chiffrer et ajouter le jeton') + '</button></div></form>' +
+    pendingLocalCles().map(function (c, i, arr) { return '<div class="outbox"><label class="fl" for="cleOut-' + i + '">Clé chiffrée' + (arr.length > 1 ? ' n° ' + (i + 1) : '') + ' à envoyer à Claude</label><p class="hint">Préparée sur cet appareil. Tant qu\u2019elle n\u2019est pas intégrée dans l\u2019app, les autres appareils n\u2019en profitent pas.</p><textarea id="cleOut-' + i + '" readonly rows="5" class="mono">' + esc(JSON.stringify(c)) + '</textarea><div class="cbtns"><button class="btn" data-p="copy" data-v="' + i + '">Copier</button></div></div>'; }).join('') +
     '</details></section>';
   document.getElementById('mod').innerHTML = '<div class="band"><div class="band-top"><h1>Paramètres</h1></div><p class="soon-lead">Réglages de cet appareil.</p></div><main>' + pub + prep + '</main>' + vToast();
 }
@@ -975,31 +1008,51 @@ function vTests() {
   return '<ul class="plan tests">' + PAR.tests.map(function (t) { return '<li><strong>' + esc(t.nom) + '</strong> : ' + t.t + '</li>'; }).join('') + '</ul>';
 }
 function testRepos() {
-  var token = getToken(); PAR.busy = true; PAR.tests = null; render();
-  Promise.all(REPOS.concat([{ id: DATA_REPO, nom: 'Données du stock (' + DATA_REPO.split('/')[1] + ')' }]).map(function (r) {
-    return ghFetch('/repos/' + r.id, {}, token).then(function (j) {
-      return { nom: r.nom, t: j.permissions && j.permissions.push ? '<span class="good">écriture autorisée</span>' : '<span class="bad">lecture seule : le catalogue ne pourra pas être publié</span>' };
-    }, function (e) { return { nom: r.nom, t: '<span class="bad">' + ghErrText(e, 'd’accéder') + '</span>' }; });
-  })).then(function (res) { PAR.busy = false; PAR.tests = res; render(); });
+  var tokens = getTokens(); PAR.busy = true; PAR.tests = null; render();
+  var repos = REPOS.concat([{ id: DATA_REPO, nom: 'Données du stock (' + DATA_REPO.split('/')[1] + ')' }, { id: SALES_REPO, nom: 'Ventes des caisses (' + SALES_REPO.split('/')[1] + ', lecture pour le Bilan)', lecture: true }]);
+  Promise.all(repos.map(function (r) {
+    return Promise.all(tokens.map(function (t, ti) {
+      return ghFetch('/repos/' + r.id, { exact: true }, t).then(function (j) { return { ti: ti, ok: true, push: !!(j.permissions && j.permissions.push) }; }, function (e) { return { ti: ti, ok: false, e: e }; });
+    })).then(function (res) {
+      var best = res.filter(function (x) { return x.ok && (r.lecture || x.push); })[0] || res.filter(function (x) { return x.ok; })[0], tag = tokens.length > 1 && best ? ' <span class="faint">(jeton ' + (best.ti + 1) + ')</span>' : '';
+      if (!best) return { id: r.id, nom: r.nom, t: '<span class="bad">' + ghErrText(res[0] && res[0].e, 'd\u2019accéder') + '</span>' };
+      return { id: r.id, ti: best.ti, nom: r.nom, t: (r.lecture ? '<span class="good">lecture autorisée</span>' : best.push ? '<span class="good">écriture autorisée</span>' : '<span class="bad">lecture seule : impossible d\u2019enregistrer</span>') + tag };
+    });
+  })).then(function (res) {
+    var map = {}; res.forEach(function (x) { if (x.ti != null) map[x.id] = x.ti; }); lsSet(MAP_KEY, JSON.stringify(map));
+    PAR.busy = false; PAR.tests = res; render();
+  });
 }
 function parSubmit(form) {
   var kind = form.getAttribute('data-p-form');
   if (kind === 'unlock') {
     var pass = document.getElementById('pp').value; PAR.busy = true; PAR.msg = null; render();
-    decryptToken(getCle(), pass).then(function (tok) { setToken(tok); PAR.busy = false; PAR.msg = { ok: true, t: 'Appareil déverrouillé. Vous pouvez publier le catalogue.' }; testRepos(); },
-      function () { PAR.busy = false; PAR.msg = { err: true, t: 'Phrase de passe incorrecte. Vérifiez les mots et leur ordre.' }; render(); var f = document.getElementById('pp'); if (f) f.focus(); });
+    var cles = allCles();
+    Promise.all(cles.map(function (c) { return decryptToken(c, pass).then(function (t) { return t; }, function () { return null; }); })).then(function (toks) {
+      var ok = []; toks.forEach(function (t) { if (t && ok.indexOf(t) < 0) ok.push(t); });
+      PAR.busy = false;
+      if (!ok.length) { PAR.msg = { err: true, t: 'Phrase de passe incorrecte. Vérifiez les mots et leur ordre.' }; render(); var f = document.getElementById('pp'); if (f) f.focus(); return; }
+      setTokens(ok);
+      PAR.msg = { ok: true, t: 'Appareil déverrouillé' + (ok.length > 1 ? ' (' + ok.length + ' jetons)' : '') + (ok.length < cles.length ? '. ' + (cles.length - ok.length) + ' clé(s) n\u2019ont pas été ouvertes avec cette phrase.' : '.') };
+      testRepos();
+    });
   } else if (kind === 'prep') {
     var tok = document.getElementById('tok').value.trim(), p1 = document.getElementById('np1').value, p2 = document.getElementById('np2').value, also = document.getElementById('alsoUnlock').checked;
     if (!/^(github_pat_|ghp_)[A-Za-z0-9_]{20,}$/.test(tok)) { PAR.msg = { err: true, t: 'Le jeton ne ressemble pas à un jeton GitHub (il commence par « github_pat_ »).' }; render(); return; }
     if (!passStrength(p1).ok) { PAR.msg = { err: true, t: 'Phrase de passe trop courte : au moins 20 caractères.' }; render(); return; }
     if (normPass(p1) !== normPass(p2)) { PAR.msg = { err: true, t: 'Les deux phrases de passe sont différentes.' }; render(); return; }
     PAR.busy = true; PAR.msg = null; render();
-    encryptToken(tok, p1).then(function (blob) {
-      PAR.busy = false; PAR.out = JSON.stringify(blob); lsSet(LOCAL_CLE_KEY, PAR.out);
-      if (also) setToken(tok);
-      PAR.msg = { ok: true, t: 'Clé chiffrée prête. Envoyez-la à Claude pour l’installer dans l’app' + (also ? ' ; cet appareil est déjà déverrouillé.' : '.') };
-      render(); if (also) testRepos();
-    }, function (e) { PAR.busy = false; PAR.msg = { err: true, t: 'Chiffrement impossible sur ce navigateur (' + esc(e && e.message || e) + ').' }; render(); });
+    var first = getCle();
+    (first ? decryptToken(first, p1).then(function (t) { return t; }, function () { return false; }) : Promise.resolve(null)).then(function (chk) {
+      if (chk === false) { PAR.busy = false; PAR.msg = { err: true, t: 'Utilisez la même phrase de passe que la clé déjà installée : ainsi un seul déverrouillage ouvre tous les jetons.' }; render(); return; }
+      if (chk && chk === tok) { PAR.busy = false; PAR.msg = { err: true, t: 'Ce jeton est déjà dans la clé installée : rien à ajouter. Pour donner accès à un nouveau dépôt, modifiez simplement ce jeton sur GitHub (Edit).' }; render(); return; }
+      return encryptToken(tok, p1).then(function (blob) {
+        var list = localCles(); list.push(blob); lsSet(LOCAL_CLE_KEY, JSON.stringify(list)); PAR.out = JSON.stringify(blob);
+        if (also) addToken(tok);
+        PAR.busy = false; PAR.msg = { ok: true, t: 'Clé chiffrée ajoutée. Envoyez-la à Claude pour l\u2019installer dans l\u2019app' + (also ? ' ; cet appareil peut déjà l\u2019utiliser.' : '.') };
+        render(); if (also) testRepos();
+      });
+    }).catch(function (e) { PAR.busy = false; PAR.msg = { err: true, t: 'Chiffrement impossible sur ce navigateur (' + esc(e && e.message || e) + ').' }; render(); });
   }
 }
 function parClick(el) {
@@ -1007,7 +1060,7 @@ function parClick(el) {
   if (p === 'lock') { setToken(null); PAR.tests = null; PAR.msg = { t: 'Appareil verrouillé. La phrase de passe sera demandée pour publier.' }; render(); }
   else if (p === 'test') testRepos();
   else if (p === 'copy') {
-    var ta = document.getElementById('cleOut');
+    var ta = document.getElementById('cleOut-' + (el.getAttribute('data-v') || 0));
     var done = function () { toast('Clé copiée'); }, fail = function () { ta.focus(); ta.select(); toast('Sélectionnée : copiez-la avec Ctrl+C'); };
     try { navigator.clipboard.writeText(ta.value).then(done, fail); } catch (e) { fail(); }
   }
@@ -1228,8 +1281,8 @@ function vStkDay(d, closed) {
       var r = calc.per[a.id][di], warn = r.conso != null && r.conso < -0.001;
       return '<tr id="row-' + esc(a.id) + '"><td><strong>' + esc(a.nom) + '</strong><span class="sub">' + esc(a.unite || '') + '</span></td>' +
         '<td class="r num" data-k="debut">' + fmtQ(r.debut) + '</td>' +
-        '<td class="r"><input type="text" inputmode="decimal" class="qty num" id="liv-' + esc(a.id) + '" aria-label="Livré ' + esc(a.nom) + '" data-sf="liv" data-v="' + esc(a.id) + '" value="' + fmtQ((j.livraisons || {})[a.id]) + '" placeholder="livré"' + (closed ? ' disabled' : '') + '></td>' +
-        '<td class="r"><input type="text" inputmode="decimal" class="qty num cnt" id="rest-' + esc(a.id) + '" aria-label="Restant compté ' + esc(a.nom) + '" data-sf="rest" data-v="' + esc(a.id) + '" value="' + fmtQ((j.restant || {})[a.id]) + '" placeholder="à compter"' + (closed ? ' disabled' : '') + '></td>' +
+        '<td class="r">' + vQtyCell('liv', a, fmtQ((j.livraisons || {})[a.id]), 'livré', 'Livré', closed) + '</td>' +
+        '<td class="r">' + vQtyCell('rest', a, fmtQ((j.restant || {})[a.id]), 'à compter', 'Restant compté', closed) + '</td>' +
         '<td class="r num' + (warn ? ' neg' : '') + '" data-k="conso">' + vConsoCell(r) + '</td></tr>';
     }).join('');
   }).join('');
@@ -1237,6 +1290,34 @@ function vStkDay(d, closed) {
     '<p class="lead">Notez les livraisons du jour et comptez ce qui reste en fin de journée. Consommé = début + livré − restant.</p>' +
     '<div class="scroll"><table class="stab"><thead><tr><th>Article</th><th class="r">Début</th><th class="r">Livré</th><th class="r">Restant compté</th><th class="r">Consommé</th></tr></thead><tbody>' + rows + '</tbody></table></div>' +
     (!closed && !Object.keys(j.livraisons || {}).length && !Object.keys(j.restant || {}).length ? '<p style="margin:14px 0 0"><button class="btn danger" data-s="delDay" data-v="' + STK.day + '">Retirer ce jour</button></p>' : '') + '</section>';
+}
+/* Champ de quantité + bouton « + » (visible seulement quand le champ a déjà une valeur) pour ajouter un comptage */
+function vQtyCell(f, a, val, ph, lab, closed) {
+  var id = (f === 'liv' ? 'liv-' : 'rest-') + esc(a.id);
+  return '<span class="qwrap"><input type="text" inputmode="decimal" class="qty num' + (f === 'rest' ? ' cnt' : '') + '" id="' + id + '" aria-label="' + lab + ' ' + esc(a.nom) + '" data-sf="' + f + '" data-v="' + esc(a.id) + '" value="' + val + '" placeholder="' + ph + '"' + (closed ? ' disabled' : '') + '>' +
+    (closed ? '' : '<button type="button" class="qplus" data-s="plus" data-v="' + id + '" aria-label="Ajouter au ' + lab.toLowerCase() + ' de ' + esc(a.nom) + '" title="Ajouter une quantité"' + (val === '' ? ' hidden' : '') + '>+</button>') + '</span>';
+}
+function qtyPlusOpen(id) {
+  var main = document.getElementById(id); if (!main) return;
+  var wrap = main.parentNode; if (wrap.querySelector('.qadd')) { wrap.querySelector('.qadd input').focus(); return; }
+  var box = document.createElement('span'); box.className = 'qadd';
+  box.innerHTML = '<span class="qsign">+</span><input type="text" inputmode="decimal" class="qty num addin" aria-label="Quantité à ajouter" placeholder="à ajouter"><button type="button" class="btn sm qok">OK</button><button type="button" class="btn sm qx" aria-label="Annuler">✕</button>';
+  wrap.appendChild(box);
+  var inp = box.querySelector('input'), done = false;
+  function close() { done = true; if (box.parentNode) box.parentNode.removeChild(box); }
+  function commit() {
+    if (done) return; var add = parseQ(inp.value);
+    if (add === null) { close(); return; }
+    if (isNaN(add) || add < 0) { inp.classList.add('bad'); inp.focus(); return; }
+    var base = parseQ(main.value) || 0, tot = Math.round((base + add) * 100) / 100;
+    close(); main.value = fmtQ(tot); stkInput(main);
+    toast((main.getAttribute('data-sf') === 'liv' ? 'Livré' : 'Restant') + ' : ' + fmtQ(base) + ' + ' + fmtQ(add) + ' = ' + fmtQ(tot));
+  }
+  inp.addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); commit(); } else if (e.key === 'Escape') { e.preventDefault(); close(); main.focus(); } });
+  inp.addEventListener('blur', function () { setTimeout(function () { if (!done && document.activeElement !== inp && !box.contains(document.activeElement)) commit(); }, 150); });
+  box.querySelector('.qok').addEventListener('click', commit);
+  box.querySelector('.qx').addEventListener('click', function () { close(); });
+  inp.focus();
 }
 function vConsoCell(r) {
   if (r.conso == null) return '<span class="faint">—</span>';
@@ -1282,6 +1363,88 @@ function vStkBilan(d, closed) {
     '<div class="scroll"><table class="stab bil">' + head + '<tbody>' + body + '</tbody></table></div></section>' + clot;
 }
 
+
+/* ================= Bilan : charger depuis le dépôt privé des ventes ================= */
+/* Les caisses envoient leurs exports dans le dépôt privé SALES_REPO. On liste tous les .json du dépôt
+   (API git/trees, récursif) et on les range par date trouvée dans le chemin (AAAA-MM-JJ). */
+var SALES_REPO = 'scraper147/ventes';
+var BGH = { open: false, loading: false, files: null, sel: {}, err: null, busy: false };
+function bghErr(e) {
+  if (e && e.status === 0) return ghErrText(e);
+  if (e && (e.status === 404 || e.status === 403)) return 'Le jeton n’a pas accès au dépôt ' + SALES_REPO + '. Ajoutez-le au jeton sur GitHub (voir Paramètres).';
+  return ghErrText(e);
+}
+function bghParse(path) {
+  var name = path.split('/').pop(), m = /(\d{4})-?(\d{2})-?(\d{2})/.exec(path), date = m ? m[1] + '-' + m[2] + '-' + m[3] : null;
+  var label = name.replace(/\.json$/i, '').replace(/(\d{4})-?(\d{2})-?(\d{2})/, '').replace(/^ventes/i, '').replace(/[_\-]+/g, ' ').trim();
+  var dir = path.indexOf('/') > 0 ? path.slice(0, path.lastIndexOf('/')) : '';
+  return { path: path, name: name, date: date, label: label || name, dir: dir };
+}
+function bghOpen() {
+  BGH.open = true; BGH.err = null;
+  var token = getToken(); if (!token) { render(); return; }
+  BGH.loading = true; render();
+  ghFetch('/repos/' + SALES_REPO + '/git/trees/HEAD?recursive=1', {}, token).then(function (t) {
+    return (t.tree || []).filter(function (x) { return x.type === 'blob' && /\.json$/i.test(x.path); }).map(function (x) { return bghParse(x.path); });
+  }, function (e) { if (e.status === 409) return []; throw e; }).then(function (l) {
+    BGH.loading = false; BGH.files = l.sort(function (a, b) { return (a.date || '') < (b.date || '') ? 1 : (a.date || '') > (b.date || '') ? -1 : a.label.localeCompare(b.label); }); render();
+  }, function (e) { BGH.loading = false; BGH.err = bghErr(e); BGH.files = []; render(); });
+}
+function bghRaw(path, token) {
+  token = tokenFor(SALES_REPO) || token;
+  return fetch('https://api.github.com/repos/' + SALES_REPO + '/contents/' + path.split('/').map(encodeURIComponent).join('/'), { headers: { 'Accept': 'application/vnd.github.raw', 'Authorization': 'Bearer ' + token, 'X-GitHub-Api-Version': '2022-11-28' }, cache: 'no-store' })
+    .then(function (r) { if (!r.ok) throw new GhError(r.status, ''); return r.text(); }, function () { throw new GhError(0, 'network'); });
+}
+function fileKey(p) { return p.replace(/\//g, ' › '); }
+function bghLoad(paths, soiree, quiet) {
+  var token = getToken(); if (!token || !paths.length) return;
+  BGH.busy = true; render();
+  var have = {}; FILES.forEach(function (f) { have[f.name] = 1; });
+  var todo = paths.filter(function (p) { return !have[fileKey(p)]; });
+  var skipped = 0;
+  Promise.all(todo.map(function (p) { return bghRaw(p, token).then(function (txt) { return { p: p, txt: txt }; }); })).then(function (res) {
+    res.forEach(function (r) {
+      var entry = { name: fileKey(r.p), data: null, status: 'err', note: '' };
+      try { var d = JSON.parse(r.txt); if (d && d.format === 'caisse-bar/ventes' && Array.isArray(d.ventes)) { entry.data = d; entry.status = 'ok'; } else entry.note = 'Ce fichier n’est pas un export de ventes de la Caisse Bar.'; } catch (e) { entry.note = 'Fichier illisible (JSON invalide).'; }
+      if (entry.status === 'ok' || !quiet) FILES.push(entry); else skipped++;
+    });
+    dedupe(); BGH.busy = false; BGH.open = false; BGH.sel = {};
+    var ss = soirees(); F.soiree = soiree && ss.indexOf(soiree) >= 0 ? soiree : (!F.soiree || ss.indexOf(F.soiree) < 0 ? ss[0] || null : F.soiree);
+    var nb = res.length - skipped;
+    toast(nb ? nb + ' fichier' + (nb > 1 ? 's' : '') + ' chargé' + (nb > 1 ? 's' : '') + ' depuis le dépôt' : res.length ? 'Aucun fichier de la Caisse Bar pour cette soirée' : 'Ces fichiers sont déjà chargés');
+  }, function (e) { BGH.busy = false; BGH.err = bghErr(e); render(); });
+}
+function vGhPanel() {
+  if (!BGH.open) return '';
+  var h = '<section class="ghpanel"><div class="row-between"><h3>Charger depuis le dépôt des ventes</h3><button class="btn sm" data-g="close">Fermer</button></div>';
+  if (!getToken()) return h + '<p class="lead">Déverrouillez l’appareil dans Paramètres pour accéder au dépôt privé.</p><button class="btn" data-a="go" data-v="parametres">Aller dans Paramètres</button></section>';
+  if (BGH.err) h += '<div class="alert err">' + BGH.err + '</div>';
+  if (BGH.loading) return h + '<p class="empty">Chargement de la liste…</p></section>';
+  if (!BGH.files || !BGH.files.length) return h + (BGH.err ? '' : '<p class="empty">Aucun fichier de ventes dans le dépôt pour l’instant.</p>') + '</section>';
+  var days = {}, loaded = {}; BGH.files.forEach(function (f) { var k = f.date || 'sans-date'; (days[k] = days[k] || []).push(f); }); FILES.forEach(function (f) { loaded[f.name] = 1; });
+  var n = Object.keys(BGH.sel).filter(function (k) { return BGH.sel[k]; }).length;
+  h += '<p class="lead">Une soirée qui dépasse minuit est répartie sur deux jours : « Charger la soirée » prend le jour et le lendemain, en gardant seulement les fichiers de la Caisse Bar.</p><div class="ghdays">' +
+    Object.keys(days).sort().reverse().map(function (d) {
+      return '<div class="ghday"><div class="ghdate"><strong>' + (d === 'sans-date' ? 'Sans date' : longDate(d)) + '</strong>' + (d === 'sans-date' ? '' : '<button class="btn sm" data-g="soiree" data-v="' + d + '">Charger la soirée</button>') + '</div>' +
+        days[d].slice().sort(function (a, b) { return a.label.localeCompare(b.label); }).map(function (f) { var got = loaded[fileKey(f.path)];
+          return '<label class="tog' + (got ? ' got' : '') + '" title="' + esc(f.path) + '"><input type="checkbox" data-gsel="' + esc(f.path) + '"' + (got ? ' checked disabled' : BGH.sel[f.path] ? ' checked' : '') + '>' + esc(f.label) + (f.dir ? ' <span class="faint">' + esc(f.dir) + '</span>' : '') + (got ? ' <span class="faint">déjà chargé</span>' : '') + '</label>'; }).join('') + '</div>';
+    }).join('') + '</div>' +
+    '<div class="cbtns" style="margin-top:14px"><button class="pick" data-g="loadSel"' + (n && !BGH.busy ? '' : ' disabled') + '>' + (BGH.busy ? 'Chargement…' : 'Charger la sélection' + (n ? ' (' + n + ')' : '')) + '</button></div></section>';
+  return h;
+}
+function bghSoireePaths(d) { var nx = addDays(d, 1); return (BGH.files || []).filter(function (f) { return f.date === d || f.date === nx; }).map(function (f) { return f.path; }); }
+document.addEventListener('click', function (e) {
+  var b = e.target.closest('[data-g]'); if (!b || b.disabled) return;
+  var g = b.getAttribute('data-g'), v = b.getAttribute('data-v');
+  if (g === 'open') bghOpen();
+  else if (g === 'close') { BGH.open = false; render(); }
+  else if (g === 'loadSel') bghLoad(Object.keys(BGH.sel).filter(function (k) { return BGH.sel[k]; }));
+  else if (g === 'soiree') bghLoad(bghSoireePaths(v), v, true);
+});
+document.addEventListener('change', function (e) {
+  if (e.target.hasAttribute('data-gsel')) { BGH.sel[e.target.getAttribute('data-gsel')] = e.target.checked; var n = Object.keys(BGH.sel).filter(function (k) { return BGH.sel[k]; }).length, b = document.querySelector('[data-g=loadSel]'); if (b) { b.disabled = !n; b.textContent = 'Charger la sélection' + (n ? ' (' + n + ')' : ''); } }
+});
+
 /* ---------- Événements ---------- */
 function stkSoftRow(aid) {
   var d = STK.cur.doc, calc = stkCalc(d), di = calc.days.indexOf(STK.day), tr = document.getElementById('row-' + aid); if (!tr || di < 0) return;
@@ -1307,6 +1470,7 @@ function stkClick(el) {
   if (s === 'addDay') { addOp({ t: 'day', d: v }); STK.day = v; render(); return; }
   if (s === 'addOther') { var o = document.getElementById('otherDay').value; if (!o) { toast('Choisissez une date'); return; } addOp({ t: 'day', d: o }); STK.day = o; render(); return; }
   if (s === 'delDay') { addOp({ t: 'delday', d: v }); STK.day = null; render(); return; }
+  if (s === 'plus') { qtyPlusOpen(v); return; }
   if (s === 'save') { if (c) { c.err = null; saveCur(); } return; }
   if (s === 'addArt') { var t = {}; c.doc.articles.forEach(function (a) { t[a.id] = 1; }); var id = uid('a', t), last = c.doc.articles[c.doc.articles.length - 1];
     addOp({ t: 'art', v: { id: id, nom: '', unite: last ? last.unite : 'bouteilles', categorie: last ? last.categorie : '', actif: true } }); render(); var f = document.getElementById('an-' + id); if (f) f.focus(); return; }
@@ -1322,6 +1486,7 @@ function stkInput(el) {
   if (el.hasAttribute('data-sf')) {
     var q = parseQ(el.value); el.classList.toggle('bad', q !== null && (isNaN(q) || q < 0)); if (q !== null && (isNaN(q) || q < 0)) return;
     addOp({ t: 'set', p: ['jours', STK.day, f === 'liv' ? 'livraisons' : 'restant', aid], v: f === 'liv' && q === 0 ? null : q });
+    var pb = el.parentNode && el.parentNode.querySelector('.qplus'); if (pb) pb.hidden = el.value.trim() === '';
     stkSoftRow(aid); return;
   }
   if (f === 'init') { var qi = parseQ(el.value); el.classList.toggle('bad', qi !== null && (isNaN(qi) || qi < 0)); if (qi !== null && (isNaN(qi) || qi < 0)) return; addOp({ t: 'set', p: ['stockInitial', aid], v: qi || null }); return; }

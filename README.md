@@ -1,6 +1,6 @@
 # Admin Chlorophylle Night
 
-Application d'administration des caisses : **Bilan des ventes**, **Catalogue** (publié directement sur GitHub), **Stock** (comptage quotidien par événement) et **Paramètres**.
+Application d'administration des caisses : **Bilan des ventes** (fichiers déposés ou lus dans le dépôt privé `ventes`), **Catalogue** (publié directement sur GitHub), **Stock** (comptage quotidien par événement) et **Paramètres**.
 
 Elle s'installe sur un PC ou une tablette (Chrome / Edge) et fonctionne hors ligne. La publication du catalogue demande internet.
 
@@ -30,7 +30,7 @@ Elle s'installe sur un PC ou une tablette (Chrome / Edge) et fonctionne hors lig
 1. Dans l'app : **Paramètres → Préparer la clé chiffrée**.
 2. Créez le jeton GitHub (lien dans l'app) :
    - type **Fine-grained token**, expiration : fin de saison ;
-   - Repository access : **Only select repositories** → `bar`, `sapin` et `admin-donnees` ;
+   - Repository access : **Only select repositories** → `bar`, `sapin`, `admin-donnees` et `ventes` ;
    - Permissions → Repository → **Contents : Read and write**. Rien d'autre.
 3. Collez le jeton, choisissez une **phrase de passe de 4 à 5 mots**, cliquez **Chiffrer le jeton**.
 4. Envoyez le texte chiffré à Claude : il le place dans `index.html` (constante `CLE_CHIFFREE`). Redéposez `index.html` et augmentez le cache de `sw.js`.
@@ -42,15 +42,28 @@ Ni le jeton ni la phrase ne sont dans le code : seule la version chiffrée y est
 **Paramètres → Phrase de passe admin → Déverrouiller.** Ensuite, **Catalogue → Publier la version N**.
 **Verrouiller cet appareil** efface le jeton de l'appareil.
 
+### Ajouter un deuxième jeton
+
+Si un dépôt est couvert par un autre jeton, préparez une clé de plus dans **Paramètres → Préparer une clé chiffrée**, avec **la même phrase de passe**. Les clés s'ajoutent (elles ne se remplacent pas). Envoyez le texte à Claude, qui l'ajoute dans `index.html` (`CLES_SUPP`). Au déverrouillage, l'app ouvre tous les jetons et choisit pour chaque dépôt celui qui y a accès (**Tester l'accès aux dépôts** indique « jeton 1 », « jeton 2 »).
+
+Plus simple quand c'est possible : modifier le jeton existant sur GitHub (**Edit**) pour lui ajouter le dépôt ; aucune nouvelle clé n'est alors nécessaire.
+
 ### En cas de perte d'un appareil ou de fuite de la phrase
 
 Supprimez le jeton sur GitHub (Settings → Developer settings → Personal access tokens), puis refaites une clé chiffrée avec un nouveau jeton et une nouvelle phrase.
+
+## Bilan depuis le dépôt des ventes
+
+Les caisses envoient leurs exports dans le dépôt privé `ventes`. Le Bilan peut les lire directement :
+
+1. Ajoutez le dépôt `ventes` au jeton de l'app Admin (**Settings → Developer settings → Fine-grained tokens** → votre jeton → **Edit** → Repository access → ajoutez `ventes` → **Update**). La clé chiffrée reste valable.
+2. **Bilan → Charger depuis le dépôt** (ou **+ Depuis le dépôt**) : les fichiers sont rangés par jour (date lue dans le nom du fichier). Cochez ceux voulus, ou **Charger la soirée** (le jour et le lendemain, pour les ventes après minuit ; seuls les fichiers de la Caisse Bar sont gardés).
 
 ## Stock (comptage par événement)
 
 ### Une seule fois : le dépôt privé des données
 
-Le stock est enregistré dans un dépôt **privé** `admin-donnees` (un fichier par événement dans `stock/`), pour que toutes les tablettes partagent le même stock.
+Le stock est enregistré dans un dépôt **privé** `admin-donnees` (un fichier par événement dans `stock/`), partagé par toutes les tablettes.
 
 1. Sur GitHub, **New** : Repository name `admin-donnees`, cochez **Private**, cochez **Add a README file**, **Create repository**.
 2. Ajoutez ce dépôt au jeton existant, sans le changer : **Settings → Developer settings → Personal access tokens → Fine-grained tokens** → votre jeton → **Edit** → Repository access : ajoutez `admin-donnees` → **Update**. La clé chiffrée de l'app reste valable.
@@ -60,7 +73,7 @@ Le stock est enregistré dans un dépôt **privé** `admin-donnees` (un fichier 
 
 1. **Stock → Nouvel événement** : nom et premier jour (vous pouvez reprendre les articles et le stock restant d'un événement précédent).
 2. **Articles et stock de départ** : la liste des articles, leur unité et la quantité avant le premier jour.
-3. Chaque jour, **Comptage du jour** : notez les **livraisons** et comptez le **restant** en fin de journée. Consommé = début + livré − restant.
+3. Chaque jour, **Comptage du jour** : notez les **livraisons** et comptez le **restant** en fin de journée. Consommé = début + livré − restant. Stock réparti à plusieurs endroits : notez le premier comptage, puis le bouton **+** à côté du champ ajoute les suivants (7, puis + 8 = 15).
 4. Les modifications sont gardées sur la tablette et envoyées sur GitHub quelques secondes après (ou dès le retour d'internet). Deux tablettes peuvent compter en même temps.
 5. En fin d'événement : **Bilan et clôture → Clôturer l'événement**. Le bilan jour par jour s'exporte pour Excel.
 
@@ -72,6 +85,6 @@ Les appareils prennent la nouvelle version à la prochaine ouverture avec du ré
 
 ## Bon à savoir
 
-- Le Bilan ne garde pas les fichiers de ventes : rechargez-les à chaque ouverture. Ils ne quittent jamais l'appareil.
+- Le Bilan ne garde pas les fichiers de ventes : rechargez-les à chaque ouverture. Les fichiers déposés à la main ne quittent pas l'appareil.
 - Le catalogue en cours de modification est gardé sur l'appareil jusqu'à sa publication.
 - L'app partage la mémoire du navigateur avec les caisses installées sur le même appareil (adresse scraper147.github.io) ; elle n'y garde que des données très légères.
