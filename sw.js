@@ -5,7 +5,7 @@
 // Préfixe propre à CETTE app : les caisses partagent l'adresse scraper147.github.io,
 // il ne faut jamais toucher à leurs caches.
 var PREFIX = 'admin-chlorophylle-';
-var CACHE = PREFIX + 'v12';
+var CACHE = PREFIX + 'v13';
 var FILES = ['./', './index.html', './manifest.webmanifest',
   './icons/icon-192.png', './icons/icon-512.png', './icons/icon-maskable-512.png', './icons/apple-touch-icon.png'];
 
