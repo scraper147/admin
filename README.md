@@ -1,6 +1,6 @@
 # Admin Chlorophylle Night
 
-Application d'administration des caisses : **Bilan des ventes** (fichiers déposés ou lus dans le dépôt privé `ventes`), **Catalogue** (publié directement sur GitHub), **Stock** (comptage quotidien par événement) et **Paramètres**.
+Application d'administration des caisses : **Bilan des ventes** de la Caisse Bar et de la Caisse Sapins (fichiers déposés ou lus dans le dépôt privé `ventes`), **Catalogue** (publié directement sur GitHub), **Stock** (comptage quotidien par événement) et **Paramètres**.
 
 Elle s'installe sur un PC ou une tablette (Chrome / Edge) et fonctionne hors ligne. La publication du catalogue demande internet.
 
@@ -57,7 +57,7 @@ Supprimez le jeton sur GitHub (Settings → Developer settings → Personal acce
 Les caisses envoient leurs exports dans le dépôt privé `ventes`. Le Bilan peut les lire directement :
 
 1. Ajoutez le dépôt `ventes` au jeton de l'app Admin (**Settings → Developer settings → Fine-grained tokens** → votre jeton → **Edit** → Repository access → ajoutez `ventes` → **Update**). La clé chiffrée reste valable.
-2. **Bilan → Charger depuis le dépôt** (ou **+ Depuis le dépôt**) : un onglet par dossier du dépôt (Bar, Sapin…), puis les fichiers rangés par jour (date lue dans le nom du fichier). Cochez ceux voulus, ou **Charger les ventes** (le jour et le lendemain, pour les ventes après minuit ; seuls les fichiers de la Caisse Bar sont gardés).
+2. **Bilan → Charger depuis le dépôt** (ou **+ Depuis le dépôt**) : un onglet par dossier du dépôt (Bar, Sapin…), puis les fichiers rangés par jour (date lue dans le nom du fichier). Cochez ceux voulus, ou **Charger les ventes** (Caisse Bar : le jour et le lendemain, pour les ventes après minuit). Si des ventes Bar et Sapins sont chargées, un choix **Caisse** apparaît dans les filtres : les totaux ne mélangent jamais les deux caisses.
 
 ## Stock (comptage par événement)
 
