@@ -1423,9 +1423,9 @@ function vGhPanel() {
   if (!BGH.files || !BGH.files.length) return h + (BGH.err ? '' : '<p class="empty">Aucun fichier de ventes dans le dépôt pour l’instant.</p>') + '</section>';
   var days = {}, loaded = {}; BGH.files.forEach(function (f) { var k = f.date || 'sans-date'; (days[k] = days[k] || []).push(f); }); FILES.forEach(function (f) { loaded[f.name] = 1; });
   var n = Object.keys(BGH.sel).filter(function (k) { return BGH.sel[k]; }).length;
-  h += '<p class="lead">Une soirée qui dépasse minuit est répartie sur deux jours : « Charger la soirée » prend le jour et le lendemain, en gardant seulement les fichiers de la Caisse Bar.</p><div class="ghdays">' +
+  h += '<p class="lead">Une soirée qui dépasse minuit est répartie sur deux jours : « Charger les ventes » prend le jour et le lendemain, en gardant seulement les fichiers de la Caisse Bar.</p><div class="ghdays">' +
     Object.keys(days).sort().reverse().map(function (d) {
-      return '<div class="ghday"><div class="ghdate"><strong>' + (d === 'sans-date' ? 'Sans date' : longDate(d)) + '</strong>' + (d === 'sans-date' ? '' : '<button class="btn sm" data-g="soiree" data-v="' + d + '">Charger la soirée</button>') + '</div>' +
+      return '<div class="ghday"><div class="ghdate"><strong>' + (d === 'sans-date' ? 'Sans date' : longDate(d)) + '</strong>' + (d === 'sans-date' ? '' : '<button class="btn sm" data-g="soiree" data-v="' + d + '">Charger les ventes</button>') + '</div>' +
         days[d].slice().sort(function (a, b) { return a.label.localeCompare(b.label); }).map(function (f) { var got = loaded[fileKey(f.path)];
           return '<label class="tog' + (got ? ' got' : '') + '" title="' + esc(f.path) + '"><input type="checkbox" data-gsel="' + esc(f.path) + '"' + (got ? ' checked disabled' : BGH.sel[f.path] ? ' checked' : '') + '>' + esc(f.label) + (f.dir ? ' <span class="faint">' + esc(f.dir) + '</span>' : '') + (got ? ' <span class="faint">déjà chargé</span>' : '') + '</label>'; }).join('') + '</div>';
     }).join('') + '</div>' +
