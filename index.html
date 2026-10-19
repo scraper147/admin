@@ -268,7 +268,8 @@ form.stkform .cbtns{margin-top:10px}
 
 /* ---------- Bilan : dépôt des ventes ---------- */
 .ghpanel{border:2px solid var(--gold)}
-.ghdays{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:10px}
+.ghdays{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,300px),1fr));gap:10px}
+.ghdate .btn{white-space:nowrap;flex:none}
 .ghday{display:flex;flex-direction:column;gap:6px;border:1px solid var(--line);border-radius:12px;padding:10px 12px;background:var(--bg)}
 .ghdate{display:flex;justify-content:space-between;align-items:center;gap:8px}
 .ghday .tog{white-space:normal}
@@ -285,6 +286,11 @@ form.stkform .cbtns{margin-top:10px}
 .qadd .addin{width:90px;border-color:var(--green)}
 .qadd .btn.sm{height:36px}
 
+
+.ghtabs{display:flex;gap:4px;border-bottom:1px solid var(--line);margin:4px 0 14px;overflow-x:auto;scrollbar-width:none}
+.ghtabs button{flex:none;background:none;border:none;border-bottom:3px solid transparent;margin-bottom:-1px;height:42px;padding:0 16px;font-size:15px;font-weight:700;color:var(--muted)}
+.ghtabs button.on{color:var(--ink);border-bottom-color:var(--gold)}
+.ghtabs button:hover{color:var(--ink)}
 /* Bilan : alertes fermables */
 .alert.closable{display:flex;align-items:flex-start;gap:12px}
 .alert.closable .atext{flex:1;min-width:0}
@@ -1379,7 +1385,7 @@ function vStkBilan(d, closed) {
 /* Les caisses envoient leurs exports dans le dépôt privé SALES_REPO. On liste tous les .json du dépôt
    (API git/trees, récursif) et on les range par date trouvée dans le chemin (AAAA-MM-JJ). */
 var SALES_REPO = 'scraper147/ventes';
-var BGH = { open: false, loading: false, files: null, sel: {}, err: null, busy: false };
+var BGH = { open: false, loading: false, files: null, sel: {}, err: null, busy: false, tab: null };
 function bghErr(e) {
   if (e && e.status === 0) return ghErrText(e);
   if (e && (e.status === 404 || e.status === 403)) return 'Le jeton n’a pas accès au dépôt ' + SALES_REPO + '. Ajoutez-le au jeton sur GitHub (voir Paramètres).';
@@ -1388,8 +1394,8 @@ function bghErr(e) {
 function bghParse(path) {
   var name = path.split('/').pop(), m = /(\d{4})-?(\d{2})-?(\d{2})/.exec(path), date = m ? m[1] + '-' + m[2] + '-' + m[3] : null;
   var label = name.replace(/\.json$/i, '').replace(/(\d{4})-?(\d{2})-?(\d{2})/, '').replace(/^ventes/i, '').replace(/[_\-]+/g, ' ').trim();
-  var dir = path.indexOf('/') > 0 ? path.slice(0, path.lastIndexOf('/')) : '';
-  return { path: path, name: name, date: date, label: label || name, dir: dir };
+  var parts = path.split('/'), top = parts.length > 1 ? parts[0] : '', sub = parts.length > 2 ? parts.slice(1, -1).join('/') : '';
+  return { path: path, name: name, date: date, label: label || name, dir: sub, top: top };
 }
 function bghOpen() {
   BGH.open = true; BGH.err = null;
@@ -1432,9 +1438,15 @@ function vGhPanel() {
   if (BGH.err) h += '<div class="alert err">' + BGH.err + '</div>';
   if (BGH.loading) return h + '<p class="empty">Chargement de la liste…</p></section>';
   if (!BGH.files || !BGH.files.length) return h + (BGH.err ? '' : '<p class="empty">Aucun fichier de ventes dans le dépôt pour l’instant.</p>') + '</section>';
-  var days = {}, loaded = {}; BGH.files.forEach(function (f) { var k = f.date || 'sans-date'; (days[k] = days[k] || []).push(f); }); FILES.forEach(function (f) { loaded[f.name] = 1; });
+  var tabs = bghTabs(); if (BGH.tab === null || tabs.indexOf(BGH.tab) < 0) BGH.tab = tabs.indexOf('bar') >= 0 ? 'bar' : tabs[0];
+  var days = {}, loaded = {}; BGH.files.forEach(function (f) { if (f.top !== BGH.tab) return; var k = f.date || 'sans-date'; (days[k] = days[k] || []).push(f); }); FILES.forEach(function (f) { loaded[f.name] = 1; });
   var n = Object.keys(BGH.sel).filter(function (k) { return BGH.sel[k]; }).length;
-  h += '<p class="lead">Une soirée qui dépasse minuit est répartie sur deux jours : « Charger les ventes » prend le jour et le lendemain, en gardant seulement les fichiers de la Caisse Bar.</p><div class="ghdays">' +
+  h += '<div class="ghtabs" role="tablist" aria-label="Dossiers du dépôt">' + tabs.map(function (t) {
+      var c = BGH.files.filter(function (f) { return f.top === t; }).length;
+      return '<button role="tab" aria-selected="' + (BGH.tab === t) + '" class="' + (BGH.tab === t ? 'on' : '') + '" data-g="tab" data-v="' + esc(t) + '">' + esc(bghTabName(t)) + ' <span class="faint num">' + c + '</span></button>';
+    }).join('') + '</div>' +
+    (BGH.tab === 'bar' ? '' : '<div class="alert">Le Bilan n\u2019affiche pour l\u2019instant que les ventes de la Caisse Bar : les fichiers d\u2019une autre caisse seront refusés au chargement.</div>') +
+    '<p class="lead">Une soirée qui dépasse minuit est répartie sur deux jours : « Charger les ventes » prend le jour et le lendemain.</p><div class="ghdays">' +
     Object.keys(days).sort().reverse().map(function (d) {
       return '<div class="ghday"><div class="ghdate"><strong>' + (d === 'sans-date' ? 'Sans date' : longDate(d)) + '</strong>' + (d === 'sans-date' ? '' : '<button class="btn sm" data-g="soiree" data-v="' + d + '">Charger les ventes</button>') + '</div>' +
         days[d].slice().sort(function (a, b) { return a.label.localeCompare(b.label); }).map(function (f) { var got = loaded[fileKey(f.path)];
@@ -1443,12 +1455,16 @@ function vGhPanel() {
     '<div class="cbtns" style="margin-top:14px"><button class="pick" data-g="loadSel"' + (n && !BGH.busy ? '' : ' disabled') + '>' + (BGH.busy ? 'Chargement…' : 'Charger la sélection' + (n ? ' (' + n + ')' : '')) + '</button></div></section>';
   return h;
 }
-function bghSoireePaths(d) { var nx = addDays(d, 1); return (BGH.files || []).filter(function (f) { return f.date === d || f.date === nx; }).map(function (f) { return f.path; }); }
+function bghSoireePaths(d) { var nx = addDays(d, 1); return (BGH.files || []).filter(function (f) { return f.top === BGH.tab && (f.date === d || f.date === nx); }).map(function (f) { return f.path; }); }
+/* Onglets = dossier parent (1er niveau) des fichiers : bar, sapin… ; fichiers à la racine -> « Autres » */
+function bghTabs() { var o = {}; (BGH.files || []).forEach(function (f) { o[f.top] = 1; }); var order = ['bar', 'sapin']; return Object.keys(o).sort(function (a, b) { var ia = order.indexOf(a), ib = order.indexOf(b); return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib) || (a === '' ? 1 : b === '' ? -1 : a.localeCompare(b)); }); }
+function bghTabName(t) { return t === '' ? 'Autres' : t.charAt(0).toUpperCase() + t.slice(1).replace(/[_-]+/g, ' '); }
 document.addEventListener('click', function (e) {
   var b = e.target.closest('[data-g]'); if (!b || b.disabled) return;
   var g = b.getAttribute('data-g'), v = b.getAttribute('data-v');
   if (g === 'open') bghOpen();
   else if (g === 'close') { BGH.open = false; render(); }
+  else if (g === 'tab') { BGH.tab = v; render(); }
   else if (g === 'loadSel') bghLoad(Object.keys(BGH.sel).filter(function (k) { return BGH.sel[k]; }));
   else if (g === 'soiree') bghLoad(bghSoireePaths(v), v, true);
 });

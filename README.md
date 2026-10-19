@@ -57,7 +57,7 @@ Supprimez le jeton sur GitHub (Settings → Developer settings → Personal acce
 Les caisses envoient leurs exports dans le dépôt privé `ventes`. Le Bilan peut les lire directement :
 
 1. Ajoutez le dépôt `ventes` au jeton de l'app Admin (**Settings → Developer settings → Fine-grained tokens** → votre jeton → **Edit** → Repository access → ajoutez `ventes` → **Update**). La clé chiffrée reste valable.
-2. **Bilan → Charger depuis le dépôt** (ou **+ Depuis le dépôt**) : les fichiers sont rangés par jour (date lue dans le nom du fichier). Cochez ceux voulus, ou **Charger les ventes** (le jour et le lendemain, pour les ventes après minuit ; seuls les fichiers de la Caisse Bar sont gardés).
+2. **Bilan → Charger depuis le dépôt** (ou **+ Depuis le dépôt**) : un onglet par dossier du dépôt (Bar, Sapin…), puis les fichiers rangés par jour (date lue dans le nom du fichier). Cochez ceux voulus, ou **Charger les ventes** (le jour et le lendemain, pour les ventes après minuit ; seuls les fichiers de la Caisse Bar sont gardés).
 
 ## Stock (comptage par événement)
 
