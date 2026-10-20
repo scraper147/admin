@@ -281,7 +281,7 @@ form.stkform .cbtns{margin-top:10px}
 .stkfind input[type=search]{flex:1 1 220px;max-width:360px;font:inherit;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:0 12px;height:42px;min-width:0}
 .lowb{display:inline-block;margin-top:4px;font-size:12px;font-weight:700;padding:2px 8px;border-radius:6px;background:var(--red-soft);color:var(--red);border:1px solid var(--red);white-space:normal}
 .stab tr.low td:first-child strong{color:var(--red)}
-.alert.lowsum{margin-bottom:12px;background:var(--red-soft);border-color:var(--red)}
+.tog.lastday{display:flex;margin:2px 0 10px;white-space:normal;color:var(--ink)}
 /* Stock : bouton + pour additionner un comptage */
 [hidden]{display:none!important}
 .qwrap{display:inline-flex;flex-wrap:wrap;align-items:center;justify-content:flex-end;gap:6px;max-width:100%}
@@ -1214,6 +1214,7 @@ function stkCalc(doc) {
   return { days: days, per: per, fin: fin };
 }
 /* Stock bas : consommé du jour plus grand que le restant compté du même jour -> renvoie le consommé, sinon null */
+function isLastDay(doc, day) { return !!(day && doc.jours[day] && doc.jours[day].dernier); }
 function lowAlert(rows, di) { var r = rows[di]; return r && r.restant != null && r.conso != null && r.conso > r.restant + 0.001 ? r.conso : null; }
 function lowBadge(q) { return q == null ? '' : '<span class="lowb" title="Il reste moins que ce qui a été consommé ce jour">Stock bas · ' + fmtQ(q) + ' consommé' + (q > 1 ? 's' : '') + ', plus que le restant</span>'; }
 function normTxt(t) { return String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase(); }
@@ -1320,15 +1321,15 @@ function vStkDay(d, closed) {
   var calc = stkCalc(d), days = calc.days, arts = d.articles.filter(function (a) { return a.actif !== false; });
   if (!arts.length) return '<section><h3>Aucun article</h3><p class="lead">Ajoutez d’abord les articles et leur stock de départ.</p><button class="btn" data-s="tab" data-v="articles">Ajouter des articles</button></section>';
   if (STK.day && days.indexOf(STK.day) < 0) STK.day = days[days.length - 1] || null;
-  var chips = days.map(function (x) { var p = dayProgress(d, x); return '<button class="chip' + (STK.day === x ? ' on' : '') + '" data-s="day" data-v="' + x + '">' + shortDate(x) + (p.n === p.tot ? ' ✓' : '') + '</button>'; }).join('');
+  var chips = days.map(function (x) { var p = dayProgress(d, x); return '<button class="chip' + (STK.day === x ? ' on' : '') + '" data-s="day" data-v="' + x + '">' + shortDate(x) + (p.n === p.tot ? ' ✓' : '') + (isLastDay(d, x) ? ' · dernier jour' : '') + '</button>'; }).join('');
   var next = days.length ? addDays(days[days.length - 1], 1) : d.debut;
   var head = '<section class="dayhead"><div class="fgroup"><span>Jour</span>' + chips + (closed ? '' : '<button class="chip add" data-s="addDay" data-v="' + next + '">+ ' + shortDate(next) + '</button>') + '</div>' +
     (!closed ? '<p class="hint" style="margin-top:8px">Autre date : <input type="date" id="otherDay" aria-label="Ajouter un autre jour"> <button class="btn sm" data-s="addOther">Ajouter</button></p>' : '') + '</section>';
   if (!STK.day) return head + '<section><p class="empty">Ajoutez le premier jour (' + longDate(d.debut) + ') pour commencer le comptage.</p></section>';
-  var di = days.indexOf(STK.day), p = dayProgress(d, STK.day), j = d.jours[STK.day];
+  var di = days.indexOf(STK.day), p = dayProgress(d, STK.day), j = d.jours[STK.day], lastFlag = isLastDay(d, STK.day);
   var rows = groupArticles(arts).map(function (g) {
     return '<tr class="cat"><td colspan="5">' + esc(g.cat) + '</td></tr>' + g.items.map(function (a) {
-      var r = calc.per[a.id][di], warn = r.conso != null && r.conso < -0.001, low = lowAlert(calc.per[a.id], di);
+      var r = calc.per[a.id][di], warn = r.conso != null && r.conso < -0.001, low = lastFlag ? null : lowAlert(calc.per[a.id], di);
       return '<tr id="row-' + esc(a.id) + '" class="art' + (low != null ? ' low' : '') + '" data-name="' + esc(normTxt(a.nom + ' ' + (a.categorie || ''))) + '"><td><strong>' + esc(a.nom) + '</strong><span class="sub">' + esc(a.unite || '') + '</span><span data-k="low">' + lowBadge(low) + '</span></td>' +
         '<td class="r num" data-k="debut">' + fmtQ(r.debut) + '</td>' +
         '<td class="r">' + vQtyCell('liv', a, fmtQ((j.livraisons || {})[a.id]), 'livré', 'Livré', closed) + '</td>' +
@@ -1338,17 +1339,12 @@ function vStkDay(d, closed) {
   }).join('');
   return head + '<section><div class="row-between"><h3>' + longDate(STK.day).replace(/^./, function (c) { return c.toUpperCase(); }) + '</h3><span class="prog num" id="dayProg">' + p.n + ' / ' + p.tot + ' comptés</span></div>' +
     '<p class="lead">Notez les livraisons du jour et comptez ce qui reste en fin de journée. Consommé = début + livré − restant.</p>' +
-    '<div id="lowSum">' + vLowSum(d, calc, di, arts) + '</div>' +
+    '<label class="tog lastday"><input type="checkbox" id="stkLast"' + (lastFlag ? ' checked' : '') + (closed ? ' disabled' : '') + '>Dernier jour de l\u2019événement : pas d\u2019alerte « stock bas »</label>' +
     '<div class="stkfind"><input type="search" id="stkQ" placeholder="Rechercher un article…" aria-label="Rechercher un article" value="' + esc(STK.q || '') + '" autocomplete="off">' +
     '<label class="tog"><input type="checkbox" id="stkTodo"' + (STK.onlyTodo ? ' checked' : '') + '>À compter seulement</label>' +
     '<label class="tog"><input type="checkbox" id="stkLow"' + (STK.onlyLow ? ' checked' : '') + '>Stock bas seulement</label></div>' +
     '<div class="scroll"><table class="stab"><thead><tr><th>Article</th><th class="r">Début</th><th class="r">Livré</th><th class="r">Restant compté</th><th class="r">Consommé</th></tr></thead><tbody>' + rows + '<tr class="nomatch" hidden><td colspan="5" class="empty">Aucun article ne correspond.</td></tr></tbody></table></div>' +
     (!closed && !Object.keys(j.livraisons || {}).length && !Object.keys(j.restant || {}).length ? '<p style="margin:14px 0 0"><button class="btn danger" data-s="delDay" data-v="' + STK.day + '">Retirer ce jour</button></p>' : '') + '</section>';
-}
-function vLowSum(d, calc, di, arts) {
-  var low = arts.filter(function (a) { return lowAlert(calc.per[a.id], di) != null; });
-  if (!low.length) return '';
-  return '<div class="alert lowsum"><strong>' + low.length + ' article' + (low.length > 1 ? 's' : '') + ' en stock bas</strong> : le consommé du jour dépasse le restant compté (' + low.map(function (a) { return esc(a.nom); }).join(', ') + '). Pensez à réapprovisionner.</div>';
 }
 /* Recherche et filtres du comptage : appliqués sur les lignes déjà affichées (le focus reste dans les champs) */
 function applyStkFilter() {
@@ -1422,7 +1418,7 @@ function vStkBilan(d, closed) {
       var pending = rows.length && rows[rows.length - 1].restant == null;
       return '<tr><td><strong>' + esc(a.nom) + '</strong><span class="sub">' + esc(a.unite || '') + '</span></td><td class="r num">' + fmtQ(+(d.stockInitial[a.id] || 0)) + '</td><td class="r num">' + (liv ? fmtQ(liv) : '<span class="faint">0</span>') + '</td>' +
         rows.map(function (r) { return '<td class="r num' + (r.conso != null && r.conso < -0.001 ? ' neg' : '') + '">' + (r.conso == null ? '<span class="faint">—</span>' : fmtQ(r.conso)) + '</td>'; }).join('') +
-        '<td class="r num"><strong>' + fmtQ(tot) + '</strong></td><td class="r num">' + fmtQ(calc.fin[a.id]) + (pending ? '<span class="sub">non compté</span>' : '') + (function () { var li = -1; rows.forEach(function (r, i) { if (r.restant != null) li = i; }); var q = li >= 0 ? lowAlert(rows, li) : null; return q != null ? '<br>' + lowBadge(q) : ''; })() + '</td></tr>';
+        '<td class="r num"><strong>' + fmtQ(tot) + '</strong></td><td class="r num">' + fmtQ(calc.fin[a.id]) + (pending ? '<span class="sub">non compté</span>' : '') + (function () { var li = -1; rows.forEach(function (r, i) { if (r.restant != null) li = i; }); var q = li >= 0 && !isLastDay(d, days[li]) ? lowAlert(rows, li) : null; return q != null ? '<br>' + lowBadge(q) : ''; })() + '</td></tr>';
     }).join('');
   }).join('');
   var clot = '';
@@ -1530,11 +1526,18 @@ document.addEventListener('change', function (e) {
 });
 
 /* ---------- Événements ---------- */
-function stkSoftRow(aid) {
-  var d = STK.cur.doc, calc = stkCalc(d), di = calc.days.indexOf(STK.day), tr = document.getElementById('row-' + aid); if (!tr || di < 0) return;
-  var r = calc.per[aid][di], cell = tr.querySelector('[data-k=conso]'); cell.innerHTML = vConsoCell(r); cell.classList.toggle('neg', r.conso != null && r.conso < -0.001);
-  var low = lowAlert(calc.per[aid], di), lb = tr.querySelector('[data-k=low]'); tr.classList.toggle('low', low != null); if (lb) lb.innerHTML = lowBadge(low);
-  var ls = document.getElementById('lowSum'); if (ls) ls.innerHTML = vLowSum(d, calc, di, d.articles.filter(function (a) { return a.actif !== false; }));
+/* Après chaque saisie : recalcul de toutes les lignes du jour (début, consommé, alerte stock bas) */
+function stkSoftRow() {
+  if (!STK.cur) return;
+  var d = STK.cur.doc, calc = stkCalc(d), di = calc.days.indexOf(STK.day); if (di < 0) return;
+  var lastFlag = isLastDay(d, STK.day);
+  d.articles.forEach(function (a) {
+    var tr = document.getElementById('row-' + a.id); if (!tr || !calc.per[a.id]) return;
+    var r = calc.per[a.id][di], cell = tr.querySelector('[data-k=conso]'), deb = tr.querySelector('[data-k=debut]');
+    if (cell) { cell.innerHTML = vConsoCell(r); cell.classList.toggle('neg', r.conso != null && r.conso < -0.001); }
+    if (deb) deb.textContent = fmtQ(r.debut);
+    var low = lastFlag ? null : lowAlert(calc.per[a.id], di), lb = tr.querySelector('[data-k=low]'); tr.classList.toggle('low', low != null); if (lb) lb.innerHTML = lowBadge(low);
+  });
   var p = dayProgress(d, STK.day), pe = document.getElementById('dayProg'); if (pe) pe.textContent = p.n + ' / ' + p.tot + ' comptés';
 }
 function stkCsv() {
@@ -1616,7 +1619,10 @@ function stkSubmitNew() {
 }
 document.addEventListener('click', function (e) { var b = e.target.closest('[data-s]'); if (b && !b.disabled) stkClick(b); });
 document.addEventListener('input', function (e) { if (e.target.id === 'stkQ') { STK.q = e.target.value; applyStkFilter(); return; } if ((e.target.hasAttribute('data-sf') || e.target.hasAttribute('data-sa')) && e.target.type !== 'checkbox') stkInput(e.target); });
-document.addEventListener('change', function (e) { if (e.target.id === 'stkTodo' || e.target.id === 'stkLow') { STK[e.target.id === 'stkTodo' ? 'onlyTodo' : 'onlyLow'] = e.target.checked; applyStkFilter(); return; } if (e.target.hasAttribute('data-sa') && e.target.type === 'checkbox') stkInput(e.target); });
+document.addEventListener('change', function (e) {
+  if (e.target.id === 'stkLast' && STK.cur && STK.day) { addOp({ t: 'set', p: ['jours', STK.day, 'dernier'], v: e.target.checked ? true : null }); render(); return; }
+  if (e.target.hasAttribute('data-sf')) { stkInput(e.target); return; }
+  if (e.target.id === 'stkTodo' || e.target.id === 'stkLow') { STK[e.target.id === 'stkTodo' ? 'onlyTodo' : 'onlyLow'] = e.target.checked; applyStkFilter(); return; } if (e.target.hasAttribute('data-sa') && e.target.type === 'checkbox') stkInput(e.target); });
 document.addEventListener('submit', function (e) { if (e.target.closest('[data-s-form]')) { e.preventDefault(); stkSubmitNew(); } });
 window.addEventListener('online', function () { if (STK.cur && STK.cur.ops.length) saveCur(); });
 document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'hidden' && STK.cur && STK.cur.ops.length) saveCur(); });
