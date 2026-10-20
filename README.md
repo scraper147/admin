@@ -75,7 +75,7 @@ Le stock est enregistré dans un dépôt **privé** `admin-donnees` (un fichier 
 2. **Articles et stock de départ** : la liste des articles, leur unité et la quantité avant le premier jour.
 3. Chaque jour, **Comptage du jour** : notez les **livraisons** et comptez le **restant** en fin de journée. Consommé = début + livré − restant. Stock réparti à plusieurs endroits : notez le premier comptage, puis le bouton **+** à côté du champ ajoute les suivants (7, puis + 8 = 15).
 4. Les modifications sont gardées sur la tablette et envoyées sur GitHub quelques secondes après (ou dès le retour d'internet). Deux tablettes peuvent compter en même temps.
-Dans le comptage : champ **Rechercher un article**, filtres **À compter seulement** et **Stock bas seulement**. Un article passe en **stock bas** (pastille rouge) quand ce qui a été consommé dans la journée dépasse le restant compté le même jour : pensez à réapprovisionner. Cochez **Dernier jour de l'événement** pour ne pas avoir ces alertes le dernier jour.
+Dans le comptage : champ **Rechercher un article**, filtres **À compter seulement** et **Stock bas seulement**. Un article passe en **stock bas** (pastille rouge) quand ce qui a été consommé dans la journée dépasse le restant compté le même jour : pensez à réapprovisionner. Cochez **Dernier jour de l'événement** pour ne pas avoir ces alertes le dernier jour ; l'app ne propose alors plus d'ajouter un jour après celui-ci.
 5. En fin d'événement : **Bilan et clôture → Clôturer l'événement**. Le bilan jour par jour s'exporte pour Excel.
 
 ## Mettre à jour l'app

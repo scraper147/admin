@@ -1214,6 +1214,7 @@ function stkCalc(doc) {
   return { days: days, per: per, fin: fin };
 }
 /* Stock bas : consommé du jour plus grand que le restant compté du même jour -> renvoie le consommé, sinon null */
+function lastDayOf(doc) { var l = Object.keys(doc.jours || {}).filter(function (k) { return doc.jours[k] && doc.jours[k].dernier; }).sort(); return l[0] || null; }
 function isLastDay(doc, day) { return !!(day && doc.jours[day] && doc.jours[day].dernier); }
 function lowAlert(rows, di) { var r = rows[di]; return r && r.restant != null && r.conso != null && r.conso > r.restant + 0.001 ? r.conso : null; }
 function lowBadge(q) { return q == null ? '' : '<span class="lowb" title="Il reste moins que ce qui a été consommé ce jour">Stock bas · ' + fmtQ(q) + ' consommé' + (q > 1 ? 's' : '') + ', plus que le restant</span>'; }
@@ -1322,8 +1323,9 @@ function vStkDay(d, closed) {
   if (!arts.length) return '<section><h3>Aucun article</h3><p class="lead">Ajoutez d’abord les articles et leur stock de départ.</p><button class="btn" data-s="tab" data-v="articles">Ajouter des articles</button></section>';
   if (STK.day && days.indexOf(STK.day) < 0) STK.day = days[days.length - 1] || null;
   var chips = days.map(function (x) { var p = dayProgress(d, x); return '<button class="chip' + (STK.day === x ? ' on' : '') + '" data-s="day" data-v="' + x + '">' + shortDate(x) + (p.n === p.tot ? ' ✓' : '') + (isLastDay(d, x) ? ' · dernier jour' : '') + '</button>'; }).join('');
-  var next = days.length ? addDays(days[days.length - 1], 1) : d.debut;
-  var head = '<section class="dayhead"><div class="fgroup"><span>Jour</span>' + chips + (closed ? '' : '<button class="chip add" data-s="addDay" data-v="' + next + '">+ ' + shortDate(next) + '</button>') + '</div>' +
+  var next = days.length ? addDays(days[days.length - 1], 1) : d.debut, endDay = lastDayOf(d);
+  var head = '<section class="dayhead"><div class="fgroup"><span>Jour</span>' + chips + (closed || endDay ? '' : '<button class="chip add" data-s="addDay" data-v="' + next + '">+ ' + shortDate(next) + '</button>') + '</div>' +
+    (!closed && endDay ? '<p class="hint" style="margin-top:8px">Le ' + longDate(endDay) + ' est marqué comme dernier jour : pas de jour suivant à ajouter.</p>' : '') +
     (!closed ? '<p class="hint" style="margin-top:8px">Autre date : <input type="date" id="otherDay" aria-label="Ajouter un autre jour"> <button class="btn sm" data-s="addOther">Ajouter</button></p>' : '') + '</section>';
   if (!STK.day) return head + '<section><p class="empty">Ajoutez le premier jour (' + longDate(d.debut) + ') pour commencer le comptage.</p></section>';
   var di = days.indexOf(STK.day), p = dayProgress(d, STK.day), j = d.jours[STK.day], lastFlag = isLastDay(d, STK.day);
@@ -1557,7 +1559,7 @@ function stkClick(el) {
   if (s === 'tab') { STK.tab = v; STK.confirm = null; STK.msg = null; render(); return; }
   if (s === 'day') { STK.day = v; render(); return; }
   if (s === 'addDay') { addOp({ t: 'day', d: v }); STK.day = v; render(); return; }
-  if (s === 'addOther') { var o = document.getElementById('otherDay').value; if (!o) { toast('Choisissez une date'); return; } addOp({ t: 'day', d: o }); STK.day = o; render(); return; }
+  if (s === 'addOther') { var o = document.getElementById('otherDay').value, ld = lastDayOf(c.doc); if (!o) { toast('Choisissez une date'); return; } if (ld && o > ld) { toast('Impossible : le dernier jour est le ' + dmy(ld)); return; } addOp({ t: 'day', d: o }); STK.day = o; render(); return; }
   if (s === 'delDay') { addOp({ t: 'delday', d: v }); STK.day = null; render(); return; }
   if (s === 'plus') { qtyPlusOpen(v); return; }
   if (s === 'save') { if (c) { c.err = null; saveCur(); } return; }
