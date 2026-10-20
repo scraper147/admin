@@ -275,6 +275,13 @@ form.stkform .cbtns{margin-top:10px}
 .ghday .tog{white-space:normal}
 .tog.got{cursor:default}
 
+
+/* Stock : recherche, filtres, stock bas */
+.stkfind{display:flex;flex-wrap:wrap;align-items:center;gap:8px 16px;margin:4px 0 12px}
+.stkfind input[type=search]{flex:1 1 220px;max-width:360px;font:inherit;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:0 12px;height:42px;min-width:0}
+.lowb{display:inline-block;margin-top:4px;font-size:12px;font-weight:700;padding:2px 8px;border-radius:6px;background:var(--red-soft);color:var(--red);border:1px solid var(--red);white-space:normal}
+.stab tr.low td:first-child strong{color:var(--red)}
+.alert.lowsum{margin-bottom:12px;background:var(--red-soft);border-color:var(--red)}
 /* Stock : bouton + pour additionner un comptage */
 [hidden]{display:none!important}
 .qwrap{display:inline-flex;flex-wrap:wrap;align-items:center;justify-content:flex-end;gap:6px;max-width:100%}
@@ -1126,7 +1133,7 @@ document.addEventListener('submit', function (e) { var f = e.target.closest('[da
    deux tablettes peuvent compter en même temps sans s'écraser. */
 var DATA_REPO = 'scraper147/admin-donnees';
 var UNITES = ['bouteilles', 'fûts', 'caisses', 'bacs', 'pièces', 'litres', 'cartons', 'sacs'];
-var STK = { deleting: false, list: null, docs: {}, loading: false, err: null, view: 'list', cur: null, tab: 'jour', day: null, msg: null, confirm: null, timer: null, newForm: null };
+var STK = { q: '', onlyTodo: false, onlyLow: false, deleting: false, list: null, docs: {}, loading: false, err: null, view: 'list', cur: null, tab: 'jour', day: null, msg: null, confirm: null, timer: null, newForm: null };
 
 function stkPath(id) { return 'stock/' + id + '.json'; }
 function ghGetFile(path, token) {
@@ -1206,6 +1213,10 @@ function stkCalc(doc) {
   });
   return { days: days, per: per, fin: fin };
 }
+/* Stock bas : restant compté du jour inférieur à la consommation de la veille -> renvoie cette consommation, sinon null */
+function lowAlert(rows, di) { var r = rows[di], prev = rows[di - 1]; return r && prev && r.restant != null && prev.conso != null && prev.conso > 0.001 && r.restant < prev.conso - 0.001 ? prev.conso : null; }
+function lowBadge(q, prevDay) { return q == null ? '' : '<span class="lowb" title="Restant inférieur à la consommation de la veille">Stock bas · veille ' + (prevDay ? shortDate(prevDay) + ' : ' : '') + fmtQ(q) + ' consommé' + (q > 1 ? 's' : '') + '</span>'; }
+function normTxt(t) { return String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase(); }
 function dayProgress(doc, d) { var arts = doc.articles.filter(function (a) { return a.actif !== false; }), r = (doc.jours[d] || {}).restant || {}; return { n: arts.filter(function (a) { return r[a.id] != null; }).length, tot: arts.length }; }
 function groupArticles(arts) {
   var g = {}, order = [];
@@ -1247,7 +1258,7 @@ function demoEvent() {
 /* ---------- Rendu ---------- */
 function renderStock() {
   var el = document.getElementById('mod');
-  if (STK.view === 'event' && STK.cur) { el.innerHTML = vStkEvent() + vToast(); return; }
+  if (STK.view === 'event' && STK.cur) { el.innerHTML = vStkEvent() + vToast(); if (STK.tab === 'jour') applyStkFilter(); return; }
   if (STK.view === 'new') { el.innerHTML = vStkNew() + vToast(); return; }
   if (getToken() && STK.list === null && !STK.loading && !STK.err) { stkLoadList(); return; }
   el.innerHTML = vStkList() + vToast();
@@ -1317,8 +1328,8 @@ function vStkDay(d, closed) {
   var di = days.indexOf(STK.day), p = dayProgress(d, STK.day), j = d.jours[STK.day];
   var rows = groupArticles(arts).map(function (g) {
     return '<tr class="cat"><td colspan="5">' + esc(g.cat) + '</td></tr>' + g.items.map(function (a) {
-      var r = calc.per[a.id][di], warn = r.conso != null && r.conso < -0.001;
-      return '<tr id="row-' + esc(a.id) + '"><td><strong>' + esc(a.nom) + '</strong><span class="sub">' + esc(a.unite || '') + '</span></td>' +
+      var r = calc.per[a.id][di], warn = r.conso != null && r.conso < -0.001, low = lowAlert(calc.per[a.id], di);
+      return '<tr id="row-' + esc(a.id) + '" class="art' + (low != null ? ' low' : '') + '" data-name="' + esc(normTxt(a.nom + ' ' + (a.categorie || ''))) + '"><td><strong>' + esc(a.nom) + '</strong><span class="sub">' + esc(a.unite || '') + '</span><span data-k="low">' + lowBadge(low, days[di - 1]) + '</span></td>' +
         '<td class="r num" data-k="debut">' + fmtQ(r.debut) + '</td>' +
         '<td class="r">' + vQtyCell('liv', a, fmtQ((j.livraisons || {})[a.id]), 'livré', 'Livré', closed) + '</td>' +
         '<td class="r">' + vQtyCell('rest', a, fmtQ((j.restant || {})[a.id]), 'à compter', 'Restant compté', closed) + '</td>' +
@@ -1327,8 +1338,32 @@ function vStkDay(d, closed) {
   }).join('');
   return head + '<section><div class="row-between"><h3>' + longDate(STK.day).replace(/^./, function (c) { return c.toUpperCase(); }) + '</h3><span class="prog num" id="dayProg">' + p.n + ' / ' + p.tot + ' comptés</span></div>' +
     '<p class="lead">Notez les livraisons du jour et comptez ce qui reste en fin de journée. Consommé = début + livré − restant.</p>' +
-    '<div class="scroll"><table class="stab"><thead><tr><th>Article</th><th class="r">Début</th><th class="r">Livré</th><th class="r">Restant compté</th><th class="r">Consommé</th></tr></thead><tbody>' + rows + '</tbody></table></div>' +
+    '<div id="lowSum">' + vLowSum(d, calc, di, arts) + '</div>' +
+    '<div class="stkfind"><input type="search" id="stkQ" placeholder="Rechercher un article…" aria-label="Rechercher un article" value="' + esc(STK.q || '') + '" autocomplete="off">' +
+    '<label class="tog"><input type="checkbox" id="stkTodo"' + (STK.onlyTodo ? ' checked' : '') + '>À compter seulement</label>' +
+    '<label class="tog"><input type="checkbox" id="stkLow"' + (STK.onlyLow ? ' checked' : '') + '>Stock bas seulement</label></div>' +
+    '<div class="scroll"><table class="stab"><thead><tr><th>Article</th><th class="r">Début</th><th class="r">Livré</th><th class="r">Restant compté</th><th class="r">Consommé</th></tr></thead><tbody>' + rows + '<tr class="nomatch" hidden><td colspan="5" class="empty">Aucun article ne correspond.</td></tr></tbody></table></div>' +
     (!closed && !Object.keys(j.livraisons || {}).length && !Object.keys(j.restant || {}).length ? '<p style="margin:14px 0 0"><button class="btn danger" data-s="delDay" data-v="' + STK.day + '">Retirer ce jour</button></p>' : '') + '</section>';
+}
+function vLowSum(d, calc, di, arts) {
+  var low = arts.filter(function (a) { return lowAlert(calc.per[a.id], di) != null; });
+  if (!low.length) return '';
+  return '<div class="alert lowsum"><strong>' + low.length + ' article' + (low.length > 1 ? 's' : '') + ' en stock bas</strong> : il reste moins que ce qui a été consommé la veille (' + low.map(function (a) { return esc(a.nom); }).join(', ') + '). Pensez à réapprovisionner.</div>';
+}
+/* Recherche et filtres du comptage : appliqués sur les lignes déjà affichées (le focus reste dans les champs) */
+function applyStkFilter() {
+  var tb = document.querySelector('.stab:not(.bil):not(.arts) tbody'); if (!tb) return;
+  var q = normTxt(STK.q).trim(), any = false, cat = null, catHas = false;
+  function closeCat() { if (cat) cat.hidden = !catHas; }
+  Array.prototype.forEach.call(tb.children, function (tr) {
+    if (tr.classList.contains('cat')) { closeCat(); cat = tr; catHas = false; return; }
+    if (!tr.classList.contains('art')) return;
+    var aid = tr.id.slice(4), rest = document.getElementById('rest-' + aid), counted = rest && rest.value.trim() !== '';
+    var show = (!q || tr.getAttribute('data-name').indexOf(q) >= 0) && (!STK.onlyTodo || !counted) && (!STK.onlyLow || tr.classList.contains('low'));
+    tr.hidden = !show; if (show) { catHas = true; any = true; }
+  });
+  closeCat();
+  var nm = tb.querySelector('.nomatch'); if (nm) nm.hidden = any;
 }
 /* Champ de quantité + bouton « + » (visible seulement quand le champ a déjà une valeur) pour ajouter un comptage */
 function vQtyCell(f, a, val, ph, lab, closed) {
@@ -1387,7 +1422,7 @@ function vStkBilan(d, closed) {
       var pending = rows.length && rows[rows.length - 1].restant == null;
       return '<tr><td><strong>' + esc(a.nom) + '</strong><span class="sub">' + esc(a.unite || '') + '</span></td><td class="r num">' + fmtQ(+(d.stockInitial[a.id] || 0)) + '</td><td class="r num">' + (liv ? fmtQ(liv) : '<span class="faint">0</span>') + '</td>' +
         rows.map(function (r) { return '<td class="r num' + (r.conso != null && r.conso < -0.001 ? ' neg' : '') + '">' + (r.conso == null ? '<span class="faint">—</span>' : fmtQ(r.conso)) + '</td>'; }).join('') +
-        '<td class="r num"><strong>' + fmtQ(tot) + '</strong></td><td class="r num">' + fmtQ(calc.fin[a.id]) + (pending ? '<span class="sub">non compté</span>' : '') + '</td></tr>';
+        '<td class="r num"><strong>' + fmtQ(tot) + '</strong></td><td class="r num">' + fmtQ(calc.fin[a.id]) + (pending ? '<span class="sub">non compté</span>' : '') + (function () { var li = -1; rows.forEach(function (r, i) { if (r.restant != null) li = i; }); var q = li >= 0 ? lowAlert(rows, li) : null; return q != null ? '<br>' + lowBadge(q, days[li - 1]) : ''; })() + '</td></tr>';
     }).join('');
   }).join('');
   var clot = '';
@@ -1498,6 +1533,8 @@ document.addEventListener('change', function (e) {
 function stkSoftRow(aid) {
   var d = STK.cur.doc, calc = stkCalc(d), di = calc.days.indexOf(STK.day), tr = document.getElementById('row-' + aid); if (!tr || di < 0) return;
   var r = calc.per[aid][di], cell = tr.querySelector('[data-k=conso]'); cell.innerHTML = vConsoCell(r); cell.classList.toggle('neg', r.conso != null && r.conso < -0.001);
+  var low = lowAlert(calc.per[aid], di), lb = tr.querySelector('[data-k=low]'); tr.classList.toggle('low', low != null); if (lb) lb.innerHTML = lowBadge(low, calc.days[di - 1]);
+  var ls = document.getElementById('lowSum'); if (ls) ls.innerHTML = vLowSum(d, calc, di, d.articles.filter(function (a) { return a.actif !== false; }));
   var p = dayProgress(d, STK.day), pe = document.getElementById('dayProg'); if (pe) pe.textContent = p.n + ' / ' + p.tot + ' comptés';
 }
 function stkCsv() {
@@ -1578,8 +1615,8 @@ function stkSubmitNew() {
   render(); saveCur();
 }
 document.addEventListener('click', function (e) { var b = e.target.closest('[data-s]'); if (b && !b.disabled) stkClick(b); });
-document.addEventListener('input', function (e) { if ((e.target.hasAttribute('data-sf') || e.target.hasAttribute('data-sa')) && e.target.type !== 'checkbox') stkInput(e.target); });
-document.addEventListener('change', function (e) { if (e.target.hasAttribute('data-sa') && e.target.type === 'checkbox') stkInput(e.target); });
+document.addEventListener('input', function (e) { if (e.target.id === 'stkQ') { STK.q = e.target.value; applyStkFilter(); return; } if ((e.target.hasAttribute('data-sf') || e.target.hasAttribute('data-sa')) && e.target.type !== 'checkbox') stkInput(e.target); });
+document.addEventListener('change', function (e) { if (e.target.id === 'stkTodo' || e.target.id === 'stkLow') { STK[e.target.id === 'stkTodo' ? 'onlyTodo' : 'onlyLow'] = e.target.checked; applyStkFilter(); return; } if (e.target.hasAttribute('data-sa') && e.target.type === 'checkbox') stkInput(e.target); });
 document.addEventListener('submit', function (e) { if (e.target.closest('[data-s-form]')) { e.preventDefault(); stkSubmitNew(); } });
 window.addEventListener('online', function () { if (STK.cur && STK.cur.ops.length) saveCur(); });
 document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'hidden' && STK.cur && STK.cur.ops.length) saveCur(); });
