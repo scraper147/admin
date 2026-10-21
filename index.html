@@ -276,6 +276,16 @@ form.stkform .cbtns{margin-top:10px}
 .tog.got{cursor:default}
 
 
+
+/* Catalogue Caisse Soirée */
+.sogrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.sogrid .fl{display:flex;flex-direction:column;gap:6px}
+@media (max-width:700px){.sogrid{grid-template-columns:minmax(0,1fr)}}
+.ptab select{font:inherit;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:10px;height:42px;padding:0 8px}
+.ptab.so{min-width:620px}
+.ptab.so td:first-child{width:40%}
+.ptab.so .price{max-width:80px}
+@media (max-width:560px){.ptab.so{min-width:0}.ptab.so tr{grid-template-columns:minmax(0,1fr) minmax(0,1fr) auto}.ptab.so td:first-child{grid-column:1/-1;width:auto}.ptab.so td{display:flex;align-items:center}.ptab.so td.r{justify-content:flex-end}.ptab.so select{width:100%}.ptab.so .price{max-width:none;width:100%}.ptab.so td:nth-child(5){justify-content:flex-start}.ptab.so td:nth-child(6){grid-column:2/-1}}
 /* Stock : recherche, filtres, stock bas */
 .stkfind{display:flex;flex-wrap:wrap;align-items:center;gap:8px 16px;margin:4px 0 12px}
 .stkfind input[type=search]{flex:1 1 220px;max-width:360px;font:inherit;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:0 12px;height:42px;min-width:0}
@@ -755,8 +765,14 @@ function passStrength(p) {
 /* ================= GitHub ================= */
 var REPOS = [
   { id: 'scraper147/bar', nom: 'Caisse Bar', format: 'caisse-bar/catalogue' },
-  { id: 'scraper147/sapin', nom: 'Caisse Sapins', format: 'agri-garden-caisse/catalogue' }
+  { id: 'scraper147/sapin', nom: 'Caisse Sapins', format: 'agri-garden-caisse/catalogue' },
+  { id: 'scraper147/soiree', nom: 'Caisse Soirée', format: 'chlorophylle-caisse/catalogue' }
 ];
+/* Catalogue de la Caisse Soirée (Chlorophylle) : entrées, tickets (prix de la case, cases par carte), boissons en cases.
+   En mémoire, les boissons sont rangées dans « categories » (comme les autres caisses) ; elles redeviennent « boissons » à la publication. */
+var SOIREE_FMT = 'chlorophylle-caisse/catalogue';
+function isSoiree(d) { return !!d && d.format === SOIREE_FMT; }
+function prixCase(d) { return d && d.tickets && +d.tickets.prixCase > 0 ? +d.tickets.prixCase : 0; }
 function repoById(id) { return REPOS.filter(function (r) { return r.id === id; })[0] || REPOS[0]; }
 function utf8b64(s) { return btoa(unescape(encodeURIComponent(s))); }
 function b64utf8(s) { return decodeURIComponent(escape(atob(String(s).replace(/\s/g, '')))); }
@@ -789,6 +805,12 @@ function ghErrText(e, action) {
 function clone(x) { return JSON.parse(JSON.stringify(x)); }
 function todayIso() { var d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
 function exampleCatalogue(repo) {
+  if (repo.format === SOIREE_FMT) return normalizeCat({ format: SOIREE_FMT, formatVersion: 1, version: 1, date: '2026-10-21', exemple: true, soiree: 'Chlorophylle Night',
+    entrees: [{ id: 'entree', libelle: 'Entrée', prix: 15, ordre: 1, actif: true }, { id: 'vip', libelle: 'Table VIP', prix: 300, ordre: 2, actif: true }],
+    tickets: { prixCase: 3, casesParCarte: 18 },
+    boissons: [{ id: 'softs', nom: 'Softs', ordre: 1, actif: true, produits: [{ id: 'eau-plate', libelle: 'Eau plate', format: 'verre', cases: 1, ordre: 1, actif: true }, { id: 'coca', libelle: 'Coca-Cola', format: 'verre', cases: 1, ordre: 2, actif: true }] },
+      { id: 'bieres', nom: 'Bières', ordre: 2, actif: true, produits: [{ id: 'jupiler', libelle: 'Jupiler', format: 'verre', cases: 1, ordre: 1, actif: true }, { id: 'desperados', libelle: 'Desperados', format: 'verre', cases: 2, ordre: 2, actif: true }] },
+      { id: 'bulles', nom: 'Bulles', ordre: 3, actif: true, produits: [{ id: 'cava', libelle: 'Cava', format: 'verre', cases: 2, ordre: 1, actif: true }, { id: 'cava-btl', libelle: 'Cava', format: 'bouteille', cases: 10, ordre: 2, actif: true }] }] });
   if (repo.id === 'scraper147/sapin') return { format: repo.format, formatVersion: 1, version: 1, date: '2026-10-13', exemple: true,
     pointsDeVente: [{ id: 'pdv1', nom: 'Point de vente 1', actif: true }, { id: 'pdv2', nom: 'Point de vente 2', actif: true }],
     categories: [{ id: 'nord', nom: 'Nordmann', ordre: 1, actif: true, produits: [{ id: 'n1', libelle: '100–125 cm', prix: 39, ordre: 1, actif: true }, { id: 'n2', libelle: '125–150 cm', prix: 49, ordre: 2, actif: true }, { id: 'n3', libelle: '150–175 cm', prix: 59, ordre: 3, actif: true }] },
@@ -803,6 +825,16 @@ function exampleCatalogue(repo) {
 }
 function normalizeCat(d) {
   if (!d || typeof d !== 'object') throw new Error('Ce fichier n’est pas un catalogue.');
+  if (d.format === SOIREE_FMT) {
+    var cs = clone(d); cs.categories = Array.isArray(cs.categories) ? cs.categories : Array.isArray(cs.boissons) ? cs.boissons : null; delete cs.boissons;
+    if (!cs.categories) throw new Error('Catalogue de la Caisse Soirée sans liste « boissons ».');
+    cs.pointsDeVente = []; cs.entrees = Array.isArray(cs.entrees) ? cs.entrees : []; cs.tickets = cs.tickets && typeof cs.tickets === 'object' ? cs.tickets : { prixCase: 3, casesParCarte: 18 };
+    cs.entrees.forEach(function (e) { if (e.actif === undefined) e.actif = true; }); cs.entrees.sort(function (a, b) { return (a.ordre || 0) - (b.ordre || 0); });
+    cs.categories.forEach(function (k) { if (k.actif === undefined) k.actif = true; if (!Array.isArray(k.produits)) k.produits = [];
+      k.produits.forEach(function (p) { if (p.actif === undefined) p.actif = true; if (!p.format) p.format = 'verre'; }); k.produits.sort(function (a, b) { return (a.ordre || 0) - (b.ordre || 0); }); });
+    cs.categories.sort(function (a, b) { return (a.ordre || 0) - (b.ordre || 0); });
+    return cs;
+  }
   if (typeof d.format !== 'string' || !/\/catalogue$/.test(d.format) || !Array.isArray(d.categories)) throw new Error('Ce fichier n’est pas un catalogue de caisse (champ « format » ou liste « categories » absent).');
   var c = clone(d);
   c.pointsDeVente = Array.isArray(c.pointsDeVente) ? c.pointsDeVente : [];
@@ -816,6 +848,14 @@ function normalizeCat(d) {
 function finalizeCat(d, version) {
   var c = clone(d);
   delete c.exemple; c.version = version; c.date = todayIso();
+  if (isSoiree(c)) {
+    c.entrees.forEach(function (e, i) { e.ordre = i + 1; e.prix = Math.round(e.prix * 100) / 100; });
+    c.categories.forEach(function (k, i) { k.ordre = i + 1; k.produits.forEach(function (p, j) { p.ordre = j + 1; p.cases = Math.round(p.cases); }); });
+    c.tickets = { prixCase: Math.round(+c.tickets.prixCase * 100) / 100, casesParCarte: Math.round(+c.tickets.casesParCarte) };
+    var o = { format: c.format, formatVersion: c.formatVersion || 1, version: c.version, date: c.date, soiree: c.soiree || '', entrees: c.entrees, tickets: c.tickets, boissons: c.categories };
+    Object.keys(c).forEach(function (k) { if (!(k in o) && k !== 'categories' && k !== 'pointsDeVente') o[k] = c[k]; });
+    return o;
+  }
   c.categories.forEach(function (k, i) { k.ordre = i + 1; k.produits.forEach(function (p, j) { p.ordre = j + 1; p.prix = Math.round(p.prix * 100) / 100; }); });
   var out = { format: c.format, formatVersion: c.formatVersion || 1, version: c.version, date: c.date };
   Object.keys(c).forEach(function (k) { if (!(k in out)) out[k] = c[k]; });
@@ -830,14 +870,17 @@ function dirty() { return CAT.data && comparable(CAT.data) !== comparable(CAT.ba
 function loadCatFor(repoId, forceGithub) {
   CAT.repo = repoId; CAT.msg = null; CAT.confirm = null;
   var dr = !forceGithub && lsGet(draftKey());
-  if (dr) { try { var o = JSON.parse(dr); CAT.data = o.data; CAT.base = o.base; CAT.sha = o.sha; CAT.source = o.source; render(); return; } catch (e) {} }
+  if (dr) { try { var o = JSON.parse(dr); if (o.data && o.data.format === repoById(repoId).format) { CAT.data = o.data; CAT.base = o.base; CAT.sha = o.sha; CAT.source = o.source; render(); return; } lsSet(draftKey(), null); } catch (e) {} }
   CAT.loading = true; CAT.data = null; render();
   ghGetCatalogue(repoId, getToken()).then(function (r) {
+    if (CAT.repo !== repoId) return; // une autre caisse a été choisie entre-temps
     CAT.loading = false;
+    if (r.json && r.json.format !== repoById(repoId).format) { CAT.data = exampleCatalogue(repoById(repoId)); CAT.base = null; CAT.sha = null; CAT.source = 'exemple'; CAT.msg = { err: true, t: 'Le catalogue.json du dépôt ' + esc(repoId) + ' n\u2019a pas le format attendu (' + esc(r.json.format || '?') + ' au lieu de ' + esc(repoById(repoId).format) + '). Un catalogue d\u2019exemple est affiché ; vérifiez le dépôt avant de publier.' }; render(); return; }
     if (!r.json) { CAT.data = exampleCatalogue(repoById(repoId)); CAT.base = null; CAT.sha = null; CAT.source = 'exemple'; CAT.msg = { t: 'Ce dépôt n’a pas encore de catalogue.json. Un catalogue d’exemple est chargé : publiez-le pour créer le fichier.' }; }
     else { CAT.base = normalizeCat(r.json); CAT.data = clone(CAT.base); CAT.sha = r.sha; CAT.source = 'github'; lsSet(draftKey(), null); toast('Catalogue version ' + CAT.base.version + ' chargé depuis GitHub'); return; }
     render();
   }, function (e) {
+    if (CAT.repo !== repoId) return;
     CAT.loading = false;
     if (!CAT.data) { CAT.data = exampleCatalogue(repoById(repoId)); CAT.base = null; CAT.sha = null; CAT.source = 'exemple'; }
     CAT.msg = { err: true, t: ghErrText(e, 'de lire') + (CAT.source === 'exemple' ? ' Un catalogue d’exemple est affiché en attendant.' : '') };
@@ -851,6 +894,26 @@ function parsePrice(s) { var v = String(s).replace(/\s|€/g, '').replace(',', '
 function catErrors(d) {
   var e = [], seenP = {}, seenC = {};
   if (!d) return e;
+  if (isSoiree(d)) {
+    var t = d.tickets || {}, seenE = {};
+    if (!(+t.prixCase > 0)) e.push('Tickets : le prix d\u2019une case doit être un montant supérieur à 0.');
+    if (!(Math.round(+t.casesParCarte) === +t.casesParCarte && +t.casesParCarte > 0)) e.push('Tickets : le nombre de cases par carte doit être un nombre entier supérieur à 0.');
+    d.entrees.forEach(function (x, i) { var n = String(x.libelle || '').trim();
+      if (!n) e.push('Entrée n° ' + (i + 1) + ' : le libellé est vide.');
+      if (typeof x.prix !== 'number' || isNaN(x.prix) || x.prix < 0) e.push('Entrée « ' + (n || 'n° ' + (i + 1)) + ' » : le prix n\u2019est pas un montant valide.');
+      if (seenE[x.id]) e.push('Identifiant d\u2019entrée en double : ' + x.id + '.'); seenE[x.id] = 1; });
+    if (!d.categories.length) e.push('Le catalogue n\u2019a aucune catégorie de boissons.');
+    d.categories.forEach(function (k, i) {
+      var kn = String(k.nom || '').trim() || 'catégorie n° ' + (i + 1);
+      if (!String(k.nom || '').trim()) e.push('Catégorie n° ' + (i + 1) + ' : le nom est vide.');
+      if (seenC[k.id]) e.push('Identifiant de catégorie en double : ' + k.id + '.'); seenC[k.id] = 1;
+      k.produits.forEach(function (p, j) { var pn = String(p.libelle || '').trim();
+        if (!pn) e.push(kn + ', boisson n° ' + (j + 1) + ' : le libellé est vide.');
+        if (!(Math.round(p.cases) === p.cases && p.cases >= 1)) e.push(kn + ', ' + (pn || 'boisson n° ' + (j + 1)) + ' : le nombre de cases doit être un entier (1 ou plus).');
+        if (seenP[p.id]) e.push('Identifiant de boisson en double : ' + p.id + ' (' + (pn || '?') + ').'); seenP[p.id] = 1; });
+    });
+    return e;
+  }
   if (!d.pointsDeVente.some(function (p) { return p.actif; })) e.push('Aucun point de vente visible : les caisses ne pourraient pas être configurées.');
   d.pointsDeVente.forEach(function (p, i) { if (!String(p.nom || '').trim()) e.push('Point de vente n° ' + (i + 1) + ' : le nom est vide.'); });
   if (!d.categories.length) e.push('Le catalogue n’a aucune catégorie.');
@@ -869,6 +932,23 @@ function catErrors(d) {
 }
 function catDiff(base, cur) {
   var out = { add: [], rem: [], prix: [], other: 0 };
+  if (isSoiree(cur)) {
+    var bs = base && isSoiree(base) ? base : null;
+    function idxS(d) { var m = {}; if (d) d.categories.forEach(function (k) { k.produits.forEach(function (p) { m[p.id] = { p: p, k: k.nom }; }); }); return m; }
+    function lab(p) { return p.libelle + (p.format === 'bouteille' ? ' (bouteille)' : ''); }
+    var A = idxS(bs), B = idxS(cur);
+    Object.keys(B).forEach(function (id) { if (!A[id]) out.add.push(lab(B[id].p)); else { var x = A[id].p, y = B[id].p;
+      if (x.cases !== y.cases) out.prix.push(lab(y) + ' : ' + x.cases + ' → ' + y.cases + ' case' + (y.cases > 1 ? 's' : ''));
+      else if (x.libelle !== y.libelle || x.format !== y.format || !!x.actif !== !!y.actif || A[id].k !== B[id].k) out.other++; } });
+    Object.keys(A).forEach(function (id) { if (!B[id]) out.rem.push(lab(A[id].p)); });
+    var ea = {}; (bs ? bs.entrees : []).forEach(function (x) { ea[x.id] = x; });
+    cur.entrees.forEach(function (x) { var o = ea[x.id]; if (!o) out.add.push('Entrée ' + x.libelle); else if (Math.abs(o.prix - x.prix) > 0.001) out.prix.push('Entrée « ' + x.libelle + ' » : ' + money(o.prix) + ' → ' + money(x.prix)); else if (o.libelle !== x.libelle || !!o.actif !== !!x.actif) out.other++; delete ea[x.id]; });
+    Object.keys(ea).forEach(function (k) { out.rem.push('Entrée ' + ea[k].libelle); });
+    if (bs && +bs.tickets.prixCase !== +cur.tickets.prixCase) out.prix.push('Prix d\u2019une case : ' + money(+bs.tickets.prixCase) + ' → ' + money(+cur.tickets.prixCase));
+    if (bs && +bs.tickets.casesParCarte !== +cur.tickets.casesParCarte) out.prix.push('Cases par carte : ' + bs.tickets.casesParCarte + ' → ' + cur.tickets.casesParCarte);
+    if (bs && (bs.soiree || '') !== (cur.soiree || '')) out.prix.push('Nom de la soirée : ' + (bs.soiree || '—') + ' → ' + (cur.soiree || '—'));
+    return out;
+  }
   function idx(d) { var m = {}; if (d) d.categories.forEach(function (k) { k.produits.forEach(function (p) { m[p.id] = { p: p, k: k.nom }; }); }); return m; }
   var a = idx(base), b = idx(cur);
   Object.keys(b).forEach(function (id) {
@@ -900,7 +980,7 @@ function renderCatalogue() {
     (unlocked ? '<button class="pick" id="pubBtn" data-c="askPublish"' + (canPub ? '' : ' disabled') + '>Publier la version ' + nextVersion() + '</button>'
       : '<button class="pick" data-a="go" data-v="parametres">Déverrouiller la publication</button>') + '</div></div></div>';
   if (!CAT.data) { el.innerHTML = band + '<main><section><p class="empty">Chargement du catalogue…</p></section></main>' + vToast(); return; }
-  el.innerHTML = band + '<main>' + '<div class="alerts" id="catAlerts">' + vCatAlerts(errs) + '</div>' + vPublishPanel() + vPdv() + CAT.data.categories.map(vCategory).join('') +
+  el.innerHTML = band + '<main>' + '<div class="alerts" id="catAlerts">' + vCatAlerts(errs) + '</div>' + vPublishPanel() + (isSoiree(CAT.data) ? vSoireeTop() : vPdv()) + CAT.data.categories.map(vCategory).join('') +
     '<div class="addcat"><button class="btn" data-c="catAdd">+ Ajouter une catégorie</button>' + (dirty() ? '<button class="btn" data-c="askRevert">Annuler toutes les modifications</button>' : '') + '</div>' +
     (CAT.confirm && CAT.confirm.type === 'revert' ? '<div class="alerts"><div class="alert confirm">Revenir au catalogue ' + (CAT.base ? 'en ligne (version ' + CAT.base.version + ')' : 'd’exemple') + ' et perdre les modifications ? <span class="cbtns"><button class="btn danger" data-c="revert">Tout annuler</button><button class="btn" data-c="cancel">Garder mes modifications</button></span></div></div>' : '') +
     '</main>' + vToast();
@@ -916,7 +996,7 @@ function vPublishPanel() {
   var d = catDiff(CAT.base, CAT.data), r = repoById(CAT.repo), lines = [];
   if (d.add.length) lines.push('Ajoutés : ' + d.add.map(esc).join(', '));
   if (d.rem.length) lines.push('Retirés : ' + d.rem.map(esc).join(', '));
-  d.prix.forEach(function (p) { lines.push('Prix : ' + esc(p)); });
+  d.prix.forEach(function (p) { lines.push((isSoiree(CAT.data) ? 'Changé : ' : 'Prix : ') + esc(p)); });
   if (d.other) lines.push(d.other + ' autre(s) article(s) modifié(s) (libellé, visibilité ou catégorie)');
   if (!lines.length) lines.push('Ordre, catégories ou points de vente modifiés.');
   return '<section class="pubpanel"><h3>Publier la version ' + nextVersion() + ' sur ' + esc(r.nom) + ' ?</h3>' +
@@ -924,6 +1004,23 @@ function vPublishPanel() {
     (CAT.source !== 'github' ? '<div class="alert">Ce catalogue n’a pas été chargé depuis GitHub : il remplacera entièrement la version en ligne.</div>' : '') +
     '<ul class="plan">' + lines.map(function (l) { return '<li>' + l + '</li>'; }).join('') + '</ul>' +
     '<div class="cbtns"><button class="pick" data-c="publish"' + (CAT.busy ? ' disabled' : '') + '>' + (CAT.busy ? 'Publication…' : 'Publier') + '</button><button class="btn" data-c="cancel"' + (CAT.busy ? ' disabled' : '') + '>Annuler</button></div></section>';
+}
+function vSoireeTop() {
+  var d = CAT.data, t = d.tickets, pc = prixCase(d);
+  var rows = d.entrees.map(function (x, i) {
+    return '<tr class="' + (x.actif ? '' : 'off') + '"><td><input type="text" id="ent-' + esc(x.id) + '" aria-label="Libellé de l\u2019entrée" data-cf="e.libelle" data-i="' + i + '" value="' + esc(x.libelle) + '"></td>' +
+      '<td class="r"><input type="text" inputmode="decimal" class="price num" aria-label="Prix en euros" data-cf="e.prix" data-i="' + i + '" value="' + (isNaN(x.prix) ? '' : String(x.prix).replace('.', ',')) + '"></td>' +
+      '<td class="c"><input type="checkbox" aria-label="Visible en caisse" data-cf="e.actif" data-i="' + i + '"' + (x.actif ? ' checked' : '') + '></td>' +
+      '<td class="r ord"><button data-c="eUp" data-i="' + i + '" aria-label="Monter"' + (i ? '' : ' disabled') + '>↑</button><button data-c="eDown" data-i="' + i + '" aria-label="Descendre"' + (i < d.entrees.length - 1 ? '' : ' disabled') + '>↓</button><button class="x" data-c="eDel" data-i="' + i + '" aria-label="Supprimer ' + esc(x.libelle) + '">✕</button></td></tr>';
+  }).join('');
+  return '<section><h3>Soirée</h3><div class="sogrid">' +
+      '<label class="fl" for="soNom">Nom de la soirée<input type="text" id="soNom" data-cf="so.nom" value="' + esc(d.soiree || '') + '"></label>' +
+      '<label class="fl" for="soPc">Prix d\u2019une case (€)<input type="text" inputmode="decimal" class="num" id="soPc" data-cf="so.prixCase" value="' + String(t.prixCase == null ? '' : t.prixCase).replace('.', ',') + '"></label>' +
+      '<label class="fl" for="soCc">Cases par carte<input type="text" inputmode="numeric" class="num" id="soCc" data-cf="so.casesParCarte" value="' + esc(t.casesParCarte == null ? '' : t.casesParCarte) + '"></label></div>' +
+      '<p class="hint" id="soCarte">Une carte de tickets vaut ' + (pc && +t.casesParCarte ? money(pc * t.casesParCarte) : '—') + '.</p></section>' +
+    '<section><h3>Entrées</h3><p class="lead">Les tarifs proposés à la caisse Entrées.</p><div class="scroll"><table class="ptab"><thead><tr><th>Entrée</th><th class="r">Prix (€)</th><th class="c">Visible</th><th></th></tr></thead><tbody>' + (rows || '<tr><td colspan="4" class="empty">Aucune entrée.</td></tr>') + '</tbody></table></div>' +
+    '<button class="btn" data-c="eAdd">+ Ajouter une entrée</button></section>' +
+    '<p class="lead" style="grid-column:span 12;margin:0">Boissons : le prix se compte en cases à barrer (1 case = <span id="soCase">' + (pc ? money(pc) : '—') + '</span>).</p>';
 }
 function vPdv() {
   return '<section><h3>Points de vente</h3><p class="lead">Chaque appareil de caisse est assigné une fois à l’un d’eux. Masquer un point de vente le retire du choix sur les appareils.</p>' +
@@ -934,19 +1031,23 @@ function vPdv() {
 }
 function vCategory(k, ci) {
   var n = CAT.data.categories.length, conf = CAT.confirm && CAT.confirm.type === 'catDel' && CAT.confirm.ci === ci;
+  var so = isSoiree(CAT.data), pc = prixCase(CAT.data);
   var rows = k.produits.map(function (p, pi) {
     return '<tr class="' + (p.actif ? '' : 'off') + '"><td><input type="text" id="lib-' + esc(p.id) + '" aria-label="Libellé" data-cf="p.libelle" data-ci="' + ci + '" data-pi="' + pi + '" value="' + esc(p.libelle) + '"></td>' +
-      '<td class="r"><input type="text" inputmode="decimal" class="price num" id="prix-' + esc(p.id) + '" aria-label="Prix en euros" data-cf="p.prix" data-ci="' + ci + '" data-pi="' + pi + '" value="' + (isNaN(p.prix) ? '' : String(p.prix).replace('.', ',')) + '"></td>' +
+      (so ? '<td><select aria-label="Format" data-cf="p.format" data-ci="' + ci + '" data-pi="' + pi + '"><option value="verre"' + (p.format !== 'bouteille' ? ' selected' : '') + '>Verre</option><option value="bouteille"' + (p.format === 'bouteille' ? ' selected' : '') + '>Bouteille</option></select></td>' +
+        '<td class="r"><input type="text" inputmode="numeric" class="price num" id="cases-' + esc(p.id) + '" aria-label="Nombre de cases" data-cf="p.cases" data-ci="' + ci + '" data-pi="' + pi + '" value="' + (isNaN(p.cases) ? '' : p.cases) + '"></td>' +
+        '<td class="r num faint" id="eq-' + esc(p.id) + '">' + (pc && p.cases > 0 ? money(p.cases * pc) : '—') + '</td>'
+      : '<td class="r"><input type="text" inputmode="decimal" class="price num" id="prix-' + esc(p.id) + '" aria-label="Prix en euros" data-cf="p.prix" data-ci="' + ci + '" data-pi="' + pi + '" value="' + (isNaN(p.prix) ? '' : String(p.prix).replace('.', ',')) + '"></td>') +
       '<td class="c"><input type="checkbox" aria-label="Visible en caisse" data-cf="p.actif" data-ci="' + ci + '" data-pi="' + pi + '"' + (p.actif ? ' checked' : '') + '></td>' +
       '<td class="r ord"><button data-c="pUp" data-ci="' + ci + '" data-pi="' + pi + '" aria-label="Monter"' + (pi ? '' : ' disabled') + '>↑</button><button data-c="pDown" data-ci="' + ci + '" data-pi="' + pi + '" aria-label="Descendre"' + (pi < k.produits.length - 1 ? '' : ' disabled') + '>↓</button><button class="x" data-c="pDel" data-ci="' + ci + '" data-pi="' + pi + '" aria-label="Supprimer ' + esc(p.libelle) + '">✕</button></td></tr>';
   }).join('');
   return '<section class="catsec' + (k.actif ? '' : ' off') + '"><div class="cathead"><input type="text" class="cname" id="cat-' + esc(k.id) + '" aria-label="Nom de la catégorie" data-cf="c.nom" data-ci="' + ci + '" value="' + esc(k.nom) + '">' +
     '<div class="ctools"><label class="tog"><input type="checkbox" data-cf="c.actif" data-ci="' + ci + '"' + (k.actif ? ' checked' : '') + '>Visible</label>' +
-    '<label class="tog" title="Afficher le nom de la catégorie devant l’article dans le panier et les ventes"><input type="checkbox" data-cf="c.prefixe" data-ci="' + ci + '"' + (k.prefixe !== false ? ' checked' : '') + '>Nom devant l’article</label>' +
+    (so ? '' : '<label class="tog" title="Afficher le nom de la catégorie devant l’article dans le panier et les ventes"><input type="checkbox" data-cf="c.prefixe" data-ci="' + ci + '"' + (k.prefixe !== false ? ' checked' : '') + '>Nom devant l’article</label>') +
     '<span class="ord"><button data-c="cUp" data-ci="' + ci + '" aria-label="Monter la catégorie"' + (ci ? '' : ' disabled') + '>↑</button><button data-c="cDown" data-ci="' + ci + '" aria-label="Descendre la catégorie"' + (ci < n - 1 ? '' : ' disabled') + '>↓</button><button class="x" data-c="askCatDel" data-ci="' + ci + '">Supprimer</button></span></div></div>' +
     (conf ? '<div class="alert confirm">Supprimer « ' + esc(k.nom) + ' » et ses ' + k.produits.length + ' article(s) ? <span class="cbtns"><button class="btn danger" data-c="catDel" data-ci="' + ci + '">Supprimer</button><button class="btn" data-c="cancel">Annuler</button></span></div>' : '') +
-    '<div class="scroll"><table class="ptab"><thead><tr><th>Article</th><th class="r">Prix (€)</th><th class="c">Visible</th><th></th></tr></thead><tbody>' + (rows || '<tr><td colspan="4" class="empty">Aucun article.</td></tr>') + '</tbody></table></div>' +
-    '<button class="btn" data-c="pAdd" data-ci="' + ci + '">+ Ajouter un article</button></section>';
+    '<div class="scroll"><table class="ptab' + (so ? ' so' : '') + '"><thead><tr><th>' + (so ? 'Boisson' : 'Article') + '</th>' + (so ? '<th>Format</th><th class="r">Cases</th><th class="r">Soit</th>' : '<th class="r">Prix (€)</th>') + '<th class="c">Visible</th><th></th></tr></thead><tbody>' + (rows || '<tr><td colspan="' + (so ? 6 : 4) + '" class="empty">Aucun article.</td></tr>') + '</tbody></table></div>' +
+    '<button class="btn" data-c="pAdd" data-ci="' + ci + '">+ Ajouter ' + (so ? 'une boisson' : 'un article') + '</button></section>';
 }
 /* Après une saisie : on met à jour seulement l'état, les alertes et le bouton Publier (le focus reste dans le champ) */
 function catSoftRefresh() {
@@ -958,8 +1059,11 @@ function catSoftRefresh() {
 }
 function publishCat() {
   var token = getToken(); if (!token) { go('parametres'); return; }
-  var r = repoById(CAT.repo); CAT.busy = true; CAT.msg = null; render();
+  var r = repoById(CAT.repo);
+  if (!CAT.data || CAT.data.format !== r.format) { CAT.confirm = null; CAT.msg = { err: true, t: 'Publication bloquée : le catalogue affiché n\u2019est pas celui de la ' + esc(r.nom) + '. Rechargez-le depuis GitHub.' }; render(); return; }
+  CAT.busy = true; CAT.msg = null; render();
   ghGetCatalogue(r.id, token).then(function (cur) {
+    if (cur.json && cur.json.format !== r.format) throw { status: -1 };
     if (CAT.source === 'github' && CAT.sha && cur.sha !== CAT.sha) throw new GhError(409, 'conflict');
     var v = Math.max(cur.json ? cur.json.version || 0 : 0, CAT.base ? CAT.base.version : 0, CAT.data.version || 0) + 1;
     var out = finalizeCat(CAT.data, v), body = { message: 'Catalogue v' + v + ' (Admin)', content: utf8b64(JSON.stringify(out, null, 2) + '\n') };
@@ -972,7 +1076,7 @@ function publishCat() {
     });
   }).catch(function (e) {
     CAT.busy = false; CAT.confirm = null;
-    CAT.msg = { err: true, t: ghErrText(e) + (e && e.status === 409 ? ' Vos modifications sont gardées ici en attendant.' : '') };
+    CAT.msg = { err: true, t: e && e.status === -1 ? 'Publication bloquée : le catalogue en ligne de ' + esc(r.nom) + ' n\u2019a pas le format attendu.' : ghErrText(e) + (e && e.status === 409 ? ' Vos modifications sont gardées ici en attendant.' : '') };
     render();
   });
 }
@@ -993,7 +1097,11 @@ function catClick(el) {
   else if (c === 'pUp') mv(d.categories[ci].produits, pi, pi - 1);
   else if (c === 'pDown') mv(d.categories[ci].produits, pi, pi + 1);
   else if (c === 'pDel') d.categories[ci].produits.splice(pi, 1);
-  else if (c === 'pAdd') { var k = d.categories[ci]; var id = uid(slug(k.id).slice(0, 8) + '-', allProductIds()); k.produits.push({ id: id, libelle: '', prix: NaN, ordre: k.produits.length + 1, actif: true }); saveDraft(); render(); var f = document.getElementById('lib-' + id); if (f) f.focus(); return; }
+  else if (c === 'eAdd') { var te = {}; d.entrees.forEach(function (x) { te[x.id] = 1; }); var eid = uid('entree', te); d.entrees.push({ id: eid, libelle: '', prix: NaN, ordre: d.entrees.length + 1, actif: true }); saveDraft(); render(); var fe = document.getElementById('ent-' + eid); if (fe) fe.focus(); return; }
+  else if (c === 'eDel') d.entrees.splice(+el.getAttribute('data-i'), 1);
+  else if (c === 'eUp') { var ei = +el.getAttribute('data-i'); mv(d.entrees, ei, ei - 1); }
+  else if (c === 'eDown') { var ej = +el.getAttribute('data-i'); mv(d.entrees, ej, ej + 1); }
+  else if (c === 'pAdd') { var k = d.categories[ci]; var id = uid(slug(k.id).slice(0, 8) + '-', allProductIds()); k.produits.push(isSoiree(d) ? { id: id, libelle: '', format: 'verre', cases: NaN, ordre: k.produits.length + 1, actif: true } : { id: id, libelle: '', prix: NaN, ordre: k.produits.length + 1, actif: true }); saveDraft(); render(); var f = document.getElementById('lib-' + id); if (f) f.focus(); return; }
   else if (c === 'catAdd') { var t = {}; d.categories.forEach(function (x) { t[x.id] = 1; }); var cid = uid('cat', t); d.categories.push({ id: cid, nom: '', ordre: d.categories.length + 1, actif: true, produits: [] }); saveDraft(); render(); var g = document.getElementById('cat-' + cid); if (g) { g.focus(); g.scrollIntoView({ block: 'center' }); } return; }
   else if (c === 'pdvAdd') { var tp = {}; d.pointsDeVente.forEach(function (x) { tp[x.id] = 1; }); d.pointsDeVente.push({ id: uid('pdv', tp), nom: '', actif: true }); saveDraft(); render(); var h = document.getElementById('pdv-' + (d.pointsDeVente.length - 1)); if (h) h.focus(); return; }
   saveDraft(); render();
@@ -1007,13 +1115,26 @@ function catInput(el) {
   else if (f === 'c.prefixe') { if (val) delete d.categories[ci].prefixe; else d.categories[ci].prefixe = false; }
   else if (f === 'p.libelle') d.categories[ci].produits[pi].libelle = val;
   else if (f === 'p.prix') d.categories[ci].produits[pi].prix = parsePrice(val);
+  else if (f === 'p.cases') { var pp = d.categories[ci].produits[pi], cv = parsePrice(val); pp.cases = cv; var eq = document.getElementById('eq-' + pp.id); if (eq) eq.textContent = prixCase(d) && cv > 0 ? money(cv * prixCase(d)) : '—'; }
+  else if (f === 'p.format') d.categories[ci].produits[pi].format = val;
+  else if (f === 'e.libelle') d.entrees[i].libelle = val;
+  else if (f === 'e.prix') d.entrees[i].prix = parsePrice(val);
+  else if (f === 'e.actif') { d.entrees[i].actif = val; el.closest('tr').classList.toggle('off', !val); }
+  else if (f === 'so.nom') d.soiree = val;
+  else if (f === 'so.prixCase' || f === 'so.casesParCarte') {
+    d.tickets[f === 'so.prixCase' ? 'prixCase' : 'casesParCarte'] = parsePrice(val);
+    var pcx = prixCase(d), sc = document.getElementById('soCarte'), sca = document.getElementById('soCase'); if (sca) sca.textContent = pcx ? money(pcx) : '—'; if (sc) sc.textContent = 'Une carte de tickets vaut ' + (pcx && +d.tickets.casesParCarte ? money(pcx * d.tickets.casesParCarte) : '—') + '.';
+    d.categories.forEach(function (k) { k.produits.forEach(function (p) { var q = document.getElementById('eq-' + p.id); if (q) q.textContent = pcx && p.cases > 0 ? money(p.cases * pcx) : '—'; }); });
+  }
   else if (f === 'p.actif') { d.categories[ci].produits[pi].actif = val; el.closest('tr').classList.toggle('off', !val); }
   catSoftRefresh();
 }
 function catImport(file) {
   var rd = new FileReader();
   rd.onload = function () {
-    try { var c = normalizeCat(JSON.parse(rd.result)); CAT.data = c; CAT.source = 'fichier'; CAT.confirm = null; CAT.msg = { t: 'Catalogue « ' + esc(file.name) + ' » (version ' + c.version + ') chargé. Il n’est pas encore publié.' }; saveDraft(); render(); }
+    try { var c = normalizeCat(JSON.parse(rd.result)), want = repoById(CAT.repo);
+      if (c.format !== want.format) { var other = REPOS.filter(function (x) { return x.format === c.format; })[0]; throw new Error('ce catalogue est celui de la ' + (other ? other.nom : 'caisse « ' + c.format + ' »') + ', pas de la ' + want.nom + '. Choisissez la bonne caisse avant d\u2019importer.'); }
+      CAT.data = c; CAT.source = 'fichier'; CAT.confirm = null; CAT.msg = { t: 'Catalogue « ' + esc(file.name) + ' » (version ' + c.version + ') chargé. Il n’est pas encore publié.' }; saveDraft(); render(); }
     catch (e) { CAT.msg = { err: true, t: esc(file.name) + ' : ' + esc(e instanceof SyntaxError ? 'fichier illisible (JSON invalide).' : e.message) }; render(); }
   };
   rd.readAsText(file);

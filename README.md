@@ -1,6 +1,6 @@
 # Admin Chlorophylle Night
 
-Application d'administration des caisses : **Bilan des ventes** de la Caisse Bar et de la Caisse Sapins (fichiers déposés ou lus dans le dépôt privé `ventes`), **Catalogue** (publié directement sur GitHub), **Stock** (comptage quotidien par événement) et **Paramètres**.
+Application d'administration des caisses : **Bilan des ventes** de la Caisse Bar et de la Caisse Sapins (fichiers déposés ou lus dans le dépôt privé `ventes`), **Catalogue** des caisses Bar, Sapins et Soirée (publié directement sur GitHub), **Stock** (comptage quotidien par événement) et **Paramètres**.
 
 Elle s'installe sur un PC ou une tablette (Chrome / Edge) et fonctionne hors ligne. La publication du catalogue demande internet.
 
@@ -30,7 +30,7 @@ Elle s'installe sur un PC ou une tablette (Chrome / Edge) et fonctionne hors lig
 1. Dans l'app : **Paramètres → Préparer la clé chiffrée**.
 2. Créez le jeton GitHub (lien dans l'app) :
    - type **Fine-grained token**, expiration : fin de saison ;
-   - Repository access : **Only select repositories** → `bar`, `sapin`, `admin-donnees` et `ventes` ;
+   - Repository access : **Only select repositories** → `bar`, `sapin`, `soiree`, `admin-donnees` et `ventes` ;
    - Permissions → Repository → **Contents : Read and write**. Rien d'autre.
 3. Collez le jeton, choisissez une **phrase de passe de 4 à 5 mots**, cliquez **Chiffrer le jeton**.
 4. Envoyez le texte chiffré à Claude : il le place dans `index.html` (constante `CLE_CHIFFREE`). Redéposez `index.html` et augmentez le cache de `sw.js`.
