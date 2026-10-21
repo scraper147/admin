@@ -1,5 +1,6 @@
 {
-  "name": "Admin Chlorophylle Night",
+"id": "/admin/",  
+"name": "Admin Chlorophylle Night",
   "short_name": "Admin",
   "description": "Administration des caisses : bilan des ventes, catalogue publié sur GitHub.",
   "lang": "fr",
