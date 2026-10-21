@@ -6,7 +6,7 @@
 // il ne faut jamais toucher à leurs caches.
 var PREFIX = 'admin-chlorophylle-';
 var CACHE = PREFIX + 'v21';
-var FILES = ['./', './index.html', './manifest.webmanifest',
+var FILES = ['./', './index.html', './manifestAdmin.webmanifest',
   './icons/icon-192.png', './icons/icon-512.png', './icons/icon-maskable-512.png', './icons/apple-touch-icon.png'];
 
 self.addEventListener('install', function (e) {
