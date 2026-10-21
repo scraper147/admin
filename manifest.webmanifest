@@ -6,7 +6,7 @@
   "lang": "fr",
   "start_url": "/admin/",
   "scope": "/admin/",
-  "display": "standalone",
+  "display": "fullscreen",
   "orientation": "any",
   "background_color": "#0E150D",
   "theme_color": "#0E150D",
