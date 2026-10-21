@@ -86,6 +86,12 @@ label.btn input{position:absolute;width:1px;height:1px;opacity:0}
 main{max-width:calc(1180px + 2 * clamp(16px,4vw,48px));margin:0 auto;padding:22px clamp(16px,4vw,48px) 60px;display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:22px}
 section{grid-column:span 12;background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:20px 22px;min-width:0}
 section.half{grid-column:span 6}
+.kpis{display:grid;grid-template-columns:repeat(auto-fill,minmax(135px,1fr));gap:10px;margin-top:6px}
+.kpi{border:1px solid var(--line);border-radius:12px;padding:12px 14px;display:flex;flex-direction:column;gap:2px;background:var(--bg)}
+.kpi span{font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
+.kpi b{font-size:26px;font-weight:700;font-variant-numeric:tabular-nums}
+.kpi small{font-size:13px;color:var(--muted)}
+.kpi.warn b{color:var(--red,#C0392B)}
 section h3{font-family:var(--display);font-weight:600;font-size:22px;margin:0 0 4px}
 section .lead{color:var(--muted);font-size:15px;margin:0 0 14px}
 .alerts{grid-column:span 12;display:flex;flex-direction:column;gap:8px}
@@ -337,14 +343,16 @@ try { var th = localStorage.getItem(THEME_KEY); if (th) document.documentElement
 var FILES = [];            // {name, data, status, note}
 var F = { soiree: null, bar: 'all', caisse: null };
 /* Caisses lues par le Bilan (préfixe du format des exports) */
-var CAISSES_BILAN = { 'caisse-bar/ventes': 'bar', 'agri-garden-caisse/ventes': 'sapin' };
-var CAISSE_LABEL = { bar: 'Caisse Bar', sapin: 'Caisse Sapins' };
+var CAISSES_BILAN = { 'caisse-bar/ventes': 'bar', 'agri-garden-caisse/ventes': 'sapin', 'chlorophylle-caisse/soiree': 'soiree' };
+var CAISSE_LABEL = { bar: 'Caisse Bar', sapin: 'Caisse Sapins', soiree: 'Caisse Soirée' };
 function caisseOf(fmt) { return CAISSES_BILAN[fmt] || null; }
-function okVentes(d) { return d && caisseOf(d.format) && Array.isArray(d.ventes); }
-function caisses() { var o = {}; FILES.forEach(function (f) { if (f.status === 'ok' && f.caisse) o[f.caisse] = 1; }); return ['bar', 'sapin'].filter(function (c) { return o[c]; }); }
+function okVentes(d) { var c = d && caisseOf(d.format); return !!c && (c === 'soiree' ? Array.isArray(d.enregistrements) : Array.isArray(d.ventes)); }
+var ERR_FORMAT = 'Ce fichier n\u2019est pas un export de ventes d\u2019une caisse (Caisse Bar, Caisse Sapins ou Caisse Soirée).';
+function caisses() { var o = {}; FILES.forEach(function (f) { if (f.status === 'ok' && f.caisse) o[f.caisse] = 1; }); return ['bar', 'sapin', 'soiree'].filter(function (c) { return o[c]; }); }
 function fixCaisse() { var cs = caisses(); if (!F.caisse || cs.indexOf(F.caisse) < 0) F.caisse = cs[0] || null; }
 /* Vocabulaire : soirée et bar pour la Caisse Bar, journée et point de vente pour la Caisse Sapins */
-function T() { return F.caisse === 'sapin' ? { per: 'Journée', pers: 'journées', toutes: 'Toutes les journées', du: 'Journée du', dela: 'la journée du', pdv: 'Point de vente', pdvs: 'points de vente', par: 'Par point de vente', inconnu: 'Point de vente inconnu', tous: 'Tous' } : { per: 'Soirée', pers: 'soirées', toutes: 'Toutes les soirées', du: 'Soirée du', dela: 'la soirée du', pdv: 'Bar', pdvs: 'bars', par: 'Par bar', inconnu: 'Bar inconnu', tous: 'Tous' }; }
+function T() { if (F.caisse === 'soiree') return { per: 'Soirée', pers: 'soirées', toutes: 'Toutes les soirées', du: 'Soirée du', dela: 'la soirée du', pdv: 'Appareil', pdvs: 'appareils', par: 'Par appareil', inconnu: 'Appareil inconnu', tous: 'Tous' };
+  return F.caisse === 'sapin' ? { per: 'Journée', pers: 'journées', toutes: 'Toutes les journées', du: 'Journée du', dela: 'la journée du', pdv: 'Point de vente', pdvs: 'points de vente', par: 'Par point de vente', inconnu: 'Point de vente inconnu', tous: 'Tous' } : { per: 'Soirée', pers: 'soirées', toutes: 'Toutes les soirées', du: 'Soirée du', dela: 'la soirée du', pdv: 'Bar', pdvs: 'bars', par: 'Par bar', inconnu: 'Bar inconnu', tous: 'Tous' }; }
 var ART_VIEW = 'cat';      // 'cat' (par catégorie) ou 'top' (classement)
 var toastMsg = '', toastT;
 
@@ -363,7 +371,7 @@ function soireeOf(iso) {
   var d = dParts(iso); if (hh(iso) < CUT) d.setDate(d.getDate() - 1);
   return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
 }
-function slot0() { return F.caisse === 'sapin' ? 6 : 18; } // heure de la 1re colonne du graphique
+function slot0() { return F.caisse === 'sapin' ? 6 : F.caisse === 'soiree' ? 12 : 18; } // heure de la 1re colonne du graphique
 function slot(iso) { var h = hh(iso); return (h - slot0() + 24) % 24; } // Caisse Bar : 0 = 18 h ... 23 = 17 h
 
 /* ---------- Chargement ---------- */
@@ -376,7 +384,7 @@ function addFiles(list) {
       var entry = { name: file.name, data: null, status: 'err', note: '' };
       try {
         var d = JSON.parse(rd.result);
-        if (!okVentes(d)) entry.note = 'Ce fichier n\u2019est pas un export de ventes d\u2019une caisse (Caisse Bar ou Caisse Sapins).';
+        if (!okVentes(d)) entry.note = ERR_FORMAT;
         else { entry.data = d; entry.status = 'ok'; entry.caisse = caisseOf(d.format); }
       } catch (e) { entry.note = 'Fichier illisible (JSON invalide).'; }
       FILES.push(entry);
@@ -391,15 +399,19 @@ function dedupe() {
   FILES.forEach(function (f) {
     if (!f.data) return;
     if (f.status === 'rep') f.status = 'ok';
-    var k = f.caisse + '|' + (f.data.pointDeVente && f.data.pointDeVente.id) + '|' + f.data.date;
+    var k = fileDedupKey(f);
     if (!best[k] || (f.data.miseAJour || '') > (best[k].data.miseAJour || '')) best[k] = f;
   });
   FILES.forEach(function (f) {
     if (!f.data) return;
-    var k = f.caisse + '|' + (f.data.pointDeVente && f.data.pointDeVente.id) + '|' + f.data.date;
-    if (best[k] !== f) { f.status = 'rep'; f.note = 'Remplacé par un export plus récent du même point de vente et du même jour (' + best[k].name + ').'; }
+    var k = fileDedupKey(f);
+    if (best[k] !== f) { f.status = 'rep'; f.note = f.caisse === 'soiree' ? 'Remplacé par un export plus récent du même appareil pour la même soirée (' + best[k].name + ').' : 'Remplacé par un export plus récent du même point de vente et du même jour (' + best[k].name + ').'; }
     else f.note = '';
   });
+}
+function fileDedupKey(f) {
+  if (f.caisse === 'soiree') return 'soiree|' + (f.data.appareil && f.data.appareil.id) + '|' + f.data.soiree;
+  return f.caisse + '|' + (f.data.pointDeVente && f.data.pointDeVente.id) + '|' + f.data.date;
 }
 function activeFiles() { fixCaisse(); return FILES.filter(function (f) { return f.status === 'ok' && f.caisse === F.caisse; }); }
 function allSales() {
@@ -415,8 +427,8 @@ function allSales() {
   });
   return out;
 }
-function soirees() { var o = {}; allSales().forEach(function (s) { o[s.soiree] = 1; }); return Object.keys(o).sort().reverse(); }
-function bars() { var o = {}; allSales().forEach(function (s) { o[s.barId] = s.bar; }); return Object.keys(o).sort(function (a, b) { return o[a].localeCompare(o[b]); }).map(function (id) { return { id: id, nom: o[id] }; }); }
+function soirees() { var o = {}; if (F.caisse === 'soiree') { soirRecs().forEach(function (x) { o[x.night] = 1; }); return Object.keys(o).sort().reverse(); } allSales().forEach(function (s) { o[s.soiree] = 1; }); return Object.keys(o).sort().reverse(); }
+function bars() { var o = {}; (F.caisse === 'soiree' ? soirRecs().map(function (x) { return { barId: x.apId, bar: x.apNom }; }) : allSales()).forEach(function (s) { o[s.barId] = s.bar; }); return Object.keys(o).sort(function (a, b) { return o[a].localeCompare(o[b]); }).map(function (id) { return { id: id, nom: o[id] }; }); }
 function filtered() {
   return allSales().filter(function (s) { return (F.soiree === 'all' || s.soiree === F.soiree) && (F.bar === 'all' || s.barId === F.bar); });
 }
@@ -448,6 +460,11 @@ function warnings() {
   var w = [];
   FILES.forEach(function (f) { if (f.status === 'err') w.push({ err: true, t: '<strong>' + esc(f.name) + '</strong> : ' + esc(f.note) }); });
   FILES.forEach(function (f) { if (f.status === 'rep') w.push({ t: '<strong>' + esc(f.name) + '</strong> est ignoré : ' + esc(f.note) }); });
+  if (F.caisse === 'soiree') {
+    var R = soirStats(soirFiltered());
+    if (R.bo.cases > R.tk.cases) w.push({ t: 'Plus de cases barrées (<strong>' + R.bo.cases + '</strong>) que de cases vendues (<strong>' + R.tk.cases + '</strong>) : il manque peut-être le fichier d\u2019un appareil Tickets.' });
+    return w;
+  }
   var all = allSales(), bs = bars(), byS = {};
   all.forEach(function (s) { (byS[s.soiree] = byS[s.soiree] || {})[s.barId] = 1; });
   Object.keys(byS).sort().forEach(function (so) { bs.forEach(function (b) { if (!byS[so][b.id]) w.push({ t: 'Aucune vente de <strong>' + esc(b.nom) + '</strong> pour ' + T().dela + ' ' + longDate(so) + ' : un fichier manque peut-être.' }); }); });
@@ -466,6 +483,7 @@ function renderBilan() {
 function renderBilanInner() {
   var app = document.getElementById('mod');
   if (!activeFiles().length) { app.innerHTML = vBand(null) + (FILES.length || BGH.open ? '<main>' + vGhPanel() + vAlerts() + '</main>' : '') + vToast(); bindDrop(); return; }
+  if (F.caisse === 'soiree') { var R = soirStats(soirFiltered()); app.innerHTML = vSoirBand(R) + vFilters() + '<main>' + vGhPanel() + vAlerts() + vSoirRecette(R) + vSoirEntrees(R) + vSoirCases(R) + vSoirBoissons(R) + vSoirHours(R) + vSoirApp(R) + vSoirAnn(R) + vFiles() + '</main>' + vToast(); bindDrop(); return; }
   var list = filtered(), S = stats(list);
   app.innerHTML = vBand(S) + vFilters() + '<main>' + vGhPanel() + vAlerts() + vBars(S) + vHours(S) + vArticles(S) + vAdjust(S) + vFiles() + '</main>' + vToast();
   bindDrop();
@@ -478,7 +496,7 @@ function vBand(S) {
   var top = '<div class="band-top"><h1>Bilan des ventes</h1></div>';
   if (!S) {
     return '<div class="band">' + top + '<div class="drop" id="drop"><h2>Déposez les exports des caisses</h2>' +
-      '<p>Glissez ici tous les fichiers <strong>ventes_….json</strong> téléchargés depuis la Caisse Bar ou la Caisse Sapins, de tous les points de vente et de tous les jours. Ils restent sur cet appareil : rien n\u2019est envoyé sur internet.</p>' +
+      '<p>Glissez ici tous les fichiers <strong>ventes_….json</strong> téléchargés depuis la Caisse Bar ou la Caisse Sapins, ou les fichiers <strong>chlorophylle_….json</strong> de la Caisse Soirée, de tous les appareils et de tous les jours. Ils restent sur cet appareil : rien n\u2019est envoyé sur internet.</p>' +
       '<div class="acts"><label class="pick">Choisir des fichiers<input type="file" accept=".json,application/json" multiple data-files></label>' +
       '<button class="demo" data-g="open">Charger depuis le dépôt</button><button class="demo" data-a="demo">Essayer avec des exemples</button></div></div></div>';
   }
@@ -573,10 +591,191 @@ function vAdjust(S) {
 function vFiles() {
   var rows = FILES.map(function (f, i) {
     var d = f.data, st = f.status === 'ok' ? '<span class="status ok">Pris en compte</span>' : f.status === 'rep' ? '<span class="status rep">Ignoré (doublon)</span>' : '<span class="status err">Refusé</span>';
-    return '<tr><td>' + esc(f.name) + '</td><td>' + (f.caisse ? CAISSE_LABEL[f.caisse] : '') + '</td><td>' + (d ? esc(d.pointDeVente ? d.pointDeVente.nom : '?') : '') + '</td><td class="num">' + (d ? String(d.date || '').split('-').reverse().join('/') : '') + '</td><td class="r num">' + (d && d.ventes ? d.ventes.length : '') + '</td><td>' + st + '</td><td class="r"><button class="x" data-a="rm" data-v="' + i + '" aria-label="Retirer ' + esc(f.name) + '">Retirer</button></td></tr>';
+    return '<tr><td>' + esc(f.name) + '</td><td>' + (f.caisse ? CAISSE_LABEL[f.caisse] : '') + '</td><td>' + (d ? esc(d.pointDeVente ? d.pointDeVente.nom : d.appareil ? (d.appareil.nom || d.appareil.id) : '?') : '') + '</td><td class="num">' + (d ? String(d.date || d.soiree || '').split('-').reverse().join('/') : '') + '</td><td class="r num">' + (d && d.ventes ? d.ventes.length : d && d.enregistrements ? d.enregistrements.length : '') + '</td><td>' + st + '</td><td class="r"><button class="x" data-a="rm" data-v="' + i + '" aria-label="Retirer ' + esc(f.name) + '">Retirer</button></td></tr>';
   }).join('');
-  return '<section class="files"><h3>Fichiers chargés</h3><p class="lead">Un export par point de vente et par jour de calendrier. Caisse Bar : les ventes après minuit sont rattachées à la soirée de la veille.</p><div class="scroll"><table><thead><tr><th>Fichier</th><th>Caisse</th><th>Point de vente</th><th>Jour</th><th class="r">Ventes</th><th>État</th><th></th></tr></thead><tbody>' + rows + '</tbody></table></div>' +
+  return '<section class="files"><h3>Fichiers chargés</h3><p class="lead">Un export par point de vente et par jour de calendrier (Caisse Soirée : un fichier par appareil et par soirée). Caisse Bar et Caisse Soirée : les ventes après minuit sont rattachées à la soirée de la veille.</p><div class="scroll"><table><thead><tr><th>Fichier</th><th>Caisse</th><th>Point de vente / appareil</th><th>Jour</th><th class="r">Ventes</th><th>État</th><th></th></tr></thead><tbody>' + rows + '</tbody></table></div>' +
     '<p class="noprint" style="margin:14px 0 0"><button class="btn" data-a="clear">Tout retirer</button></p></section>';
+}
+
+
+/* ================= Bilan de la Caisse Soirée (format chlorophylle-caisse/soiree) ================= */
+/* Enregistrements de tous les fichiers actifs, fusionnés par identifiant (un même enregistrement n'est compté qu'une fois) */
+function soirNightOf(iso) { var d = new Date(iso); if (isNaN(d)) return iso.slice(0, 10); d = new Date(d.getTime() - 12 * 3600 * 1000); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
+function soirRecs() {
+  var map = {}, out = [];
+  activeFiles().forEach(function (f) {
+    var d = f.data, ap = d.appareil || {};
+    (d.enregistrements || []).forEach(function (r) {
+      if (!r || !r.id || typeof r.horodatage !== 'string' || !/^\d{4}-\d{2}-\d{2}T\d{2}/.test(r.horodatage)) return;
+      if (map[r.id]) return; map[r.id] = 1;
+      var a = r.appareil || ap;
+      out.push({ r: r, night: r.soiree || d.soiree || soirNightOf(r.horodatage), apId: a.id || '?', apNom: a.nom || a.id || T().inconnu, pc: +r.prixCase || +d.prixCase || 0, cpc: +d.casesParCarte || 18 });
+    });
+  });
+  return out;
+}
+function soirFiltered() { return soirRecs().filter(function (x) { return (F.soiree === 'all' || x.night === F.soiree) && (F.bar === 'all' || x.apId === F.bar); }); }
+function soirStats(list) {
+  var R = { recette: 0, cash: 0, bc: 0, mixte: 0, n: 0, ann: [], pc: 0, cpc: 18,
+    ent: { recette: 0, cash: 0, bc: 0, ventes: 0, personnes: 0, preventes: 0, forcees: 0, produits: {} },
+    tk: { recette: 0, cash: 0, bc: 0, ventes: 0, cases: 0, cartes: 0, seules: 0, budget: 0 },
+    bo: { commandes: 0, cases: 0, valeur: 0, produits: {}, cats: {} }, hours: {}, perAp: {} };
+  list.forEach(function (x) { if (!R.pc && x.pc) R.pc = x.pc; if (x.cpc) R.cpc = x.cpc; });
+  list.forEach(function (x) {
+    var r = x.r;
+    if (r.annulation) { R.ann.push(x); return; }
+    R.n++;
+    var a = R.perAp[x.apId] || (R.perAp[x.apId] = { nom: x.apNom, recette: 0, cash: 0, bc: 0, entrees: 0, cases: 0, commandes: 0, barrees: 0, n: 0 });
+    a.n++;
+    var h = slot(r.horodatage), hb = R.hours[h] || (R.hours[h] = { ent: 0, cmd: 0, rec: 0 });
+    var p = r.paiement;
+    if (p && (r.type === 'entree' || r.type === 'ticket')) {
+      var t = +r.total || 0, c = +p.cash || 0, b = +p.bancontact || 0;
+      R.recette += t; R.cash += c; R.bc += b; if (p.mode === 'mixte') R.mixte++;
+      a.recette += t; a.cash += c; a.bc += b; hb.rec += t;
+      var g = r.type === 'entree' ? R.ent : R.tk; g.recette += t; g.cash += c; g.bc += b;
+    }
+    if (r.type === 'prevente') { R.ent.preventes++; if (r.forcee) R.ent.forcees++; a.entrees++; hb.ent++; }
+    else if (r.type === 'entree') {
+      R.ent.ventes++;
+      (r.lignes || []).forEach(function (l) {
+        var k = l.produitId || l.libelle, e = R.ent.produits[k] || (R.ent.produits[k] = { libelle: l.libelle || k, q: 0, m: 0 });
+        e.q += +l.quantite || 0; e.m += +l.total || 0;
+        if (l.produitId === 'entree') { R.ent.personnes += +l.quantite || 0; a.entrees += +l.quantite || 0; hb.ent += +l.quantite || 0; }
+      });
+    } else if (r.type === 'ticket') {
+      R.tk.ventes++; R.tk.cases += +r.cases || 0; R.tk.cartes += +r.cartes || 0; R.tk.seules += +r.casesSeules || 0; if (r.budget) R.tk.budget++;
+      a.cases += +r.cases || 0;
+    } else if (r.type === 'commande') {
+      var tc = +r.totalCases || 0;
+      R.bo.commandes++; R.bo.cases += tc; R.bo.valeur += r.valeur != null ? +r.valeur : tc * x.pc; a.commandes++; a.barrees += tc; hb.cmd++;
+      (r.lignes || []).forEach(function (l) {
+        var k = l.produitId || l.libelle, cat = l.categorie || 'Sans catégorie';
+        var pr = R.bo.produits[k] || (R.bo.produits[k] = { libelle: l.libelle || k, cat: cat, format: l.format, q: 0, cases: 0 });
+        pr.q += +l.quantite || 0; pr.cases += +l.totalCases || 0;
+      });
+    }
+  });
+  Object.keys(R.bo.produits).forEach(function (k) { var pr = R.bo.produits[k], c = R.bo.cats[pr.cat] || (R.bo.cats[pr.cat] = { q: 0, cases: 0, items: [] }); c.q += pr.q; c.cases += pr.cases; c.items.push(pr); });
+  ['recette', 'cash', 'bc'].forEach(function (k) { R[k] = r2(R[k]); });
+  return R;
+}
+function plur(n, s, p) { return n + ' ' + (Math.abs(n) > 1 ? (p || s + 's') : s); }
+function soirTitle() {
+  var title = (caisses().length > 1 ? CAISSE_LABEL.soiree + ' · ' : '') + (F.soiree === 'all' ? T().toutes : T().du + ' ' + longDate(F.soiree));
+  if (F.bar !== 'all') { var b = bars().filter(function (x) { return x.id === F.bar; })[0]; if (b) title += ', ' + b.nom; }
+  return title;
+}
+function vSoirBand(R) {
+  var tot = R.recette || 0, pc = tot ? R.cash / tot * 100 : 0, entT = R.ent.personnes + R.ent.preventes;
+  return '<div class="band"><div class="band-top"><h1>Bilan des ventes</h1></div><div class="hero"><h2>' + esc(soirTitle()) + '</h2>' +
+    '<div class="big num">' + money(tot).replace(/ €$/, '') + '<small>€</small></div>' +
+    '<div class="split" role="img" aria-label="Cash ' + Math.round(pc) + ' %, Bancontact ' + Math.round(100 - pc) + ' %"><i style="width:' + pc + '%;background:var(--gold)"></i><i style="width:' + (tot ? 100 - pc : 0) + '%;background:#5E8F4E"></i></div>' +
+    '<div class="split-legend num"><span><span class="dot" style="background:var(--gold)"></span>Cash <b>' + money(R.cash) + '</b> (' + Math.round(pc) + ' %)</span>' +
+    '<span><span class="dot" style="background:#5E8F4E"></span>Bancontact <b>' + money(R.bc) + '</b> (' + Math.round(tot ? 100 - pc : 0) + ' %)</span></div>' +
+    '<div class="facts num"><strong>' + entT + '</strong> entrée' + (entT > 1 ? 's' : '') + ' (' + R.ent.personnes + ' payante' + (R.ent.personnes > 1 ? 's' : '') + ', ' + R.ent.preventes + ' prévente' + (R.ent.preventes > 1 ? 's' : '') + '), <strong>' + R.tk.cases + '</strong> case' + (R.tk.cases > 1 ? 's' : '') + ' vendue' + (R.tk.cases > 1 ? 's' : '') + ', <strong>' + R.bo.commandes + '</strong> commande' + (R.bo.commandes > 1 ? 's' : '') + ' de boissons' +
+    (R.ann.length ? '. ' + R.ann.length + ' enregistrement' + (R.ann.length > 1 ? 's' : '') + ' annulé' + (R.ann.length > 1 ? 's' : '') + ', non compté' + (R.ann.length > 1 ? 's' : '') : '') + '.</div></div></div>';
+}
+function vSoirRecette(R) {
+  function row(lbl, g) { return '<tr><td class="bname"><strong>' + lbl + '</strong>' + (R.recette ? '<span class="sub num">' + Math.round(g.recette / R.recette * 100) + ' %</span>' : '') + '</td><td class="r num">' + money(g.cash) + '</td><td class="r num">' + money(g.bc) + '</td><td class="r num"><strong>' + money(g.recette) + '</strong></td></tr>'; }
+  return '<section class="half"><h3>Recette</h3><p class="lead">Seules les entrées et les tickets sont encaissés ; les boissons se paient en cases. Le paiement mixte est réparti entre cash et Bancontact.</p><div class="scroll"><table><thead><tr><th>Caisse</th><th class="r">Cash</th><th class="r">Bancontact</th><th class="r">Total</th></tr></thead><tbody>' +
+    row('Entrées', R.ent) + row('Tickets', R.tk) +
+    '<tr class="tot"><td>Total</td><td class="r num">' + money(R.cash) + '</td><td class="r num">' + money(R.bc) + '</td><td class="r num">' + money(R.recette) + '</td></tr></tbody></table></div>' +
+    (R.mixte ? '<p class="reconcile num">' + R.mixte + ' paiement' + (R.mixte > 1 ? 's' : '') + ' mixte' + (R.mixte > 1 ? 's' : '') + '.</p>' : '') + '</section>';
+}
+function vSoirEntrees(R) {
+  var ks = Object.keys(R.ent.produits).sort(function (a, b) { return a === 'entree' ? -1 : b === 'entree' ? 1 : R.ent.produits[b].m - R.ent.produits[a].m; });
+  var rows = ks.map(function (k) { var e = R.ent.produits[k]; return '<tr><td>' + esc(e.libelle) + '</td><td class="r num">' + e.q + '</td><td class="r num">' + money(e.m) + '</td></tr>'; }).join('') +
+    '<tr><td>Préventes (QR)' + (R.ent.forcees ? '<span class="tag">' + R.ent.forcees + ' doublon' + (R.ent.forcees > 1 ? 's' : '') + ' accepté' + (R.ent.forcees > 1 ? 's' : '') + '</span>' : '') + '</td><td class="r num">' + R.ent.preventes + '</td><td class="r num">' + money(0) + '</td></tr>';
+  return '<section class="half"><h3>Entrées</h3><p class="lead"><strong class="num">' + (R.ent.personnes + R.ent.preventes) + '</strong> personnes entrées : ' + R.ent.personnes + ' payante' + (R.ent.personnes > 1 ? 's' : '') + ' et ' + R.ent.preventes + ' prévente' + (R.ent.preventes > 1 ? 's' : '') + ' scannée' + (R.ent.preventes > 1 ? 's' : '') + '.</p>' +
+    '<div class="scroll"><table><thead><tr><th>Article</th><th class="r">Quantité</th><th class="r">Montant</th></tr></thead><tbody>' + rows +
+    '<tr class="tot"><td>Total</td><td class="r num"></td><td class="r num">' + money(R.ent.recette) + '</td></tr></tbody></table></div></section>';
+}
+function vSoirCases(R) {
+  var ec = R.tk.cases - R.bo.cases, pc = R.pc;
+  function kpi(l, v, sm, cls) { return '<div class="kpi' + (cls ? ' ' + cls : '') + '"><span>' + l + '</span><b>' + v + '</b>' + (sm ? '<small>' + sm + '</small>' : '') + '</div>'; }
+  return '<section><h3>Tickets et cases</h3><p class="lead">Case à ' + money(pc) + ', cartes de ' + R.cpc + ' cases. Les cases vendues aux Tickets sont barrées au bar des Boissons.</p><div class="kpis">' +
+    kpi('Cases vendues', R.tk.cases, money(R.tk.recette)) +
+    kpi('Équivalent cartes', String(r2(R.tk.cases / (R.cpc || 18))).replace('.', ','), 'de ' + R.cpc + ' cases') +
+    kpi('Cartes complètes', R.tk.cartes, plur(R.tk.seules, 'case') + ' à l’unité') +
+    kpi('Ventes de tickets', R.tk.ventes, R.tk.ventes ? 'moy. ' + String(r2(R.tk.cases / R.tk.ventes)).replace('.', ',') + ' cases' + (R.tk.budget ? ', ' + R.tk.budget + ' par budget' : '') : '') +
+    kpi('Cases barrées', R.bo.cases, 'valeur ' + money(R.bo.cases * pc)) +
+    kpi('Cases non barrées', ec, ec >= 0 ? 'vendues − barrées (cartes encore en poche)' : 'plus barrées que vendues', ec < 0 ? 'warn' : '') + '</div></section>';
+}
+function vSoirBoissons(R) {
+  var pc = R.pc, prods = Object.keys(R.bo.produits).map(function (k) { return R.bo.produits[k]; });
+  if (!prods.length) return '<section><h3>Boissons</h3><p class="empty">Aucune commande de boissons.</p></section>';
+  var head = '<thead><tr><th>Boisson</th><th class="r">Quantité</th><th class="r">Cases</th><th class="r">Valeur</th><th class="r">Part</th></tr></thead>';
+  function part(c) { return R.bo.cases ? Math.round(c / R.bo.cases * 100) : 0; }
+  function row(p) { return '<tr><td>' + esc(p.libelle) + (p.format === 'bouteille' ? '<span class="tag">bouteille</span>' : '') + '</td><td class="r num">' + p.q + '</td><td class="r num">' + p.cases + '</td><td class="r num">' + money(p.cases * pc) + '</td><td class="r num">' + part(p.cases) + ' %</td></tr>'; }
+  var body;
+  if (ART_VIEW === 'top') body = prods.sort(function (a, b) { return b.cases - a.cases || b.q - a.q; }).map(row).join('');
+  else body = Object.keys(R.bo.cats).sort(function (a, b) { return R.bo.cats[b].cases - R.bo.cats[a].cases; }).map(function (c) {
+    var k = R.bo.cats[c];
+    return '<tr class="cat"><td>' + esc(c) + '</td><td class="r num">' + k.q + '</td><td class="r num">' + k.cases + '</td><td class="r num">' + money(k.cases * pc) + '</td><td class="r num">' + part(k.cases) + ' %</td></tr>' + k.items.sort(function (a, b) { return b.cases - a.cases || b.q - a.q; }).map(row).join('');
+  }).join('');
+  return '<section><h3>Boissons</h3><p class="lead">' + plur(R.bo.commandes, 'commande') + ', ' + plur(R.bo.cases, 'case') + ' barrée' + (R.bo.cases > 1 ? 's' : '') + '. La valeur est le nombre de cases × ' + money(pc) + '.</p>' +
+    '<div class="seg noprint" role="group" aria-label="Affichage"><button class="' + (ART_VIEW === 'cat' ? 'on' : '') + '" data-a="artview" data-v="cat">Par catégorie</button><button class="' + (ART_VIEW === 'top' ? 'on' : '') + '" data-a="artview" data-v="top">Du plus vendu au moins vendu</button></div>' +
+    '<div class="scroll"><table>' + head + '<tbody>' + body + '<tr class="tot"><td>Total</td><td class="r num"></td><td class="r num">' + R.bo.cases + '</td><td class="r num">' + money(R.bo.cases * pc) + '</td><td></td></tr></tbody></table></div></section>';
+}
+function vSoirHours(R) {
+  var slots = Object.keys(R.hours).map(Number); if (!slots.length) return '';
+  var a = Math.min.apply(null, slots), b = Math.max.apply(null, slots), max = 1, s;
+  for (s = a; s <= b; s++) { var hb = R.hours[s] || {}; max = Math.max(max, hb.ent || 0, hb.cmd || 0); }
+  var step = max > 400 ? 100 : max > 150 ? 50 : max > 60 ? 20 : max > 25 ? 10 : 5, top = Math.ceil(max / step) * step;
+  var W = 1100, H = 260, L = 40, B = 28, TP = 10, n = b - a + 1, bw = (W - L - 8) / n, g = '', y;
+  for (y = 0; y <= top; y += step) { var yy = TP + (H - TP - B) * (1 - y / top); g += '<line x1="' + L + '" x2="' + W + '" y1="' + yy + '" y2="' + yy + '" stroke="var(--line)"/><text x="' + (L - 6) + '" y="' + (yy + 4) + '" text-anchor="end">' + y + '</text>'; }
+  var pk = a, pv = -1;
+  for (var k = 0; k < n; k++) {
+    var sl = a + k, h = (sl + slot0()) % 24, x = L + 4 + k * bw, v = R.hours[sl] || { ent: 0, cmd: 0, rec: 0 }, half = Math.max(2, (bw - 6) / 2);
+    [['ent', 'var(--s1)', 'entrées'], ['cmd', 'var(--s2)', 'commandes']].forEach(function (z, j) { var val = v[z[0]] || 0; if (!val) return; var hg = (H - TP - B) * val / top;
+      g += '<rect x="' + (x + 3 + j * half) + '" y="' + (H - B - hg) + '" width="' + (half - 1) + '" height="' + hg + '" rx="3" fill="' + z[1] + '"><title>' + h + ' h : ' + val + ' ' + z[2] + (j === 0 && v.rec ? ', ' + money(v.rec) + ' encaissés' : '') + '</title></rect>'; });
+    if ((v.ent || 0) + (v.cmd || 0) > pv) { pv = (v.ent || 0) + (v.cmd || 0); pk = h; }
+    g += '<text x="' + (x + bw / 2) + '" y="' + (H - 9) + '" text-anchor="middle">' + h + 'h</text>';
+  }
+  return '<section><h3>Heure par heure</h3><p class="lead">Activité la plus forte entre ' + pk + ' h et ' + ((pk + 1) % 24) + ' h.</p>' +
+    '<svg class="chart" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Entrées et commandes par heure">' + g + '</svg>' +
+    '<div class="legend"><span><span class="dot" style="background:var(--s1)"></span>Entrées (payantes + préventes)</span><span><span class="dot" style="background:var(--s2)"></span>Commandes de boissons</span></div></section>';
+}
+function vSoirApp(R) {
+  var ids = Object.keys(R.perAp).sort(function (a, b) { return R.perAp[a].nom.localeCompare(R.perAp[b].nom); });
+  if (!ids.length) return '';
+  return '<section><h3>Par appareil</h3><p class="lead">Ce que chaque appareil a enregistré.</p><div class="scroll"><table><thead><tr><th>Appareil</th><th class="r">Entrées</th><th class="r">Cases vendues</th><th class="r">Commandes</th><th class="r">Cases barrées</th><th class="r">Cash</th><th class="r">Bancontact</th><th class="r">Total</th></tr></thead><tbody>' +
+    ids.map(function (i) { var a = R.perAp[i]; return '<tr><td><strong>' + esc(a.nom) + '</strong></td><td class="r num">' + a.entrees + '</td><td class="r num">' + a.cases + '</td><td class="r num">' + a.commandes + '</td><td class="r num">' + a.barrees + '</td><td class="r num">' + money(a.cash) + '</td><td class="r num">' + money(a.bc) + '</td><td class="r num"><strong>' + money(a.recette) + '</strong></td></tr>'; }).join('') +
+    (ids.length > 1 ? '<tr class="tot"><td>Total</td><td class="r num">' + (R.ent.personnes + R.ent.preventes) + '</td><td class="r num">' + R.tk.cases + '</td><td class="r num">' + R.bo.commandes + '</td><td class="r num">' + R.bo.cases + '</td><td class="r num">' + money(R.cash) + '</td><td class="r num">' + money(R.bc) + '</td><td class="r num">' + money(R.recette) + '</td></tr>' : '') +
+    '</tbody></table></div></section>';
+}
+function soirDesc(r) {
+  if (r.type === 'prevente') return 'Prévente ' + esc(r.code || '');
+  if (r.type === 'ticket') return plur(+r.cases || 0, 'case');
+  if (r.type === 'commande') return (r.lignes || []).map(function (l) { return l.quantite + ' × ' + esc(l.libelle); }).join(', ') + ' (' + plur(+r.totalCases || 0, 'case') + ')';
+  return (r.lignes || []).map(function (l) { return l.quantite + ' × ' + esc(l.libelle); }).join(', ');
+}
+var SOIR_TYPE = { entree: 'Entrée', prevente: 'Prévente', ticket: 'Tickets', commande: 'Boissons' };
+function vSoirAnn(R) {
+  if (!R.ann.length) return '<section><h3>Enregistrements annulés</h3><p class="empty">Aucun enregistrement annulé.</p></section>';
+  return '<section><h3>Enregistrements annulés</h3><p class="lead">' + R.ann.length + ' enregistrement' + (R.ann.length > 1 ? 's' : '') + ', compté' + (R.ann.length > 1 ? 's' : '') + ' dans aucun total :</p><div class="scroll"><table class="cancel"><thead><tr><th>Heure</th><th>Appareil</th><th>Caisse</th><th>Détail</th><th class="r">Montant</th></tr></thead><tbody>' +
+    R.ann.sort(function (x, y) { return x.r.horodatage < y.r.horodatage ? -1 : 1; }).map(function (x) { var r = x.r;
+      return '<tr><td class="num">' + r.horodatage.slice(11, 16) + '</td><td>' + esc(x.apNom) + '</td><td>' + (SOIR_TYPE[r.type] || esc(r.type)) + '</td><td>' + soirDesc(r) + (r.annulation.motif ? '<br><span class="motif">' + esc(r.annulation.motif) + '</span>' : '') + '</td><td class="r num">' + (r.paiement ? money(r.total) : r.type === 'commande' ? plur(+r.totalCases || 0, 'case') : '') + '</td></tr>'; }).join('') +
+    '</tbody></table></div></section>';
+}
+function soirCsv() {
+  var list = soirFiltered(), R = soirStats(list), pc = R.pc, tag = 'soiree_' + (F.soiree === 'all' ? 'tout' : F.soiree) + (F.bar === 'all' ? '' : '_' + F.bar);
+  var a = [['Section', 'Libellé', 'Catégorie', 'Format', 'Quantité', 'Cases', 'Montant / valeur (€)']];
+  a.push(['Recette', 'Total', '', '', '', '', R.recette], ['Recette', 'Cash', '', '', '', '', R.cash], ['Recette', 'Bancontact', '', '', '', '', R.bc]);
+  Object.keys(R.ent.produits).forEach(function (k) { var e = R.ent.produits[k]; a.push(['Entrées', e.libelle, '', '', e.q, '', e.m]); });
+  a.push(['Entrées', 'Préventes (QR)', '', '', R.ent.preventes, '', 0]);
+  if (R.ent.forcees) a.push(['Entrées', 'dont doublons acceptés', '', '', R.ent.forcees, '', '']);
+  a.push(['Tickets', 'Cases vendues', '', '', R.tk.ventes, R.tk.cases, R.tk.recette], ['Tickets', 'Cartes complètes', '', '', R.tk.cartes, '', ''], ['Tickets', 'Cases à l’unité', '', '', R.tk.seules, '', '']);
+  Object.keys(R.bo.produits).map(function (k) { return R.bo.produits[k]; }).sort(function (x, y) { return x.cat.localeCompare(y.cat) || y.cases - x.cases; }).forEach(function (p) { a.push(['Boissons', p.libelle, p.cat, p.format || '', p.q, p.cases, p.cases * pc]); });
+  a.push(['Boissons', 'Total cases barrées', '', '', R.bo.commandes, R.bo.cases, R.bo.cases * pc], ['Cases', 'Non barrées (vendues − barrées)', '', '', '', R.tk.cases - R.bo.cases, '']);
+  download('bilan-soiree_' + tag + '.csv', a);
+  var e = [['Soirée', 'Appareil', 'Heure', 'ID', 'Caisse', 'Détail', 'Cases', 'Total (€)', 'Cash (€)', 'Bancontact (€)', 'Mode', 'Annulé', 'Motif']];
+  list.slice().sort(function (x, y) { return x.r.horodatage < y.r.horodatage ? -1 : 1; }).forEach(function (x) { var r = x.r, p = r.paiement || {};
+    e.push([x.night, x.apNom, r.horodatage.slice(0, 16).replace('T', ' '), r.id, SOIR_TYPE[r.type] || r.type, soirDesc(r).replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'"),
+      r.type === 'ticket' ? r.cases : r.type === 'commande' ? r.totalCases : '', r.paiement ? r.total : '', r.paiement ? p.cash : '', r.paiement ? p.bancontact : '', p.mode || '', r.annulation ? 'oui' : '', r.annulation ? r.annulation.motif : '']); });
+  setTimeout(function () { download('bilan-enregistrements_' + tag + '.csv', e); }, 400);
+  toast('Deux fichiers pour Excel : bilan et enregistrements');
 }
 
 /* ---------- Export pour Excel (CSV ; séparateur point-virgule, virgule décimale) ---------- */
@@ -587,6 +786,7 @@ function download(name, rows) {
   document.body.appendChild(a); a.click(); setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
 }
 function exportCsv() {
+  if (F.caisse === 'soiree') { soirCsv(); return; }
   var list = filtered(), S = stats(list), tag = (F.caisse || '') + '_' + (F.soiree === 'all' ? 'tout' : F.soiree) + (F.bar === 'all' ? '' : '_' + F.bar);
   var arts = [['Catégorie', 'Article', 'Quantité', 'Montant (€)']];
   Object.keys(S.art).map(function (k) { return S.art[k]; }).sort(function (x, y) { return x.cat.localeCompare(y.cat) || y.m - x.m; }).forEach(function (a) { arts.push([a.cat, a.libelle, a.q, a.m]); });
@@ -659,7 +859,7 @@ var ICONS = {
 /* Ajouter un module = ajouter une entrée ici (ready:true + render) */
 var MODULES = [
   { id: 'bilan', nom: 'Bilan des ventes', court: 'Bilan', ready: true, render: renderBilan,
-    desc: 'Totaux de la soirée par bar, heure par heure et par article, à partir des exports de la Caisse Bar.' },
+    desc: 'Totaux par bar, heure par heure et par article (Caisse Bar, Caisse Sapins), entrées, tickets et boissons (Caisse Soirée).' },
   { id: 'catalogue', nom: 'Catalogue', court: 'Catalogue', ready: true, render: function () { renderCatalogue(); },
     desc: 'Produits, prix et points de vente des caisses, publiés directement sur GitHub.' },
   { id: 'stock', nom: 'Gestion de stock', court: 'Stock', ready: true, render: function () { renderStock(); },
@@ -688,7 +888,9 @@ function vShell() {
 function bilanStatus() {
   var act = activeFiles();
   if (!act.length) return 'Aucun fichier chargé';
-  var S = stats(allSales()), ns = soirees().length;
+  var ns = soirees().length;
+  if (F.caisse === 'soiree') { var R0 = soirStats(soirRecs()); return act.length + ' fichier' + (act.length > 1 ? 's' : '') + ' · ' + ns + ' soirée' + (ns > 1 ? 's' : '') + ' · ' + money(R0.recette); }
+  var S = stats(allSales());
   return act.length + ' fichier' + (act.length > 1 ? 's' : '') + ' · ' + ns + ' soirée' + (ns > 1 ? 's' : '') + ' · ' + money(S.total);
 }
 function renderHome() {
@@ -1598,7 +1800,7 @@ function bghLoad(paths, soiree, quiet) {
   Promise.all(todo.map(function (p) { return bghRaw(p, token).then(function (txt) { return { p: p, txt: txt }; }); })).then(function (res) {
     res.forEach(function (r) {
       var entry = { name: fileKey(r.p), data: null, status: 'err', note: '' };
-      try { var d = JSON.parse(r.txt); if (okVentes(d)) { entry.data = d; entry.status = 'ok'; entry.caisse = caisseOf(d.format); lastC = entry.caisse; } else entry.note = 'Ce fichier n\u2019est pas un export de ventes d\u2019une caisse (Caisse Bar ou Caisse Sapins).'; } catch (e) { entry.note = 'Fichier illisible (JSON invalide).'; }
+      try { var d = JSON.parse(r.txt); if (okVentes(d)) { entry.data = d; entry.status = 'ok'; entry.caisse = caisseOf(d.format); lastC = entry.caisse; } else entry.note = ERR_FORMAT; } catch (e) { entry.note = 'Fichier illisible (JSON invalide).'; }
       if (entry.status === 'ok' || !quiet) FILES.push(entry); else skipped++;
     });
     if (lastC) F.caisse = lastC;
@@ -1622,7 +1824,7 @@ function vGhPanel() {
       var c = BGH.files.filter(function (f) { return f.top === t; }).length;
       return '<button role="tab" aria-selected="' + (BGH.tab === t) + '" class="' + (BGH.tab === t ? 'on' : '') + '" data-g="tab" data-v="' + esc(t) + '">' + esc(bghTabName(t)) + ' <span class="faint num">' + c + '</span></button>';
     }).join('') + '</div>' +
-    '<p class="lead">' + (BGH.tab === 'bar' ? 'Une soirée qui dépasse minuit est répartie sur deux jours : « Charger les ventes » prend le jour et le lendemain.' : '« Charger les ventes » charge les fichiers du jour.') + '</p><div class="ghdays">' +
+    '<p class="lead">' + (BGH.tab === 'bar' ? 'Une soirée qui dépasse minuit est répartie sur deux jours : « Charger les ventes » prend le jour et le lendemain.' : BGH.tab === 'soiree' ? 'Un fichier par appareil et par soirée : « Charger les ventes » charge tous les appareils de la soirée.' : '« Charger les ventes » charge les fichiers du jour.') + '</p><div class="ghdays">' +
     Object.keys(days).sort().reverse().map(function (d) {
       return '<div class="ghday"><div class="ghdate"><strong>' + (d === 'sans-date' ? 'Sans date' : longDate(d)) + '</strong>' + (d === 'sans-date' ? '' : '<button class="btn sm" data-g="soiree" data-v="' + d + '">Charger les ventes</button>') + '</div>' +
         days[d].slice().sort(function (a, b) { return a.label.localeCompare(b.label); }).map(function (f) { var got = loaded[fileKey(f.path)];
@@ -1633,8 +1835,8 @@ function vGhPanel() {
 }
 function bghSoireePaths(d) { var nx = BGH.tab === 'bar' ? addDays(d, 1) : d; return (BGH.files || []).filter(function (f) { return f.top === BGH.tab && (f.date === d || f.date === nx); }).map(function (f) { return f.path; }); }
 /* Onglets = dossier parent (1er niveau) des fichiers : bar, sapin… ; fichiers à la racine -> « Autres » */
-function bghTabs() { var o = {}; (BGH.files || []).forEach(function (f) { o[f.top] = 1; }); var order = ['bar', 'sapin']; return Object.keys(o).sort(function (a, b) { var ia = order.indexOf(a), ib = order.indexOf(b); return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib) || (a === '' ? 1 : b === '' ? -1 : a.localeCompare(b)); }); }
-function bghTabName(t) { return t === '' ? 'Autres' : t.charAt(0).toUpperCase() + t.slice(1).replace(/[_-]+/g, ' '); }
+function bghTabs() { var o = {}; (BGH.files || []).forEach(function (f) { o[f.top] = 1; }); var order = ['bar', 'sapin', 'soiree']; return Object.keys(o).sort(function (a, b) { var ia = order.indexOf(a), ib = order.indexOf(b); return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib) || (a === '' ? 1 : b === '' ? -1 : a.localeCompare(b)); }); }
+function bghTabName(t) { if (t === 'soiree') return 'Soirée'; return t === '' ? 'Autres' : t.charAt(0).toUpperCase() + t.slice(1).replace(/[_-]+/g, ' '); }
 document.addEventListener('click', function (e) {
   var b = e.target.closest('[data-g]'); if (!b || b.disabled) return;
   var g = b.getAttribute('data-g'), v = b.getAttribute('data-v');
