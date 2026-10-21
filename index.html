@@ -1969,7 +1969,7 @@ document.addEventListener('click', function (e) {
   else if (a === 'dismissAll') { shownWarnings().forEach(function (x) { DISMISSED[x.t] = 1; }); }
   else if (a === 'print') { window.print(); return; }
   else if (a === 'csv') { exportCsv(); return; }
-  else if (a === 'theme') { var t = isDark() ? 'light' : 'dark'; document.documentElement.setAttribute('data-theme', t); try { localStorage.setItem(THEME_KEY, t); } catch (er) {} }
+  else if (a === 'theme') { var t = isDark() ? 'dark' : 'light'; document.documentElement.setAttribute('data-theme', t); try { localStorage.setItem(THEME_KEY, t); } catch (er) {} }
   render();
 });
 document.addEventListener('change', function (e) { if (e.target.hasAttribute('data-files')) { addFiles(e.target.files); e.target.value = ''; } });
