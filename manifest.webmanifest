@@ -1,31 +1,17 @@
 {
-  "id": "/admin/",
   "name": "Admin Chlorophylle Night",
   "short_name": "Admin",
   "description": "Administration des caisses : bilan des ventes, catalogue publié sur GitHub.",
   "lang": "fr",
-  "start_url": "/admin/index.html",
-  "scope": "/admin/",
+  "start_url": "./",
+  "scope": "./",
   "display": "standalone",
   "orientation": "any",
   "background_color": "#0E150D",
   "theme_color": "#0E150D",
   "icons": [
-    {
-      "src": "icons/icon-192.png",
-      "sizes": "192x192",
-      "type": "image/png"
-    },
-    {
-      "src": "icons/icon-512.png",
-      "sizes": "512x512",
-      "type": "image/png"
-    },
-    {
-      "src": "icons/icon-maskable-512.png",
-      "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "maskable"
-    }
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
   ]
 }

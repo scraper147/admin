@@ -152,6 +152,17 @@ tr.tot td{font-weight:800;border-top:2px solid var(--line);border-bottom:none}
 .mod.off:hover{border-color:var(--gold)}
 .mod .ic{width:44px;height:44px;border-radius:12px;display:grid;place-items:center;background:var(--soft);color:var(--green)}
 .mod.off .ic{color:var(--faint)}
+.apps{max-width:calc(1180px + 2 * clamp(16px,4vw,48px));margin:-36px auto 0;padding:0 clamp(16px,4vw,48px) 60px}
+.apps h3{font-family:var(--display);font-weight:600;font-size:20px;margin:0 0 12px}
+.apps-row{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+.app-link{display:flex;align-items:center;gap:12px;padding:14px 16px;background:var(--surface);border:1px solid var(--line);border-radius:14px;color:inherit;text-decoration:none;min-width:0}
+.app-link:hover{border-color:var(--green)}
+.app-link .ic{width:38px;height:38px;flex-shrink:0;border-radius:10px;display:grid;place-items:center;background:var(--soft);color:var(--green)}
+.app-link .ic svg{width:20px;height:20px}
+.app-link .t{display:flex;flex-direction:column;min-width:0;flex:1}
+.app-link .t small{color:var(--muted);font-size:13px}
+.app-link .go{color:var(--muted);font-size:18px}
+@media (max-width:760px){.apps-row{grid-template-columns:1fr}}
 .mod .ic svg{width:24px;height:24px}
 .mod h3{font-family:var(--display);font-weight:600;font-size:21px;margin:0}
 .mod p{margin:0;color:var(--muted);font-size:15px;flex:1}
@@ -349,6 +360,7 @@ function caisseOf(fmt) { return CAISSES_BILAN[fmt] || null; }
 function okVentes(d) { var c = d && caisseOf(d.format); return !!c && (c === 'soiree' ? Array.isArray(d.enregistrements) : Array.isArray(d.ventes)); }
 var ERR_FORMAT = 'Ce fichier n\u2019est pas un export de ventes d\u2019une caisse (Caisse Bar, Caisse Sapins ou Caisse Soirée).';
 function caisses() { var o = {}; FILES.forEach(function (f) { if (f.status === 'ok' && f.caisse) o[f.caisse] = 1; }); return ['bar', 'sapin', 'soiree'].filter(function (c) { return o[c]; }); }
+function defSoiree() { var ss = soirees(); return ss.length > 1 ? 'all' : ss[0] || null; }
 function fixCaisse() { var cs = caisses(); if (!F.caisse || cs.indexOf(F.caisse) < 0) F.caisse = cs[0] || null; }
 /* Vocabulaire : soirée et bar pour la Caisse Bar, journée et point de vente pour la Caisse Sapins */
 function T() { if (F.caisse === 'soiree') return { per: 'Soirée', pers: 'soirées', toutes: 'Toutes les soirées', du: 'Soirée du', dela: 'la soirée du', pdv: 'Appareil', pdvs: 'appareils', par: 'Par appareil', inconnu: 'Appareil inconnu', tous: 'Tous' };
@@ -388,7 +400,7 @@ function addFiles(list) {
         else { entry.data = d; entry.status = 'ok'; entry.caisse = caisseOf(d.format); }
       } catch (e) { entry.note = 'Fichier illisible (JSON invalide).'; }
       FILES.push(entry);
-      if (--pending === 0) { dedupe(); var lastOk = FILES.filter(function (f) { return f.status === 'ok'; }).pop(); if (lastOk && entry.status === 'ok') F.caisse = entry.caisse; fixCaisse(); if (!F.soiree || soirees().indexOf(F.soiree) < 0) F.soiree = soirees()[0] || null; render(); toast(list.length + ' fichier' + (list.length > 1 ? 's' : '') + ' chargé' + (list.length > 1 ? 's' : '')); }
+      if (--pending === 0) { dedupe(); var lastOk = FILES.filter(function (f) { return f.status === 'ok'; }).pop(); if (lastOk && entry.status === 'ok') F.caisse = entry.caisse; fixCaisse(); F.soiree = defSoiree(); F.bar = 'all'; render(); toast(list.length + ' fichier' + (list.length > 1 ? 's' : '') + ' chargé' + (list.length > 1 ? 's' : '')); }
     };
     rd.readAsText(file);
   });
@@ -521,7 +533,7 @@ function vFilters() {
     (bs.length > 1 ? '<div class="fgroup"><span>' + T().pdv + '</span><button class="chip' + (F.bar === 'all' ? ' on' : '') + '" data-a="bar" data-v="all">Tous</button>' +
       bs.map(function (b) { return '<button class="chip' + (F.bar === b.id ? ' on' : '') + '" data-a="bar" data-v="' + esc(b.id) + '">' + esc(b.nom) + '</button>'; }).join('') + '</div>' : '') +
     '<div class="right"><label class="btn">+ Ajouter des fichiers<input type="file" accept=".json,application/json" multiple data-files></label>' +
-    '<button class="btn" data-g="open">+ Depuis le dépôt</button><button class="btn" data-a="print">Imprimer</button><button class="btn" data-a="csv">Exporter pour Excel</button></div></div></div>';
+    '<button class="btn" data-g="open">+ Depuis le dépôt</button><button class="btn" data-a="clear">Retirer les fichiers</button><button class="btn" data-a="print">Imprimer</button><button class="btn" data-a="csv">Exporter pour Excel</button></div></div></div>';
 }
 /* Alertes du Bilan : chacune peut être fermée (mémorisé tant que l'app reste ouverte) */
 var DISMISSED = {};
@@ -591,7 +603,7 @@ function vAdjust(S) {
 function vFiles() {
   var rows = FILES.map(function (f, i) {
     var d = f.data, st = f.status === 'ok' ? '<span class="status ok">Pris en compte</span>' : f.status === 'rep' ? '<span class="status rep">Ignoré (doublon)</span>' : '<span class="status err">Refusé</span>';
-    return '<tr><td>' + esc(f.name) + '</td><td>' + (f.caisse ? CAISSE_LABEL[f.caisse] : '') + '</td><td>' + (d ? esc(d.pointDeVente ? d.pointDeVente.nom : d.appareil ? (d.appareil.nom || d.appareil.id) : '?') : '') + '</td><td class="num">' + (d ? String(d.date || d.soiree || '').split('-').reverse().join('/') : '') + '</td><td class="r num">' + (d && d.ventes ? d.ventes.length : d && d.enregistrements ? d.enregistrements.length : '') + '</td><td>' + st + '</td><td class="r"><button class="x" data-a="rm" data-v="' + i + '" aria-label="Retirer ' + esc(f.name) + '">Retirer</button></td></tr>';
+    return '<tr><td>' + esc(f.name) + '</td><td>' + (f.caisse ? CAISSE_LABEL[f.caisse] : '') + '</td><td>' + (d ? esc(d.pointDeVente ? d.pointDeVente.nom : d.appareil ? (soirNames()[d.appareil.id] || d.appareil.nom || d.appareil.id) : '?') : '') + '</td><td class="num">' + (d ? String(d.date || d.soiree || '').split('-').reverse().join('/') : '') + '</td><td class="r num">' + (d && d.ventes ? d.ventes.length : d && d.enregistrements ? d.enregistrements.length : '') + '</td><td>' + st + '</td><td class="r"><button class="x" data-a="rm" data-v="' + i + '" aria-label="Retirer ' + esc(f.name) + '">Retirer</button></td></tr>';
   }).join('');
   return '<section class="files"><h3>Fichiers chargés</h3><p class="lead">Un export par point de vente et par jour de calendrier (Caisse Soirée : un fichier par appareil et par soirée). Caisse Bar et Caisse Soirée : les ventes après minuit sont rattachées à la soirée de la veille.</p><div class="scroll"><table><thead><tr><th>Fichier</th><th>Caisse</th><th>Point de vente / appareil</th><th>Jour</th><th class="r">Ventes</th><th>État</th><th></th></tr></thead><tbody>' + rows + '</tbody></table></div>' +
     '<p class="noprint" style="margin:14px 0 0"><button class="btn" data-a="clear">Tout retirer</button></p></section>';
@@ -601,15 +613,29 @@ function vFiles() {
 /* ================= Bilan de la Caisse Soirée (format chlorophylle-caisse/soiree) ================= */
 /* Enregistrements de tous les fichiers actifs, fusionnés par identifiant (un même enregistrement n'est compté qu'une fois) */
 function soirNightOf(iso) { var d = new Date(iso); if (isNaN(d)) return iso.slice(0, 10); d = new Date(d.getTime() - 12 * 3600 * 1000); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
+function isDefName(n, id) { return !n || n === id || /^appareil\s+\w{1,8}$/i.test(String(n).trim()); }
+/* Nom d'un appareil : le nom donné le plus récent (fichier le plus récent, puis enregistrements), sinon nom tiré du nom de fichier du dépôt */
+function soirNames() {
+  var best = {};
+  function offer(id, nom, when) { if (!id || isDefName(nom, id)) return; if (!best[id] || when > best[id].w) best[id] = { n: String(nom).trim(), w: when }; }
+  FILES.forEach(function (f) {
+    if (f.caisse !== 'soiree' || !f.data) return;
+    var d = f.data, ap = d.appareil || {};
+    offer(ap.id, ap.nom, (d.miseAJour || '') + '~');
+    (d.enregistrements || []).forEach(function (r) { if (r && r.appareil) offer(r.appareil.id, r.appareil.nom, r.horodatage || ''); });
+    if (ap.id && !best[ap.id]) { var m = new RegExp('\\d{4}-\\d{2}-\\d{2}_(.+)_' + ap.id + '\\.json$').exec(f.name.replace(/ › /g, '/')); if (m) best[ap.id] = { n: m[1].replace(/[-_]+/g, ' ').replace(/^./, function (c) { return c.toUpperCase(); }), w: '' }; }
+  });
+  var o = {}; Object.keys(best).forEach(function (k) { o[k] = best[k].n; }); return o;
+}
 function soirRecs() {
-  var map = {}, out = [];
+  var map = {}, out = [], NAMES = soirNames();
   activeFiles().forEach(function (f) {
     var d = f.data, ap = d.appareil || {};
     (d.enregistrements || []).forEach(function (r) {
       if (!r || !r.id || typeof r.horodatage !== 'string' || !/^\d{4}-\d{2}-\d{2}T\d{2}/.test(r.horodatage)) return;
       if (map[r.id]) return; map[r.id] = 1;
       var a = r.appareil || ap;
-      out.push({ r: r, night: r.soiree || d.soiree || soirNightOf(r.horodatage), apId: a.id || '?', apNom: a.nom || a.id || T().inconnu, pc: +r.prixCase || +d.prixCase || 0, cpc: +d.casesParCarte || 18 });
+      out.push({ r: r, night: r.soiree || d.soiree || soirNightOf(r.horodatage), apId: a.id || '?', apNom: NAMES[a.id] || a.nom || (a.id ? 'Appareil ' + a.id : T().inconnu), pc: +r.prixCase || +d.prixCase || 0, cpc: +d.casesParCarte || 18 });
     });
   });
   return out;
@@ -625,9 +651,9 @@ function soirStats(list) {
     var r = x.r;
     if (r.annulation) { R.ann.push(x); return; }
     R.n++;
-    var a = R.perAp[x.apId] || (R.perAp[x.apId] = { nom: x.apNom, recette: 0, cash: 0, bc: 0, entrees: 0, cases: 0, commandes: 0, barrees: 0, n: 0 });
+    var a = R.perAp[x.apId] || (R.perAp[x.apId] = { nom: x.apNom, recette: 0, cash: 0, bc: 0, entrees: 0, vip: 0, cases: 0, commandes: 0, barrees: 0, n: 0 });
     a.n++;
-    var h = slot(r.horodatage), hb = R.hours[h] || (R.hours[h] = { ent: 0, cmd: 0, rec: 0 });
+    var h = slot(r.horodatage), hb = R.hours[h] || (R.hours[h] = { ent: 0, vip: 0, cmd: 0, rec: 0 });
     var p = r.paiement;
     if (p && (r.type === 'entree' || r.type === 'ticket')) {
       var t = +r.total || 0, c = +p.cash || 0, b = +p.bancontact || 0;
@@ -642,6 +668,7 @@ function soirStats(list) {
         var k = l.produitId || l.libelle, e = R.ent.produits[k] || (R.ent.produits[k] = { libelle: l.libelle || k, q: 0, m: 0 });
         e.q += +l.quantite || 0; e.m += +l.total || 0;
         if (l.produitId === 'entree') { R.ent.personnes += +l.quantite || 0; a.entrees += +l.quantite || 0; hb.ent += +l.quantite || 0; }
+        else if (l.produitId === 'vip') { R.ent.vip = (R.ent.vip || 0) + (+l.quantite || 0); a.vip += +l.quantite || 0; hb.vip += +l.quantite || 0; }
       });
     } else if (r.type === 'ticket') {
       R.tk.ventes++; R.tk.cases += +r.cases || 0; R.tk.cartes += +r.cartes || 0; R.tk.seules += +r.casesSeules || 0; if (r.budget) R.tk.budget++;
@@ -700,7 +727,7 @@ function vSoirCases(R) {
     kpi('Cartes complètes', R.tk.cartes, plur(R.tk.seules, 'case') + ' à l’unité') +
     kpi('Ventes de tickets', R.tk.ventes, R.tk.ventes ? 'moy. ' + String(r2(R.tk.cases / R.tk.ventes)).replace('.', ',') + ' cases' + (R.tk.budget ? ', ' + R.tk.budget + ' par budget' : '') : '') +
     kpi('Cases barrées', R.bo.cases, 'valeur ' + money(R.bo.cases * pc)) +
-    kpi('Cases non barrées', ec, ec >= 0 ? 'vendues − barrées (cartes encore en poche)' : 'plus barrées que vendues', ec < 0 ? 'warn' : '') + '</div></section>';
+    kpi('Cases non barrées', ec, (ec >= 0 ? 'vendues − barrées' : 'plus barrées que vendues') + ', valeur ' + money(ec * pc), ec < 0 ? 'warn' : '') + '</div></section>';
 }
 function vSoirBoissons(R) {
   var pc = R.pc, prods = Object.keys(R.bo.produits).map(function (k) { return R.bo.produits[k]; });
@@ -720,29 +747,29 @@ function vSoirBoissons(R) {
 }
 function vSoirHours(R) {
   var slots = Object.keys(R.hours).map(Number); if (!slots.length) return '';
-  var a = Math.min.apply(null, slots), b = Math.max.apply(null, slots), max = 1, s;
-  for (s = a; s <= b; s++) { var hb = R.hours[s] || {}; max = Math.max(max, hb.ent || 0, hb.cmd || 0); }
+  var a = Math.min.apply(null, slots), b = Math.max.apply(null, slots), max = 1, s, hasVip = !!R.ent.vip;
+  for (s = a; s <= b; s++) { var hb = R.hours[s] || {}; max = Math.max(max, hb.ent || 0, hb.vip || 0, hb.cmd || 0); }
   var step = max > 400 ? 100 : max > 150 ? 50 : max > 60 ? 20 : max > 25 ? 10 : 5, top = Math.ceil(max / step) * step;
   var W = 1100, H = 260, L = 40, B = 28, TP = 10, n = b - a + 1, bw = (W - L - 8) / n, g = '', y;
   for (y = 0; y <= top; y += step) { var yy = TP + (H - TP - B) * (1 - y / top); g += '<line x1="' + L + '" x2="' + W + '" y1="' + yy + '" y2="' + yy + '" stroke="var(--line)"/><text x="' + (L - 6) + '" y="' + (yy + 4) + '" text-anchor="end">' + y + '</text>'; }
   var pk = a, pv = -1;
   for (var k = 0; k < n; k++) {
-    var sl = a + k, h = (sl + slot0()) % 24, x = L + 4 + k * bw, v = R.hours[sl] || { ent: 0, cmd: 0, rec: 0 }, half = Math.max(2, (bw - 6) / 2);
-    [['ent', 'var(--s1)', 'entrées'], ['cmd', 'var(--s2)', 'commandes']].forEach(function (z, j) { var val = v[z[0]] || 0; if (!val) return; var hg = (H - TP - B) * val / top;
+    var sl = a + k, h = (sl + slot0()) % 24, x = L + 4 + k * bw, v = R.hours[sl] || { ent: 0, vip: 0, cmd: 0, rec: 0 }, ser = [['ent', 'var(--s1)', 'entrées']].concat(hasVip ? [['vip', 'var(--s3)', 'tables VIP']] : []).concat([['cmd', 'var(--s2)', 'commandes']]), half = Math.max(2, (bw - 6) / ser.length);
+    ser.forEach(function (z, j) { var val = v[z[0]] || 0; if (!val) return; var hg = (H - TP - B) * val / top;
       g += '<rect x="' + (x + 3 + j * half) + '" y="' + (H - B - hg) + '" width="' + (half - 1) + '" height="' + hg + '" rx="3" fill="' + z[1] + '"><title>' + h + ' h : ' + val + ' ' + z[2] + (j === 0 && v.rec ? ', ' + money(v.rec) + ' encaissés' : '') + '</title></rect>'; });
     if ((v.ent || 0) + (v.cmd || 0) > pv) { pv = (v.ent || 0) + (v.cmd || 0); pk = h; }
     g += '<text x="' + (x + bw / 2) + '" y="' + (H - 9) + '" text-anchor="middle">' + h + 'h</text>';
   }
   return '<section><h3>Heure par heure</h3><p class="lead">Activité la plus forte entre ' + pk + ' h et ' + ((pk + 1) % 24) + ' h.</p>' +
-    '<svg class="chart" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Entrées et commandes par heure">' + g + '</svg>' +
-    '<div class="legend"><span><span class="dot" style="background:var(--s1)"></span>Entrées (payantes + préventes)</span><span><span class="dot" style="background:var(--s2)"></span>Commandes de boissons</span></div></section>';
+    '<svg class="chart" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Entrées, tables VIP et commandes par heure">' + g + '</svg>' +
+    '<div class="legend"><span><span class="dot" style="background:var(--s1)"></span>Entrées (payantes + préventes)</span>' + (hasVip ? '<span><span class="dot" style="background:var(--s3)"></span>Tables VIP</span>' : '') + '<span><span class="dot" style="background:var(--s2)"></span>Commandes de boissons</span></div></section>';
 }
 function vSoirApp(R) {
   var ids = Object.keys(R.perAp).sort(function (a, b) { return R.perAp[a].nom.localeCompare(R.perAp[b].nom); });
   if (!ids.length) return '';
-  return '<section><h3>Par appareil</h3><p class="lead">Ce que chaque appareil a enregistré.</p><div class="scroll"><table><thead><tr><th>Appareil</th><th class="r">Entrées</th><th class="r">Cases vendues</th><th class="r">Commandes</th><th class="r">Cases barrées</th><th class="r">Cash</th><th class="r">Bancontact</th><th class="r">Total</th></tr></thead><tbody>' +
-    ids.map(function (i) { var a = R.perAp[i]; return '<tr><td><strong>' + esc(a.nom) + '</strong></td><td class="r num">' + a.entrees + '</td><td class="r num">' + a.cases + '</td><td class="r num">' + a.commandes + '</td><td class="r num">' + a.barrees + '</td><td class="r num">' + money(a.cash) + '</td><td class="r num">' + money(a.bc) + '</td><td class="r num"><strong>' + money(a.recette) + '</strong></td></tr>'; }).join('') +
-    (ids.length > 1 ? '<tr class="tot"><td>Total</td><td class="r num">' + (R.ent.personnes + R.ent.preventes) + '</td><td class="r num">' + R.tk.cases + '</td><td class="r num">' + R.bo.commandes + '</td><td class="r num">' + R.bo.cases + '</td><td class="r num">' + money(R.cash) + '</td><td class="r num">' + money(R.bc) + '</td><td class="r num">' + money(R.recette) + '</td></tr>' : '') +
+  return '<section><h3>Par appareil</h3><p class="lead">Ce que chaque appareil a enregistré.</p><div class="scroll"><table><thead><tr><th>Appareil</th><th class="r">Entrées</th><th class="r">Tables VIP</th><th class="r">Cases vendues</th><th class="r">Commandes</th><th class="r">Cases barrées</th><th class="r">Cash</th><th class="r">Bancontact</th><th class="r">Total</th></tr></thead><tbody>' +
+    ids.map(function (i) { var a = R.perAp[i]; return '<tr><td><strong>' + esc(a.nom) + '</strong></td><td class="r num">' + a.entrees + '</td><td class="r num">' + a.vip + '</td><td class="r num">' + a.cases + '</td><td class="r num">' + a.commandes + '</td><td class="r num">' + a.barrees + '</td><td class="r num">' + money(a.cash) + '</td><td class="r num">' + money(a.bc) + '</td><td class="r num"><strong>' + money(a.recette) + '</strong></td></tr>'; }).join('') +
+    (ids.length > 1 ? '<tr class="tot"><td>Total</td><td class="r num">' + (R.ent.personnes + R.ent.preventes) + '</td><td class="r num">' + (R.ent.vip || 0) + '</td><td class="r num">' + R.tk.cases + '</td><td class="r num">' + R.bo.commandes + '</td><td class="r num">' + R.bo.cases + '</td><td class="r num">' + money(R.cash) + '</td><td class="r num">' + money(R.bc) + '</td><td class="r num">' + money(R.recette) + '</td></tr>' : '') +
     '</tbody></table></div></section>';
 }
 function soirDesc(r) {
@@ -899,7 +926,18 @@ function renderHome() {
     '<div class="mods">' + MODULES.map(function (m) {
       return '<button class="mod' + (m.ready ? '' : ' off') + '" data-a="go" data-v="' + m.id + '"><span class="ic">' + ICONS[m.id] + '</span><h3>' + esc(m.nom) + '</h3><p>' + esc(m.desc) + '</p>' +
         '<span class="st num">' + (m.ready ? (m.id === 'bilan' ? esc(bilanStatus()) : m.id === 'catalogue' ? esc(catHomeStatus()) : m.id === 'stock' ? esc(stkHomeStatus()) : m.id === 'parametres' ? (getToken() ? 'Publication déverrouillée' : 'Publication verrouillée') : 'Disponible') : 'Bientôt disponible') + '</span></button>';
-    }).join('') + '</div>' + vToast();
+    }).join('') + '</div>' + vApps() + vToast();
+}
+/* Liens vers les applications des caisses (même site GitHub Pages) */
+var APPS = [
+  { nom: 'Caisse Bar', url: 'https://scraper147.github.io/bar/', desc: 'Ventes au bar' },
+  { nom: 'Caisse Soirée', url: 'https://scraper147.github.io/soiree/', desc: 'Entrées, tickets et boissons' },
+  { nom: 'Caisse Sapins', url: 'https://scraper147.github.io/sapin/', desc: 'Vente des sapins' }
+];
+function vApps() {
+  return '<div class="apps"><h3>Applications des caisses</h3><div class="apps-row">' + APPS.map(function (a) {
+    return '<a class="app-link" href="' + a.url + '" target="_blank" rel="noopener"><span class="ic">' + ICONS.pdv + '</span><span class="t"><b>' + esc(a.nom) + '</b><small>' + esc(a.desc) + '</small></span><span class="go" aria-hidden="true">↗</span></a>';
+  }).join('') + '</div></div>';
 }
 function renderSoon(m) {
   document.getElementById('mod').innerHTML =
@@ -920,8 +958,8 @@ function render() {
 /* ================= Publication GitHub : clé chiffrée ================= */
 /* Jeton GitHub chiffré (AES-GCM, clé dérivée de la phrase de passe par PBKDF2-SHA256).
    null = pas encore installée : la préparer dans Paramètres > Préparer la clé chiffrée. */
-var CLE_CHIFFREE = {"v":1,"kdf":"PBKDF2-SHA256","iter":600000,"salt":"X+e/BDHYCJC4HMCXH7Co9w==","iv":"Nkeduaks1JogUUPu","data":"+hMSC9lNBVYcfpMqIGbCe1mv0ayoC9JOOHbDXPKgwkdcp4cWGVDIBK/CHt7np8Q7qy2W9hyJv3LSDLrPz3RW9xhdgKVSuBqiw0rNFFn8Mr/BqFlDkFih/VnN/YW1wjTS1C5rXmiK6XFNNUn+nA=="};
-  /* Clés supplémentaires : autres jetons GitHub chiffrés avec la MÊME phrase de passe (un seul déverrouillage pour tous). */
+var CLE_CHIFFREE = {"v":1,"kdf":"PBKDF2-SHA256","iter":600000,"salt":"vUwwcs4M/mqMq6WMLCAzNQ==","iv":"gdSuBk0tfqR5VHw2","data":"uLaOeXDUXboZ8ASpQiHBBHaPgCAJg6PMtgAJMViM76s5dAJyIHAEBJvU5m+cQ9E/iG3VXQHag2UBu7cWAQPcRTKc1wqDMkpXimJFi22k4YuKnLiZNS1vgU7ydoOzDBUP/nOtqumJ48Zjf5IpNQ=="};
+/* Clés supplémentaires : autres jetons GitHub chiffrés avec la MÊME phrase de passe (un seul déverrouillage pour tous). */
 var CLES_SUPP = [];
 var TOKEN_KEY = 'admin-gh-token', LOCAL_CLE_KEY = 'admin-cle-chiffree', TOKENS_KEY = 'admin-gh-tokens', MAP_KEY = 'admin-gh-map';
 var tokensMem = null;
@@ -1773,6 +1811,7 @@ function bghParse(path) {
   var name = path.split('/').pop(), m = /(\d{4})-?(\d{2})-?(\d{2})/.exec(path), date = m ? m[1] + '-' + m[2] + '-' + m[3] : null;
   var label = name.replace(/\.json$/i, '').replace(/(\d{4})-?(\d{2})-?(\d{2})/, '').replace(/^ventes/i, '').replace(/[_\-]+/g, ' ').trim();
   var parts = path.split('/'), top = parts.length > 1 ? parts[0] : '', sub = parts.length > 2 ? parts.slice(1, -1).join('/') : '';
+  if (top === 'soiree') label = label.replace(/\s+[a-z0-9]{3,8}$/i, '') || label;
   return { path: path, name: name, date: date, label: label || name, dir: sub, top: top };
 }
 function bghOpen() {
@@ -1805,7 +1844,7 @@ function bghLoad(paths, soiree, quiet) {
     });
     if (lastC) F.caisse = lastC;
     dedupe(); fixCaisse(); BGH.busy = false; BGH.open = false; BGH.sel = {};
-    var ss = soirees(); F.soiree = soiree && ss.indexOf(soiree) >= 0 ? soiree : (!F.soiree || ss.indexOf(F.soiree) < 0 ? ss[0] || null : F.soiree);
+    F.soiree = defSoiree(); F.bar = 'all';
     var nb = res.length - skipped;
     toast(nb ? nb + ' fichier' + (nb > 1 ? 's' : '') + ' chargé' + (nb > 1 ? 's' : '') + ' depuis le dépôt' : res.length ? 'Aucun fichier de ventes lisible pour ce jour' : 'Ces fichiers sont déjà chargés');
   }, function (e) { BGH.busy = false; BGH.err = bghErr(e); render(); });
@@ -1958,18 +1997,18 @@ document.addEventListener('click', function (e) {
   var el = e.target.closest('[data-a]'); if (!el) return;
   var a = el.getAttribute('data-a'), v = el.getAttribute('data-v');
   if (a === 'go') { go(v); return; }
-  if (a === 'demo') { FILES = demoFiles().map(function (f) { return { name: f.name, data: f.data, status: 'ok', note: '', caisse: 'bar' }; }); F.caisse = 'bar'; dedupe(); F.soiree = soirees()[0]; F.bar = 'all'; toast('Exemples chargés : 2 bars, 1 soirée'); return; }
-  if (a === 'caisse') { F.caisse = v; F.bar = 'all'; F.soiree = soirees()[0] || null; render(); return; }
+  if (a === 'demo') { FILES = demoFiles().map(function (f) { return { name: f.name, data: f.data, status: 'ok', note: '', caisse: 'bar' }; }); F.caisse = 'bar'; dedupe(); F.soiree = defSoiree(); F.bar = 'all'; toast('Exemples chargés : 2 bars, 1 soirée'); return; }
+  if (a === 'caisse') { F.caisse = v; F.bar = 'all'; F.soiree = defSoiree(); render(); return; }
   if (a === 'soiree') F.soiree = v;
   else if (a === 'bar') F.bar = v;
   else if (a === 'artview') ART_VIEW = v;
-  else if (a === 'rm') { FILES.splice(+v, 1); dedupe(); if (soirees().indexOf(F.soiree) < 0 && F.soiree !== 'all') F.soiree = soirees()[0] || null; if (F.bar !== 'all' && !bars().some(function (b) { return b.id === F.bar; })) F.bar = 'all'; }
+  else if (a === 'rm') { FILES.splice(+v, 1); dedupe(); if ((soirees().indexOf(F.soiree) < 0 && F.soiree !== 'all') || (F.soiree === 'all' && soirees().length < 2)) F.soiree = defSoiree(); if (F.bar !== 'all' && !bars().some(function (b) { return b.id === F.bar; })) F.bar = 'all'; }
   else if (a === 'clear') { FILES = []; F = { soiree: null, bar: 'all' }; DISMISSED = {}; }
   else if (a === 'dismiss') { var sw = shownWarnings()[+v]; if (sw) DISMISSED[sw.t] = 1; }
   else if (a === 'dismissAll') { shownWarnings().forEach(function (x) { DISMISSED[x.t] = 1; }); }
   else if (a === 'print') { window.print(); return; }
   else if (a === 'csv') { exportCsv(); return; }
-  else if (a === 'theme') { var t = isDark() ? 'dark' : 'light'; document.documentElement.setAttribute('data-theme', t); try { localStorage.setItem(THEME_KEY, t); } catch (er) {} }
+  else if (a === 'theme') { var t = isDark() ? 'light' : 'dark'; document.documentElement.setAttribute('data-theme', t); try { localStorage.setItem(THEME_KEY, t); } catch (er) {} }
   render();
 });
 document.addEventListener('change', function (e) { if (e.target.hasAttribute('data-files')) { addFiles(e.target.files); e.target.value = ''; } });
@@ -1986,7 +2025,7 @@ render();
 </script>
 
 <script>
-if ('serviceWorker' in navigator) window.addEventListener('load', function () { navigator.serviceWorker.register('sw.js', { scope: '/admin/' }).catch(function () {}); });
+if ('serviceWorker' in navigator) window.addEventListener('load', function () { navigator.serviceWorker.register('sw.js').catch(function () {}); });
 </script>
 </body>
 </html>
