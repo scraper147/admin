@@ -152,6 +152,9 @@ tr.tot td{font-weight:800;border-top:2px solid var(--line);border-bottom:none}
 .mod.off:hover{border-color:var(--gold)}
 .mod .ic{width:44px;height:44px;border-radius:12px;display:grid;place-items:center;background:var(--soft);color:var(--green)}
 .mod.off .ic{color:var(--faint)}
+.evcard .state.warn{background:var(--warn-bg,#FBEFD9);color:var(--warn-ink,#8A5A12)}
+.evcard .why{margin:6px 0 0;font-size:13px;color:var(--muted)}
+.stkpend{border-color:var(--gold)}
 .apps{max-width:calc(1180px + 2 * clamp(16px,4vw,48px));margin:-36px auto 0;padding:0 clamp(16px,4vw,48px) 60px}
 .apps h3{font-family:var(--display);font-weight:600;font-size:20px;margin:0 0 12px}
 .apps-row{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
@@ -1521,7 +1524,29 @@ function applyOp(doc, op) {
 }
 function curDoc() { var c = STK.cur; return c.ops.reduce(function (d, op) { return applyOp(d, op); }, clone(c.remote)); }
 function opsKey(id) { return 'admin-stock-ops:' + id; }
-function persistCur() { var c = STK.cur; if (!c || c.demo) return; lsSet(opsKey(c.id), JSON.stringify({ remote: c.remote, sha: c.sha, ops: c.ops, isNew: c.isNew })); }
+function persistCur() { var c = STK.cur; if (!c || c.demo) return; lsSet(opsKey(c.id), JSON.stringify({ remote: c.remote, sha: c.sha, ops: c.ops, isNew: c.isNew, err: c.err || null, errLe: c.err ? new Date().toISOString() : null })); }
+/* Événements gardés sur cette tablette (créés ou modifiés mais pas encore enregistrés sur GitHub) */
+function stkLocal() {
+  var out = [];
+  try {
+    for (var i = 0; i < localStorage.length; i++) {
+      var k = localStorage.key(i); if (!k || k.indexOf('admin-stock-ops:') !== 0) continue;
+      try {
+        var o = JSON.parse(localStorage.getItem(k)); if (!o || !o.remote) continue;
+        if (!o.isNew && !(o.ops && o.ops.length)) continue;
+        var doc = (o.ops || []).reduce(function (d, op) { return applyOp(d, op); }, clone(o.remote));
+        out.push({ id: k.slice(16), doc: doc, isNew: !!o.isNew, n: (o.ops || []).length, err: o.err || null });
+      } catch (e) {}
+    }
+  } catch (e) {}
+  return out;
+}
+function stkLocalReason(x) {
+  if (!getToken()) return 'Déverrouillez l’appareil dans Paramètres : il sera envoyé à l’ouverture.';
+  if (x.err === 'offline') return 'Pas de connexion lors du dernier essai.';
+  if (x.err) return 'Dernier essai : ' + x.err;
+  return 'Ouvrez-le pour l’envoyer sur GitHub.';
+}
 function addOp(op) {
   var c = STK.cur;
   if (op.t === 'set') c.ops = c.ops.filter(function (x) { return !(x.t === 'set' && x.p.join('|') === op.p.join('|')); });
@@ -1551,7 +1576,7 @@ function saveCur(tries) {
     c.saving = false;
     if (e && (e.status === 409 || e.status === 422) && tries < 2) return saveCur(tries + 1);
     c.err = e && e.custom ? e.custom : e && e.status === 0 ? 'offline' : stkErr(e);
-    stkStatusRefresh();
+    persistCur(); stkStatusRefresh();
   });
 }
 function stkErr(e) {
@@ -1634,15 +1659,23 @@ function vStkList() {
   var body = '';
   if (!unlocked) body += '<div class="alerts"><div class="alert">Le stock est enregistré dans le dépôt privé <span class="mono">' + esc(DATA_REPO) + '</span>. Déverrouillez l’appareil dans Paramètres pour le consulter et le mettre à jour.</div></div>';
   if (STK.err) body += '<div class="alerts"><div class="alert err">' + (STK.err === 'offline' ? ghErrText({ status: 0 }) : STK.err) + '</div></div>';
+  var loc = stkLocal(), onGh = {};
+  (STK.list || []).forEach(function (d) { onGh[d.id] = 1; });
+  var pend = loc.filter(function (x) { return !onGh[x.id] || x.isNew; }), pendOps = {};
+  loc.forEach(function (x) { if (onGh[x.id] && !x.isNew) pendOps[x.id] = x.n; });
+  if (pend.length) body += '<section class="stkpend"><h3>Pas encore enregistrés sur GitHub</h3><p class="lead">Ces événements sont gardés sur cette tablette seulement. Ne videz pas les données du navigateur avant qu’ils soient envoyés.</p><div class="evgrid">' +
+    pend.map(function (x) { var d = x.doc, days = Object.keys(d.jours || {}).sort();
+      return '<div class="evcard"><button class="evopen" data-s="open" data-v="' + esc(x.id) + '"><span class="state warn">' + (x.isNew ? 'Sur cette tablette' : x.n + ' modification' + (x.n > 1 ? 's' : '') + ' non envoyée' + (x.n > 1 ? 's' : '')) + '</span><h3>' + esc(d.nom || x.id) + '</h3>' +
+        '<p class="num">' + (d.debut ? dmy(d.debut) + ' · ' : '') + days.length + ' jour' + (days.length > 1 ? 's' : '') + ' · ' + (d.articles || []).length + ' article' + ((d.articles || []).length > 1 ? 's' : '') + '</p><p class="why">' + esc(stkLocalReason(x)) + '</p></button></div>'; }).join('') + '</div></section>';
   if (STK.loading) body += '<section><p class="empty">Chargement des événements…</p></section>';
   else if (unlocked && STK.list) {
     var open = STK.list.filter(function (d) { return d.statut !== 'cloture'; }), closed = STK.list.filter(function (d) { return d.statut === 'cloture'; });
     function card(d) {
       var days = Object.keys(d.jours || {}).sort(), last = days[days.length - 1];
       return '<div class="evcard"><button class="evopen" data-s="open" data-v="' + esc(d.id) + '"><span class="state ' + (d.statut === 'cloture' ? '' : 'ok') + '">' + (d.statut === 'cloture' ? 'Clôturé' : 'En cours') + '</span><h3>' + esc(d.nom) + '</h3>' +
-        '<p class="num">' + dmy(d.debut) + (last && last !== d.debut ? ' → ' + dmy(last) : '') + ' · ' + days.length + ' jour' + (days.length > 1 ? 's' : '') + ' · ' + d.articles.length + ' article' + (d.articles.length > 1 ? 's' : '') + '</p></button></div>';
+        '<p class="num">' + dmy(d.debut) + (last && last !== d.debut ? ' → ' + dmy(last) : '') + ' · ' + days.length + ' jour' + (days.length > 1 ? 's' : '') + ' · ' + d.articles.length + ' article' + (d.articles.length > 1 ? 's' : '') + '</p>' + (pendOps[d.id] ? '<p class="why">' + pendOps[d.id] + ' modification' + (pendOps[d.id] > 1 ? 's' : '') + ' pas encore envoyée' + (pendOps[d.id] > 1 ? 's' : '') + ' depuis cette tablette</p>' : '') + '</button></div>';
     }
-    body += '<section><h3>En cours</h3>' + (open.length ? '<div class="evgrid">' + open.map(card).join('') + '</div>' : '<p class="empty">Aucun événement en cours. Créez-en un avec « Nouvel événement ».</p>') + '</section>';
+    body += '<section><h3>En cours</h3>' + (open.length ? '<div class="evgrid">' + open.map(card).join('') + '</div>' : '<p class="empty">Aucun événement en cours sur GitHub. Créez-en un avec « Nouvel événement ».</p>') + '</section>';
     if (closed.length) body += '<section><h3>Clôturés</h3><div class="evgrid">' + closed.sort(function (a, b) { return a.debut < b.debut ? 1 : -1; }).map(card).join('') + '</div></section>';
   }
   return band + '<main>' + body + '</main>';
@@ -1663,7 +1696,9 @@ function stkStatusHtml() {
   if (c.saving) return '<span class="sv">Enregistrement…</span>';
   if (c.err === 'offline') return '<span class="sv warn">Hors ligne : ' + c.ops.length + ' modification' + (c.ops.length > 1 ? 's gardées' : ' gardée') + ' sur l’appareil</span> <button class="ghost sm" data-s="save">Réessayer</button>';
   if (c.err) return '<span class="sv err">' + c.err + '</span> <button class="ghost sm" data-s="save">Réessayer</button>';
+  if (!getToken() && c.isNew) return '<span class="sv warn">Pas encore enregistré sur GitHub : déverrouillez l’appareil (gardé sur cette tablette)</span>';
   if (!getToken() && c.ops.length) return '<span class="sv warn">' + c.ops.length + ' modification(s) non enregistrée(s) : déverrouillez l’appareil</span>';
+  if (c.isNew) return '<span class="sv warn">Pas encore enregistré sur GitHub</span> <button class="ghost sm" data-s="save">Enregistrer maintenant</button>';
   if (c.ops.length) return '<span class="sv warn">' + c.ops.length + ' modification' + (c.ops.length > 1 ? 's' : '') + ' en attente</span> <button class="ghost sm" data-s="save">Enregistrer maintenant</button>';
   return '<span class="sv ok">Enregistré sur GitHub' + (c.savedAt ? ' à ' + String(c.savedAt.getHours()).padStart(2, '0') + ':' + String(c.savedAt.getMinutes()).padStart(2, '0') : '') + '</span>';
 }
@@ -1990,7 +2025,7 @@ document.addEventListener('change', function (e) {
 document.addEventListener('submit', function (e) { if (e.target.closest('[data-s-form]')) { e.preventDefault(); stkSubmitNew(); } });
 window.addEventListener('online', function () { if (STK.cur && STK.cur.ops.length) saveCur(); });
 document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'hidden' && STK.cur && STK.cur.ops.length) saveCur(); });
-function stkHomeStatus() { if (!getToken()) return 'Déverrouillez l’appareil pour l’utiliser'; if (!STK.list) return 'Comptage quotidien par événement'; var o = STK.list.filter(function (d) { return d.statut !== 'cloture'; }).length; return o + ' événement' + (o > 1 ? 's' : '') + ' en cours'; }
+function stkHomeStatus() { var lp = stkLocal().filter(function (x) { return x.isNew; }).length; if (lp) return lp + ' événement' + (lp > 1 ? 's' : '') + ' pas encore sur GitHub'; if (!getToken()) return 'Déverrouillez l’appareil pour l’utiliser'; if (!STK.list) return 'Comptage quotidien par événement'; var o = STK.list.filter(function (d) { return d.statut !== 'cloture'; }).length; return o + ' événement' + (o > 1 ? 's' : '') + ' en cours'; }
 
 /* ---------- Événements ---------- */
 document.addEventListener('click', function (e) {
