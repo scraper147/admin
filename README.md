@@ -90,6 +90,7 @@ Les appareils prennent la nouvelle version à la prochaine ouverture avec du ré
 ## Bon à savoir
 
 - Stock : un événement qui n'a pas pu être envoyé sur GitHub reste sur la tablette et apparaît dans « Pas encore enregistrés sur GitHub », avec la raison. Il est envoyé dès qu'on l'ouvre sur la tablette déverrouillée avec un jeton qui a accès à `admin-donnees`. Ne pas vider les données du navigateur avant.
+- Stock, secours sans GitHub : « Exporter (fichier) » dans un événement, ou « Exporter tout » dans la liste, télécharge le stock en fichier. « Importer un fichier » sur une autre tablette (même verrouillée) le reprend ; si l'événement existe déjà, l'app montre les deux versions et demande avant de remplacer.
 - Le Bilan ne garde pas les fichiers de ventes : rechargez-les à chaque ouverture. Les fichiers déposés à la main ne quittent pas l'appareil.
 - Le catalogue en cours de modification est gardé sur l'appareil jusqu'à sa publication.
 - L'app partage la mémoire du navigateur avec les caisses installées sur le même appareil (adresse scraper147.github.io) ; elle n'y garde que des données très légères.

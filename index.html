@@ -1515,6 +1515,7 @@ function addDays(iso, n) { var d = dParts(iso); d.setDate(d.getDate() + n); retu
 
 /* ---------- Opérations ---------- */
 function applyOp(doc, op) {
+  if (op.t === 'doc') return clone(op.v);
   if (op.t === 'set') { var o = doc, p = op.p; for (var i = 0; i < p.length - 1; i++) { if (!o[p[i]] || typeof o[p[i]] !== 'object') o[p[i]] = {}; o = o[p[i]]; } if (op.v == null) delete o[p[p.length - 1]]; else o[p[p.length - 1]] = op.v; }
   else if (op.t === 'art') { var k = -1; doc.articles.forEach(function (a, j) { if (a.id === op.v.id) k = j; }); if (k < 0) doc.articles.push(clone(op.v)); else doc.articles[k] = clone(op.v); }
   else if (op.t === 'meta') { doc[op.k] = op.v; }
@@ -1524,7 +1525,7 @@ function applyOp(doc, op) {
 }
 function curDoc() { var c = STK.cur; return c.ops.reduce(function (d, op) { return applyOp(d, op); }, clone(c.remote)); }
 function opsKey(id) { return 'admin-stock-ops:' + id; }
-function persistCur() { var c = STK.cur; if (!c || c.demo) return; lsSet(opsKey(c.id), JSON.stringify({ remote: c.remote, sha: c.sha, ops: c.ops, isNew: c.isNew, err: c.err || null, errLe: c.err ? new Date().toISOString() : null })); }
+function persistCur() { var c = STK.cur; if (!c || c.demo) return; lsSet(opsKey(c.id), JSON.stringify({ remote: c.remote, sha: c.sha, ops: c.ops, isNew: c.isNew, modLe: c.ops.length ? (c.modLe || new Date().toISOString()) : null, err: c.err || null, errLe: c.err ? new Date().toISOString() : null })); }
 /* Événements gardés sur cette tablette (créés ou modifiés mais pas encore enregistrés sur GitHub) */
 function stkLocal() {
   var out = [];
@@ -1552,7 +1553,7 @@ function addOp(op) {
   if (op.t === 'set') c.ops = c.ops.filter(function (x) { return !(x.t === 'set' && x.p.join('|') === op.p.join('|')); });
   if (op.t === 'art') c.ops = c.ops.filter(function (x) { return !(x.t === 'art' && x.v.id === op.v.id); });
   if (op.t === 'meta') c.ops = c.ops.filter(function (x) { return !(x.t === 'meta' && x.k === op.k); });
-  c.ops.push(op); c.doc = curDoc(); persistCur(); scheduleSave();
+  c.ops.push(op); c.modLe = new Date().toISOString(); c.doc = curDoc(); persistCur(); scheduleSave();
 }
 function scheduleSave() { clearTimeout(STK.timer); if (STK.cur && !STK.cur.demo && getToken()) STK.timer = setTimeout(function () { saveCur(); }, 6000); stkStatusRefresh(); }
 function saveCur(tries) {
@@ -1616,7 +1617,7 @@ function groupArticles(arts) {
 function stkLoadList() {
   var token = getToken(); if (!token) { STK.list = null; render(); return; }
   STK.loading = true; STK.err = null; render();
-  ghFetch('/repos/' + DATA_REPO + '/contents/stock', {}, token).then(function (files) {
+  return ghFetch('/repos/' + DATA_REPO + '/contents/stock', {}, token).then(function (files) {
     var js = (files || []).filter(function (f) { return /\.json$/.test(f.name); });
     return Promise.all(js.map(function (f) { return ghGetFile('stock/' + f.name, token).then(function (r) { if (r) STK.docs[r.json.id] = r.json; return r && r.json; }); }));
   }, function (e) { if (e.status === 404 || e.status === 409) return ghFetch('/repos/' + DATA_REPO, {}, token).then(function () { return []; }); throw e; })
@@ -1626,7 +1627,7 @@ function stkLoadList() {
 function stkOpen(id) {
   var saved = lsGet(opsKey(id)), o = null; try { o = saved ? JSON.parse(saved) : null; } catch (e) {}
   var remote = o ? o.remote : STK.docs[id];
-  STK.cur = { id: id, remote: clone(remote), sha: o ? o.sha : null, ops: o ? o.ops : [], isNew: o ? o.isNew : false, saving: false, savedAt: null, err: null };
+  STK.cur = { id: id, remote: clone(remote), sha: o ? o.sha : null, ops: o ? o.ops : [], modLe: o ? o.modLe : null, isNew: o ? o.isNew : false, saving: false, savedAt: null, err: null };
   STK.cur.doc = curDoc(); STK.view = 'event'; STK.tab = 'jour'; STK.confirm = null; STK.msg = null;
   var days = Object.keys(STK.cur.doc.jours).sort(); STK.day = days[days.length - 1] || null;
   if (!STK.cur.doc.articles.length) STK.tab = 'articles';
@@ -1634,6 +1635,83 @@ function stkOpen(id) {
   if (STK.cur.ops.length || STK.cur.isNew) saveCur();
   else if (getToken()) ghGetFile(stkPath(id), getToken()).then(function (r) { if (r && STK.cur && STK.cur.id === id && !STK.cur.ops.length) { STK.cur.remote = r.json; STK.cur.sha = r.sha; STK.cur.doc = curDoc(); STK.docs[id] = r.json; render(); } }, function () {});
 }
+
+/* ---------- Export / import de fichiers (secours sans GitHub, transfert entre tablettes) ---------- */
+function saveJson(name, obj) {
+  var a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([JSON.stringify(obj, null, 2)], { type: 'application/json' })); a.download = name;
+  document.body.appendChild(a); a.click(); setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+}
+/* Version la plus complète connue sur cet appareil : GitHub + modifications locales pas encore envoyées */
+function stkBestDoc(id) {
+  if (STK.cur && STK.cur.id === id && !STK.cur.demo) { var cd = clone(STK.cur.doc); if (STK.cur.ops.length && STK.cur.modLe) cd.majLe = STK.cur.modLe; return cd; }
+  var o = null; try { o = JSON.parse(lsGet(opsKey(id)) || 'null'); } catch (e) {}
+  if (o && o.remote) { var ld = (o.ops || []).reduce(function (d, op) { return applyOp(d, op); }, clone(o.remote)); if (o.ops && o.ops.length && o.modLe) ld.majLe = o.modLe; return ld; }
+  return STK.docs[id] ? clone(STK.docs[id]) : null;
+}
+function stkCleanDoc(d) { d = clone(d); delete d.demo; return d; }
+function stkExportOne(id) {
+  var d = stkBestDoc(id); if (!d) { toast('Événement introuvable sur cet appareil'); return; }
+  saveJson('stock_' + d.id + '_' + todayIso() + '.json', stkCleanDoc(d));
+  toast('Fichier du stock téléchargé');
+}
+function stkExportAll() {
+  var ids = {}; (STK.list || []).forEach(function (d) { ids[d.id] = 1; }); stkLocal().forEach(function (x) { ids[x.id] = 1; });
+  var docs = Object.keys(ids).map(stkBestDoc).filter(Boolean).map(stkCleanDoc);
+  if (!docs.length) { toast('Aucun stock à exporter sur cet appareil'); return; }
+  saveJson('stocks_' + todayIso() + '.json', { format: 'admin/stock-lot', formatVersion: 1, exporteLe: new Date().toISOString(), evenements: docs });
+  toast(docs.length + ' stock' + (docs.length > 1 ? 's' : '') + ' exporté' + (docs.length > 1 ? 's' : '') + ' dans un fichier');
+}
+function stkValid(d) { return d && d.format === 'admin/stock' && typeof d.id === 'string' && /^[a-z0-9-]{1,80}$/.test(d.id) && d.nom && Array.isArray(d.articles) && d.jours && typeof d.jours === 'object' && d.stockInitial && typeof d.stockInitial === 'object'; }
+function stkImportFiles(files) {
+  files = Array.prototype.slice.call(files || []); if (!files.length) return;
+  var docs = [], bad = [], left = files.length;
+  files.forEach(function (f) {
+    var rd = new FileReader();
+    rd.onload = function () {
+      try {
+        var j = JSON.parse(rd.result), list = j && j.format === 'admin/stock-lot' && Array.isArray(j.evenements) ? j.evenements : [j];
+        var ok = list.filter(stkValid); if (!ok.length) throw 0; docs = docs.concat(ok);
+      } catch (e) { bad.push(f.name); }
+      if (--left === 0) stkImportDocs(docs, bad);
+    };
+    rd.onerror = function () { bad.push(f.name); if (--left === 0) stkImportDocs(docs, bad); };
+    rd.readAsText(f);
+  });
+}
+function stkImportDocs(docs, bad) {
+  if (!docs.length) { STK.msg = { err: true, t: 'Aucun stock lisible dans ' + (bad.length > 1 ? 'ces fichiers' : 'ce fichier') + ' (' + esc(bad.join(', ')) + '). Choisissez un fichier exporté depuis le module Stock.' }; render(); return; }
+  var go = function () {
+    var fresh = [], conf = [];
+    docs.forEach(function (d) {
+      d = stkCleanDoc(d);
+      var local = null; try { local = JSON.parse(lsGet(opsKey(d.id)) || 'null'); } catch (e) {}
+      if (local || STK.docs[d.id]) conf.push(d); else fresh.push(d);
+    });
+    fresh.forEach(function (d) { lsSet(opsKey(d.id), JSON.stringify({ remote: d, sha: null, ops: [], isNew: true, err: null })); });
+    STK.imp = conf; STK.view = 'list'; STK.cur = null;
+    STK.msg = fresh.length || bad.length ? { t: (fresh.length ? fresh.length + ' stock' + (fresh.length > 1 ? 's importés' : ' importé') + ' sur cette tablette' + (getToken() ? ' : ouvrez-' + (fresh.length > 1 ? 'les' : 'le') + ' pour ' + (fresh.length > 1 ? 'les' : 'l’') + 'enregistrer sur GitHub.' : ' (enregistré' + (fresh.length > 1 ? 's' : '') + ' sur GitHub après déverrouillage).') : '') + (bad.length ? ' Fichier' + (bad.length > 1 ? 's' : '') + ' ignoré' + (bad.length > 1 ? 's' : '') + ' : ' + esc(bad.join(', ')) + '.' : '') } : null;
+    render();
+  };
+  if (getToken() && STK.list === null) { var pr = stkLoadList(); if (pr && pr.then) pr.then(go, go); else go(); } else go();
+}
+function stkImportReplace(d) {
+  var local = null; try { local = JSON.parse(lsGet(opsKey(d.id)) || 'null'); } catch (e) {}
+  if (STK.docs[d.id] && !(local && local.isNew)) lsSet(opsKey(d.id), JSON.stringify({ remote: local && local.remote ? local.remote : STK.docs[d.id], sha: local ? local.sha : null, ops: [{ t: 'doc', v: d }], isNew: false, err: null }));
+  else lsSet(opsKey(d.id), JSON.stringify({ remote: d, sha: null, ops: [], isNew: true, err: null }));
+}
+function vStkImp() {
+  var d = STK.imp && STK.imp[0]; if (!d) return '';
+  var cur = stkBestDoc(d.id) || {}, ndays = function (x) { return Object.keys((x && x.jours) || {}).length; };
+  function when(x) { return x && x.majLe ? new Date(x.majLe).toLocaleString('fr-BE', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : 'date inconnue'; }
+  var older = cur.majLe && d.majLe && d.majLe < cur.majLe;
+  return '<section class="stkpend"><h3>« ' + esc(d.nom) + ' » existe déjà</h3>' +
+    '<p class="lead">Sur cet appareil : modifié le ' + when(cur) + ', ' + ndays(cur) + ' jour' + (ndays(cur) > 1 ? 's' : '') + ', ' + (cur.articles || []).length + ' article' + ((cur.articles || []).length > 1 ? 's' : '') + '.<br>Dans le fichier : modifié le ' + when(d) + ', ' + ndays(d) + ' jour' + (ndays(d) > 1 ? 's' : '') + ', ' + d.articles.length + ' article' + (d.articles.length > 1 ? 's' : '') + '.</p>' +
+    (older ? '<div class="alert err" style="margin-bottom:12px">Le fichier est plus ancien que la version de cet appareil : le remplacer effacerait les saisies plus récentes.</div>' : '') +
+    '<p class="lead">Remplacer met le contenu du fichier à la place de l’événement (sur GitHub aussi, dès que possible).</p>' +
+    '<div class="cat-acts"><button class="pick" data-s="impReplace">Remplacer par le fichier</button><button class="btn" data-s="impSkip">Ne pas importer</button></div>' +
+    (STK.imp.length > 1 ? '<p class="hint">Encore ' + (STK.imp.length - 1) + ' autre' + (STK.imp.length > 2 ? 's' : '') + ' après celui-ci.</p>' : '') + '</section>';
+}
+document.addEventListener('change', function (e) { if (e.target.hasAttribute && e.target.hasAttribute('data-s-import')) { stkImportFiles(e.target.files); e.target.value = ''; } });
 function demoEvent() {
   var arts = [['a1', 'Jupiler fût 50 L', 'fûts', 'Bières'], ['a2', 'Bière spéciale', 'bouteilles', 'Bières'], ['a3', 'Coca-Cola 33 cl', 'canettes', 'Softs'], ['a4', 'Eau plate 50 cl', 'bouteilles', 'Softs'], ['a5', 'Vin rouge', 'bouteilles', 'Vins'], ['a6', 'Cava', 'bouteilles', 'Bulles'], ['a7', 'Gobelets 25 cl', 'pièces', 'Matériel']];
   var init = { a1: 12, a2: 240, a3: 480, a4: 360, a5: 60, a6: 48, a7: 5000 };
@@ -1655,10 +1733,13 @@ function vStkList() {
   var unlocked = !!getToken();
   var band = '<div class="band"><div class="band-top"><h1>Stock</h1></div><p class="soon-lead">Un stock par événement : encodez le stock de départ, comptez le restant chaque jour, clôturez en fin d’événement pour voir la consommation jour par jour.</p>' +
     '<div class="cat-acts" style="max-width:1180px;margin:16px auto 0">' + (unlocked ? '<button class="pick" data-s="new">+ Nouvel événement</button>' : '<button class="pick" data-a="go" data-v="parametres">Déverrouiller l’appareil</button>') +
+    '<label class="ghost lab">Importer un fichier<input type="file" accept=".json,application/json" multiple data-s-import></label><button class="ghost" data-s="exportAll">Exporter tout</button>' +
     '<button class="ghost" data-s="demo">Essayer avec un exemple</button>' + (unlocked ? '<button class="ghost" data-s="reloadList"' + (STK.loading ? ' disabled' : '') + '>Actualiser</button>' : '') + '</div></div>';
   var body = '';
   if (!unlocked) body += '<div class="alerts"><div class="alert">Le stock est enregistré dans le dépôt privé <span class="mono">' + esc(DATA_REPO) + '</span>. Déverrouillez l’appareil dans Paramètres pour le consulter et le mettre à jour.</div></div>';
   if (STK.err) body += '<div class="alerts"><div class="alert err">' + (STK.err === 'offline' ? ghErrText({ status: 0 }) : STK.err) + '</div></div>';
+  if (STK.msg) body += '<div class="alerts"><div class="alert' + (STK.msg.err ? ' err' : '') + '">' + STK.msg.t + '</div></div>';
+  body += vStkImp();
   var loc = stkLocal(), onGh = {};
   (STK.list || []).forEach(function (d) { onGh[d.id] = 1; });
   var pend = loc.filter(function (x) { return !onGh[x.id] || x.isNew; }), pendOps = {};
@@ -1707,7 +1788,7 @@ function vStkEvent() {
   var c = STK.cur, d = c.doc, closed = d.statut === 'cloture';
   var tabs = [['jour', 'Comptage du jour'], ['articles', 'Articles et stock de départ'], ['bilan', closed ? 'Bilan' : 'Bilan et clôture']];
   var band = '<div class="band"><p class="crumb"><button class="linkish" data-s="back">← Tous les événements</button></p><div class="band-top evtitle"><h1>' + esc(d.nom) + (closed ? '<span class="pill">Clôturé</span>' : '') + '</h1>' + (closed ? '<button class="ghost sm delbtn" data-s="askDel" data-v="' + esc(d.id) + '"' + (STK.deleting ? ' disabled' : '') + '>Supprimer</button>' : '') + '</div>' +
-    '<p class="cat-status num" style="max-width:1180px;margin:6px auto 0">Depuis le ' + dmy(d.debut) + ' · <span id="stkStatus">' + stkStatusHtml() + '</span></p>' +
+    '<p class="cat-status num" style="max-width:1180px;margin:6px auto 0">Depuis le ' + dmy(d.debut) + ' · <span id="stkStatus">' + stkStatusHtml() + '</span>' + (c.demo ? '' : ' <button class="ghost sm" data-s="export">Exporter (fichier)</button>') + '</p>' +
     '<div class="stabs" role="tablist">' + tabs.map(function (t) { return '<button role="tab" aria-selected="' + (STK.tab === t[0]) + '" class="' + (STK.tab === t[0] ? 'on' : '') + '" data-s="tab" data-v="' + t[0] + '">' + t[1] + '</button>'; }).join('') + '</div></div>';
   var body = STK.tab === 'articles' ? vStkArticles(d, closed) : STK.tab === 'bilan' ? vStkBilan(d, closed) : vStkDay(d, closed);
   var delPanel = closed && STK.confirm && STK.confirm.type === 'del' ? '<section class="pubpanel delpanel"><h3>Supprimer « ' + esc(d.nom) + ' » ?</h3><p class="lead">L\u2019événement et tous ses comptages disparaîtront de toutes les tablettes. Exportez d\u2019abord le bilan pour Excel si vous voulez le garder.</p>' +
@@ -1950,7 +2031,11 @@ function stkClick(el) {
   if (s === 'back') { if (c && c.ops.length && !c.demo) saveCur(); STK.view = 'list'; STK.cur = null; STK.msg = null; render(); return; }
   if (s === 'reloadList') { STK.list = null; STK.err = null; stkLoadList(); return; }
   if (s === 'demo') { STK.cur = { id: 'exemple', demo: true, remote: demoEvent(), ops: [], sha: null }; STK.cur.doc = curDoc(); STK.view = 'event'; STK.tab = 'jour'; STK.day = '2026-10-18'; STK.msg = null; STK.confirm = null; render(); window.scrollTo(0, 0); return; }
-  if (s === 'open') { stkOpen(v); return; }
+  if (s === 'open') { STK.msg = null; stkOpen(v); return; }
+  if (s === 'export') { if (c) stkExportOne(c.id); return; }
+  if (s === 'exportAll') { stkExportAll(); return; }
+  if (s === 'impSkip') { STK.imp.shift(); render(); return; }
+  if (s === 'impReplace') { var di = STK.imp.shift(); if (di) { stkImportReplace(di); STK.msg = { t: '« ' + esc(di.nom) + ' » remplacé par le fichier' + (getToken() ? ' : ouvrez-le pour l’enregistrer sur GitHub.' : ' (enregistré sur GitHub après déverrouillage).') }; } render(); return; }
   if (s === 'askDel') { STK.confirm = { type: 'del', id: v }; render(); return; }
   if (s === 'del') { stkDelete(v); return; }
   if (s === 'tab') { STK.tab = v; STK.confirm = null; STK.msg = null; render(); return; }
