@@ -139,6 +139,26 @@ tr.tot td{font-weight:800;border-top:2px solid var(--line);border-bottom:none}
 .subnav{display:flex;gap:8px;overflow-x:auto;scrollbar-width:none;padding:6px 0 14px}
 .subnav::-webkit-scrollbar{display:none}
 .subnav .rchip{flex:none;height:36px;padding:0 16px;font-size:14px}
+.ssbar{max-width:1180px;margin:10px auto 0}
+.ssbar .rchip{height:36px;font-size:14px}
+.sstab tr.ssgrp td{background:var(--soft);font-size:13px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);padding-top:8px;padding-bottom:8px}
+.sstab tr.sstot td{font-weight:700;border-top:2px solid var(--line)}
+.sstab .qty{width:110px}
+@media (max-width:560px){.sstab .qty{width:84px}}
+.ssform{display:flex;flex-direction:column;gap:8px;max-width:520px}
+.ssfhead{display:flex;flex-wrap:wrap;gap:12px 20px;align-items:flex-end;margin-bottom:14px}
+.ssfhead>div{display:flex;flex-direction:column;gap:6px}
+.ssfind{flex:1;min-width:180px;max-width:360px}
+.ssnabox{margin:16px 0 0}
+.ssna{display:flex;flex-direction:column;gap:8px;max-width:520px;background:var(--bg);border:1px solid var(--line);border-radius:14px;padding:16px}
+.ssna h4{margin:0;font-size:17px}
+.ssfoot{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;margin-top:18px;padding-top:14px;border-top:1px solid var(--line)}
+.ssfoot p{margin:0;font-weight:600}
+.sslivs{display:flex;flex-direction:column;gap:10px}
+.sslv{background:var(--bg);border:1px solid var(--line);border-radius:14px;padding:14px 16px;display:flex;flex-direction:column;gap:8px}
+.sslv.danger{border-color:var(--red)}
+.sslv p{margin:0;font-size:14px;color:var(--muted)}
+.sslv p b{color:var(--ink)}
 .nav .soon{font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--band-muted);border:1px solid var(--band-line);border-radius:6px;padding:0 5px;line-height:17px}
 .band{padding-top:6px}
 .band-top h1{font-size:26px}
@@ -979,11 +999,383 @@ function renderSapin() {
   else if (SAP_SUB === 'bilan') renderBilan();
   else renderSapStock();
 }
-function renderSapStock() {
-  document.getElementById('mod').innerHTML =
-    '<div class="band"><div class="band-top"><h1>Stock des sapins<span class="pill">Bientôt</span></h1></div><p class="soon-lead">La gestion du stock de la vente des sapins sera construite dans une prochaine étape.</p></div>' +
-    '<main><section><h3>À venir</h3><p class="lead">Le fonctionnement du stock des sapins (stock de base, départs vers les stands, lien avec la Caisse Sapins) reste à définir.</p></section></main>' + vToast();
+/* ================= Gestion sapin › Stock ================= */
+/* Un fichier par saison dans le dépôt privé des ventes : sapin/stock/<id>.json (format agri-garden-caisse/stock).
+   Les mouvements sont rangés par identifiant (pas de liste) et chaque appareil rejoue ses modifications sur la
+   dernière version avant d'enregistrer : l'Admin et, plus tard, la Caisse Sapins pourront écrire sans s'écraser.
+   Les articles viennent du catalogue de la Caisse Sapins (mêmes identifiants) ; le stock garde une copie
+   (libellé, catégorie) de chaque article utilisé, pour rester lisible si le catalogue change. */
+var SS_FMT = 'agri-garden-caisse/stock', SS_DIR = 'sapin/stock';
+var SS = { loaded: false, loading: false, err: null, seasons: [], cat: null, catErr: null, cur: null, view: 'base', form: null, newSeason: null, confirm: null, busy: false };
+function ssPath(id) { return SS_DIR + '/' + id + '.json'; }
+function ssKey(id) { return 'admin-sapstock:' + id; }
+function ssGet(path) {
+  return ghFetch('/repos/' + SALES_REPO + '/contents/' + path, {}, getToken()).then(function (j) { return { sha: j.sha, json: JSON.parse(b64utf8(j.content)) }; },
+    function (e) { if (e.status === 404) return null; throw e; });
 }
+function ssPut(path, json, sha, msg) {
+  var body = { message: msg, content: utf8b64(JSON.stringify(json, null, 1) + '\n') }; if (sha) body.sha = sha;
+  return ghFetch('/repos/' + SALES_REPO + '/contents/' + path, { method: 'PUT', body: JSON.stringify(body) }, getToken());
+}
+function ssNorm(d) {
+  d = d && typeof d === 'object' ? d : {};
+  if (!d.mouvements || typeof d.mouvements !== 'object' || Array.isArray(d.mouvements)) d.mouvements = {};
+  if (!d.articles || typeof d.articles !== 'object' || Array.isArray(d.articles)) d.articles = {};
+  if (!d.depot) d.depot = { id: '', nom: '' };
+  return d;
+}
+function ssApply(doc, op) {
+  if (op.t === 'mv') { if (op.v == null) delete doc.mouvements[op.id]; else doc.mouvements[op.id] = op.v; }
+  else if (op.t === 'art') doc.articles[op.id] = op.v;
+  else if (op.t === 'depot') doc.depot = op.v;
+  return doc;
+}
+function ssDoc() { var c = SS.cur; if (!c) return null; var d = ssNorm(clone(c.doc)); c.ops.forEach(function (o) { ssApply(d, o); }); return d; }
+function ssPersist() {
+  var c = SS.cur; if (!c) return;
+  lsSet(ssKey(c.id), c.ops.length || c.isNew ? JSON.stringify({ doc: c.doc, sha: c.sha, ops: c.ops, isNew: c.isNew, err: c.err || null }) : null);
+}
+function ssLocal() {
+  var out = [];
+  try { for (var i = 0; i < localStorage.length; i++) { var k = localStorage.key(i); if (k.indexOf('admin-sapstock:') === 0) { var o = JSON.parse(localStorage.getItem(k)); if (o && o.doc && o.doc.id) out.push(o); } } } catch (e) {}
+  return out;
+}
+function ssErrText(e) {
+  if (e && e.status === 0) return 'Hors ligne : les modifications sont gardées sur cet appareil et seront envoyées au retour d’internet.';
+  if (e && (e.status === 403 || e.status === 404)) return 'Le jeton n’a pas le droit d’écrire dans le dépôt ' + SALES_REPO + '. Il lui faut « Contents : Read and write » sur ce dépôt (voir Paramètres › Tester l’accès aux dépôts).';
+  return ghErrText(e);
+}
+function ssSave(tries) {
+  var c = SS.cur; if (!c || c.saving || (!c.ops.length && !c.isNew)) return;
+  if (!getToken()) { c.err = 'Appareil verrouillé : déverrouillez-le dans Paramètres pour enregistrer sur GitHub. Les modifications sont gardées sur cet appareil.'; ssPersist(); render(); return; }
+  c.saving = true; c.err = null; render();
+  var ops = c.ops.slice();
+  ssGet(ssPath(c.id)).then(function (r) {
+    var base = r ? ssNorm(r.json) : ssNorm(clone(c.doc));
+    ops.forEach(function (o) { ssApply(base, o); });
+    base.majLe = new Date().toISOString(); base.majPar = 'admin';
+    return ssPut(ssPath(c.id), base, r && r.sha, 'Stock ' + (base.nom || c.id) + ' (Admin)').then(function (res) { return { doc: base, sha: res && res.content && res.content.sha }; });
+  }).then(function (x) {
+    c.saving = false; c.doc = x.doc; c.sha = x.sha; c.ops = c.ops.slice(ops.length); c.isNew = false; c.err = null; ssPersist();
+    var s = SS.seasons.filter(function (y) { return y.id === c.id; })[0]; if (s) { s.doc = x.doc; s.sha = x.sha; s.local = false; }
+    render(); if (c.ops.length) ssSave();
+  }, function (e) {
+    c.saving = false;
+    if ((e.status === 409 || e.status === 422) && (tries || 0) < 2) { ssSave((tries || 0) + 1); return; }
+    c.err = ssErrText(e); ssPersist(); render();
+  });
+}
+function ssOp(list) { var c = SS.cur; if (!c) return; c.ops = c.ops.concat(list); ssPersist(); ssSave(); }
+window.addEventListener('online', function () { if (SS.cur && (SS.cur.ops.length || SS.cur.isNew)) ssSave(); });
+
+function ssLoad() {
+  SS.loading = true; SS.err = null; SS.catErr = null; render();
+  var tok = getToken(); SS.tok = !!tok;
+  var pCat = ghGetCatalogue(SAPIN_REPO, tok).then(function (r) {
+    SS.cat = r.json ? normalizeCat(r.json) : null;
+    if (!r.json) SS.catErr = 'Le catalogue de la Caisse Sapins n’est pas encore publié : publiez-le dans Gestion sapin › Catalogue.';
+  }, function (e) { SS.catErr = 'Catalogue de la Caisse Sapins indisponible (' + ghErrText(e, 'de lire') + ') La liste vient des articles déjà présents dans le stock.'; });
+  var pList = !tok ? Promise.resolve([]) : ghFetch('/repos/' + SALES_REPO + '/contents/' + SS_DIR, {}, tok).then(function (l) {
+    return Promise.all((Array.isArray(l) ? l : []).filter(function (f) { return f.type === 'file' && /\.json$/i.test(f.name); }).map(function (f) {
+      return ssGet(f.path).then(function (r) { return r && r.json && r.json.format === SS_FMT ? { id: f.name.replace(/\.json$/i, ''), sha: r.sha, doc: ssNorm(r.json) } : null; });
+    }));
+  }, function (e) { if (e.status === 404 || e.status === 409) return []; throw e; }).then(function (a) { return a.filter(Boolean); }, function (e) { SS.err = ssErrText(e); return []; });
+  Promise.all([pCat, pList]).then(function (res) {
+    SS.loading = false; SS.loaded = true; SS.seasons = res[1];
+    ssLocal().forEach(function (o) { if (!SS.seasons.some(function (s) { return s.id === o.doc.id; })) SS.seasons.push({ id: o.doc.id, sha: o.sha, doc: ssNorm(o.doc), local: true }); });
+    SS.seasons.sort(function (a, b) { return a.id < b.id ? 1 : -1; });
+    var keep = SS.cur && SS.seasons.some(function (s) { return s.id === SS.cur.id; }) ? SS.cur.id : SS.seasons[0] && SS.seasons[0].id;
+    var pv = SS.cur && SS.cur.id === keep && (SS.view === 'livs' || SS.view === 'base') ? SS.view : null;
+    SS.cur = null; if (keep) { ssOpen(keep); if (pv && SS.view !== pv) { SS.view = pv; render(); } } else render();
+  });
+}
+function ssOpen(id) {
+  var s = SS.seasons.filter(function (y) { return y.id === id; })[0], loc = null;
+  try { loc = JSON.parse(lsGet(ssKey(id)) || 'null'); } catch (e) {}
+  if (!s && !loc) return;
+  var remote = s && !s.local;
+  SS.cur = { id: id, doc: ssNorm(clone(remote ? s.doc : (loc ? loc.doc : s.doc))), sha: remote ? s.sha : loc ? loc.sha : s.sha, ops: loc ? loc.ops || [] : [], isNew: loc ? !!loc.isNew && !remote : false, err: loc ? loc.err : null, saving: false };
+  SS.view = 'base'; SS.form = null; SS.confirm = null; SS.newSeason = null;
+  render();
+  if (SS.cur.ops.length || SS.cur.isNew) ssSave();
+}
+
+/* Articles : catalogue (ordre des catégories) puis ceux du stock qui n'y sont plus */
+function ssLabel(k, p) { return (k.prefixe === false ? '' : k.nom + ' ') + p.libelle; }
+function ssGroups(doc) {
+  var groups = [], seen = {};
+  if (SS.cat) SS.cat.categories.forEach(function (k) {
+    var items = k.produits.map(function (p) { seen[p.id] = 1; return { id: p.id, libelle: ssLabel(k, p), cat: k.nom, actif: k.actif !== false && p.actif !== false }; });
+    if (items.length) groups.push({ nom: k.nom, items: items });
+  });
+  var extra = Object.keys(doc.articles).filter(function (id) { return !seen[id]; }).map(function (id) { var a = doc.articles[id] || {}; return { id: id, libelle: a.libelle || id, cat: a.categorie || '', actif: true, gone: !!SS.cat }; });
+  extra.sort(function (a, b) { return a.libelle.localeCompare(b.libelle); });
+  if (extra.length) groups.push({ nom: SS.cat ? 'Plus dans le catalogue' : 'Articles du stock', items: extra, gone: !!SS.cat });
+  return groups;
+}
+function ssCalc(doc) {
+  var q = {};
+  Object.keys(doc.mouvements).forEach(function (m) {
+    var v = doc.mouvements[m];
+    if (v && v.type === 'livraison' && v.stand === doc.depot.id) Object.keys(v.lignes || {}).forEach(function (a) { q[a] = (q[a] || 0) + (+v.lignes[a] || 0); });
+  });
+  return q;
+}
+function ssLivs(doc) {
+  return Object.keys(doc.mouvements).map(function (id) { return { id: id, v: doc.mouvements[id] }; }).filter(function (x) { return x.v && x.v.type === 'livraison'; })
+    .sort(function (a, b) { return a.v.date < b.v.date ? 1 : a.v.date > b.v.date ? -1 : (a.v.creeLe || '') < (b.v.creeLe || '') ? 1 : -1; });
+}
+function ssArtName(doc, id) {
+  var g = ssGroups(doc); for (var i = 0; i < g.length; i++) for (var j = 0; j < g[i].items.length; j++) if (g[i].items[j].id === id) return g[i].items[j].libelle;
+  return id;
+}
+function ssPcs(n) { return fmtQ(n) + ' pièce' + (Math.abs(n) > 1 ? 's' : ''); }
+
+/* ---------- Rendu ---------- */
+function renderSapStock() {
+  var el = document.getElementById('mod');
+  if (SS.loaded && !SS.tok && getToken()) SS.loaded = false; // déverrouillé depuis le dernier chargement
+  if (!SS.loaded && !SS.loading) { ssLoad(); return; }
+  if (!SS.loaded) { el.innerHTML = ssBand('Stock des sapins', '') + '<main><section><p class="empty">Chargement du stock et du catalogue…</p></section></main>' + vToast(); return; }
+  var alerts = ssAlerts();
+  if (!SS.cur || SS.view === 'season') { el.innerHTML = ssBand('Stock des sapins', ssSeasonChips()) + '<main>' + alerts + vSsSeason() + '</main>' + vToast(); return; }
+  var doc = ssDoc();
+  if (SS.view === 'form') { el.innerHTML = ssBand(SS.form.mid ? 'Modifier la livraison' : 'Encoder une livraison', '<p class="soon-lead">' + esc(doc.nom) + ' · livrée au stand de stockage <strong>' + esc(doc.depot.nom || doc.depot.id) + '</strong></p>') + '<main>' + alerts + vSsForm(doc) + '</main>' + vToast(); ssAfterRender(); return; }
+  var nl = ssLivs(doc).length;
+  el.innerHTML = ssBand('Stock des sapins · ' + esc(doc.nom), ssSeasonChips() + '<p class="soon-lead">Stand de stockage : <strong>' + esc(doc.depot.nom || doc.depot.id) + '</strong> · ' + ssStatus() + '</p>' +
+    '<div class="stabs" role="tablist" aria-label="Stock des sapins"><button role="tab" aria-selected="' + (SS.view === 'base') + '" class="' + (SS.view === 'base' ? 'on' : '') + '" data-ss="view" data-v="base">Stock de base</button><button role="tab" aria-selected="' + (SS.view === 'livs') + '" class="' + (SS.view === 'livs' ? 'on' : '') + '" data-ss="view" data-v="livs">Livraisons <span class="num">(' + nl + ')</span></button></div>') +
+    '<main>' + alerts + (SS.view === 'livs' ? vSsLivs(doc) : vSsBase(doc)) + '</main>' + vToast();
+}
+function ssAfterRender() { if (SS.form && SS.form.focus) { var i = document.getElementById('ssq-' + SS.form.focus); SS.form.focus = null; if (i) { i.focus(); i.scrollIntoView({ block: 'center' }); } } }
+function ssBand(title, extra) { return '<div class="band"><div class="band-top"><h1>' + title + '</h1></div>' + (extra || '') + '</div>'; }
+function ssSeasonChips() {
+  if (!SS.seasons.length) return '';
+  return '<div class="rsel ssbar" role="group" aria-label="Saison">' + SS.seasons.map(function (s) {
+    return '<button class="rchip' + (SS.cur && SS.cur.id === s.id && SS.view !== 'season' ? ' on' : '') + '" data-ss="season" data-v="' + esc(s.id) + '">' + esc(s.doc.nom || s.id) + '</button>';
+  }).join('') + '<button class="rchip" data-ss="newSeason">+ Nouvelle saison</button><button class="rchip" data-ss="reload" title="Relire le stock et le catalogue sur GitHub">Actualiser</button></div>';
+}
+function ssStatus() {
+  var c = SS.cur;
+  if (c.saving) return '<span class="sv">Enregistrement…</span>';
+  if (c.err) return '<span class="sv warn">' + (c.ops.length || c.isNew ? 'Pas encore enregistré sur GitHub' : 'Erreur') + '</span> <button class="ghost sm" data-ss="save">Réessayer</button>';
+  if (c.ops.length || c.isNew) return '<span class="sv warn">En attente d’enregistrement</span>';
+  var d = c.doc.majLe ? new Date(c.doc.majLe) : null;
+  return '<span class="sv ok">Enregistré sur GitHub</span>' + (d && !isNaN(d) ? ' <span class="faint">(' + dmy(c.doc.majLe.slice(0, 10)) + ' ' + String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0') + ')</span>' : '');
+}
+function ssAlerts() {
+  var a = [];
+  if (!getToken()) a.push('<div class="alert">Appareil verrouillé : le stock enregistré sur GitHub ne peut pas être lu. <button class="btn sm" data-a="go" data-v="parametres">Déverrouiller</button></div>');
+  if (SS.err) a.push('<div class="alert err">' + SS.err + '</div>');
+  if (SS.cur && SS.cur.err) a.push('<div class="alert err">' + SS.cur.err + '</div>');
+  if (SS.catErr) a.push('<div class="alert">' + SS.catErr + '</div>');
+  return a.length ? '<div class="alerts">' + a.join('') + '</div>' : '';
+}
+function vSsSeason() {
+  var f = SS.newSeason || (SS.newSeason = { nom: 'Sapins ' + new Date().getFullYear(), depot: '' });
+  var pdvs = SS.cat ? SS.cat.pointsDeVente.filter(function (p) { return p.actif !== false; }) : [];
+  if (!f.depot) { var spy = pdvs.filter(function (p) { return /spy/i.test(p.nom); })[0] || pdvs[0]; f.depot = spy ? spy.id : ''; }
+  var h = '<section><h3>' + (SS.seasons.length ? 'Nouvelle saison' : 'Créer le stock de la saison') + '</h3><p class="lead">Un stock par saison. Toutes les livraisons de l’année s’y ajoutent ; les sapins sont stockés au stand choisi ci-dessous.</p>';
+  if (!pdvs.length) return h + '<p class="empty">Les points de vente viennent du catalogue de la Caisse Sapins, qui n’a pas pu être lu. Vérifiez la connexion, puis « Actualiser ».</p><button class="btn" data-ss="reload">Actualiser</button></section>';
+  return h + '<form class="ssform" data-ss-form="season">' +
+    '<label class="fl" for="ssNom">Nom de la saison</label><input type="text" id="ssNom" required value="' + esc(f.nom) + '">' +
+    '<label class="fl" for="ssDepot">Stand de stockage (stock de base)</label><select id="ssDepot">' + pdvs.map(function (p) { return '<option value="' + esc(p.id) + '"' + (f.depot === p.id ? ' selected' : '') + '>' + esc(p.nom) + '</option>'; }).join('') + '</select>' +
+    '<div class="cbtns"><button class="pick" type="submit">Créer la saison</button>' + (SS.cur ? '<button class="btn" type="button" data-ss="view" data-v="base">Annuler</button>' : '') + '</div></form></section>';
+}
+function vSsBase(doc) {
+  var q = ssCalc(doc), tot = 0, rows = '';
+  ssGroups(doc).forEach(function (g) {
+    var items = g.items.filter(function (it) { return g.gone ? q[it.id] : true; });
+    if (!items.length) return;
+    rows += '<tr class="ssgrp"><td colspan="2">' + esc(g.nom) + '</td></tr>' + items.map(function (it) {
+      var n = q[it.id] || 0; tot += n;
+      return '<tr' + (n ? '' : ' class="off"') + '><td>' + esc(it.libelle) + (it.actif ? '' : '<span class="sub">masqué en caisse</span>') + '</td><td class="r num">' + (n ? fmtQ(n) : '—') + '</td></tr>';
+    }).join('');
+  });
+  return '<section><div class="row-between"><h3>Stock à ' + esc(doc.depot.nom || doc.depot.id) + '</h3><button class="pick" data-ss="newLiv">+ Encoder une livraison</button></div>' +
+    '<p class="lead">Total des livraisons reçues au stand de stockage.</p>' +
+    (rows ? '<div class="scroll"><table class="stab bil sstab"><thead><tr><th>Article</th><th class="r">En stock</th></tr></thead><tbody>' + rows +
+      '<tr class="sstot"><td>Total</td><td class="r num">' + fmtQ(tot) + '</td></tr></tbody></table></div>' : '<p class="empty">Aucun article : le catalogue de la Caisse Sapins est vide ou n’a pas pu être lu.</p>') + '</section>';
+}
+function vSsLivs(doc) {
+  var l = ssLivs(doc);
+  var h = '<section><div class="row-between"><h3>Livraisons</h3><button class="pick" data-ss="newLiv">+ Encoder une livraison</button></div>';
+  if (!l.length) return h + '<p class="empty">Aucune livraison encodée pour cette saison.</p></section>';
+  return h + '<div class="sslivs">' + l.map(function (x) {
+    var v = x.v, ids = Object.keys(v.lignes || {}), n = ids.reduce(function (s, a) { return s + (+v.lignes[a] || 0); }, 0);
+    var conf = SS.confirm && SS.confirm.id === x.id;
+    return '<div class="sslv' + (conf ? ' danger' : '') + '"><div class="row-between"><strong>' + esc(longDate(v.date)) + ' ' + esc(v.date.slice(0, 4)) + '</strong><span class="num">' + ssPcs(n) + '</span></div>' +
+      '<p>' + ids.map(function (a) { return esc(ssArtName(doc, a)) + ' <b class="num">× ' + fmtQ(v.lignes[a]) + '</b>'; }).join(' · ') + '</p>' +
+      (v.source && v.source !== 'admin' ? '<p class="faint">Encodée depuis : ' + esc(v.source) + '</p>' : '') +
+      (conf ? '<div class="cbtns"><span>Supprimer cette livraison ?</span><button class="btn danger sm" data-ss="delLiv" data-v="' + esc(x.id) + '">Supprimer</button><button class="btn sm" data-ss="cancel">Annuler</button></div>'
+        : '<div class="cbtns"><button class="btn sm" data-ss="editLiv" data-v="' + esc(x.id) + '">Modifier</button><button class="btn sm" data-ss="askDel" data-v="' + esc(x.id) + '">Supprimer</button></div>') + '</div>';
+  }).join('') + '</div></section>';
+}
+function vSsForm(doc) {
+  var f = SS.form, rows = '';
+  ssGroups(doc).forEach(function (g) {
+    rows += '<tr class="ssgrp"><td colspan="2">' + esc(g.nom) + '</td></tr>' + g.items.map(function (it) {
+      var v = f.q[it.id] == null ? '' : f.q[it.id];
+      return '<tr data-ssrow="' + esc((it.libelle + ' ' + it.cat).toLowerCase()) + '"><td><label for="ssq-' + esc(it.id) + '">' + esc(it.libelle) + '</label>' + (it.actif ? '' : '<span class="sub">masqué en caisse</span>') + '</td>' +
+        '<td class="r"><input type="text" inputmode="numeric" class="qty num" id="ssq-' + esc(it.id) + '" data-ssq="' + esc(it.id) + '" value="' + esc(v) + '" placeholder="0" autocomplete="off"></td></tr>';
+    }).join('');
+  });
+  var cats = SS.cat ? SS.cat.categories : [], na = f.na;
+  var naBox = !na ? '<button class="btn" type="button" data-ss="naOpen">+ Article absent du catalogue</button>'
+    : '<div class="ssna"><h4>Nouvel article</h4><p class="hint">Il est ajouté au catalogue de la Caisse Sapins (une nouvelle version est publiée), puis apparaît dans la liste ci-dessus.</p>' +
+      '<label class="fl" for="naLib">Libellé</label><input type="text" id="naLib" data-ssn="libelle" value="' + esc(na.libelle) + '" placeholder="Ex. 175–200 cm">' +
+      '<label class="fl" for="naCat">Catégorie</label><select id="naCat" data-ssn="cat">' + cats.map(function (k) { return '<option value="' + esc(k.id) + '"' + (na.cat === k.id ? ' selected' : '') + '>' + esc(k.nom) + '</option>'; }).join('') + '<option value="__new"' + (na.cat === '__new' ? ' selected' : '') + '>Nouvelle catégorie…</option></select>' +
+      '<div id="naNewWrap"' + (na.cat === '__new' ? '' : ' hidden') + '><label class="fl" for="naNew">Nom de la nouvelle catégorie</label><input type="text" id="naNew" data-ssn="newCat" value="' + esc(na.newCat) + '"></div>' +
+      '<label class="fl" for="naPrix">Prix de vente (€)</label><input type="text" inputmode="decimal" id="naPrix" data-ssn="prix" value="' + esc(na.prix) + '" placeholder="Ex. 69">' +
+      '<div class="cbtns"><button class="pick" type="button" data-ss="naAdd"' + (SS.busy ? ' disabled' : '') + '>' + (SS.busy ? 'Publication…' : 'Ajouter au catalogue') + '</button><button class="btn" type="button" data-ss="naClose">Annuler</button></div></div>';
+  return '<section><form class="ssliv" data-ss-form="liv">' +
+    '<div class="ssfhead"><div><label class="fl" for="ssDate">Date de la livraison</label><input type="date" id="ssDate" data-ssf="date" value="' + esc(f.date) + '" required></div>' +
+    '<div class="ssfind"><label class="fl" for="ssFind">Rechercher</label><input type="text" id="ssFind" data-ssf="find" placeholder="Article…" autocomplete="off"></div></div>' +
+    '<div class="scroll"><table class="stab bil sstab"><thead><tr><th>Article</th><th class="r">Quantité livrée</th></tr></thead><tbody>' + rows + '</tbody></table></div>' +
+    '<div class="ssnabox">' + naBox + '</div>' +
+    '<div class="ssfoot"><p class="num" id="ssSum">' + ssSumText() + '</p><div class="cbtns"><button class="pick" type="submit">' + (f.mid ? 'Enregistrer les modifications' : 'Enregistrer la livraison') + '</button><button class="btn" type="button" data-ss="view" data-v="' + (f.mid ? 'livs' : 'base') + '">Annuler</button></div></div>' +
+    '</form></section>';
+}
+function ssSumText() {
+  var f = SS.form, n = 0, k = 0, bad = 0;
+  Object.keys(f.q).forEach(function (a) { var v = parseQ(f.q[a]); if (v == null) return; if (isNaN(v) || v < 0 || Math.round(v) !== v) { bad++; return; } if (v > 0) { n += v; k++; } });
+  return bad ? '<span class="bad">' + bad + ' quantité' + (bad > 1 ? 's' : '') + ' invalide' + (bad > 1 ? 's' : '') + ' (nombre entier attendu)</span>' : k ? k + ' article' + (k > 1 ? 's' : '') + ' · ' + ssPcs(n) : 'Aucune quantité encodée';
+}
+
+/* ---------- Actions ---------- */
+function ssSubmitLiv() {
+  var f = SS.form, doc = ssDoc(), lignes = {}, bad = false;
+  Object.keys(f.q).forEach(function (a) { var v = parseQ(f.q[a]); if (v == null) return; if (isNaN(v) || v < 0 || Math.round(v) !== v) bad = true; else if (v > 0) lignes[a] = v; });
+  if (bad) { toast('Corrigez les quantités invalides (nombre entier attendu)'); return; }
+  if (!Object.keys(lignes).length) { toast('Encodez au moins une quantité'); return; }
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(f.date || '')) { toast('Indiquez la date de la livraison'); return; }
+  var ops = [], g = ssGroups(doc), byId = {};
+  g.forEach(function (x) { x.items.forEach(function (it) { byId[it.id] = it; }); });
+  Object.keys(lignes).forEach(function (a) {
+    var it = byId[a], snap = it ? { libelle: it.libelle, categorie: it.cat } : doc.articles[a];
+    if (snap && JSON.stringify(snap) !== JSON.stringify(doc.articles[a])) ops.push({ t: 'art', id: a, v: snap });
+  });
+  var old = f.mid ? doc.mouvements[f.mid] : null, now = new Date().toISOString();
+  var mv = { type: 'livraison', date: f.date, stand: doc.depot.id, lignes: lignes, creeLe: old ? old.creeLe : now, source: old ? old.source || 'admin' : 'admin' };
+  if (old) { mv.modifieLe = now; mv.modifiePar = 'admin'; }
+  var mid = f.mid || 'liv-' + now.replace(/\D/g, '').slice(0, 14) + '-' + Math.random().toString(36).slice(2, 6);
+  ops.push({ t: 'mv', id: mid, v: mv });
+  SS.view = f.mid ? 'livs' : 'base'; SS.form = null;
+  ssOp(ops);
+  toast(old ? 'Livraison modifiée' : 'Livraison enregistrée : ' + ssPcs(Object.keys(lignes).reduce(function (s, a) { return s + lignes[a]; }, 0)));
+}
+function ssSubmitSeason() {
+  var nom = (document.getElementById('ssNom').value || '').trim(), dep = document.getElementById('ssDepot').value;
+  if (!nom) { toast('Indiquez le nom de la saison'); return; }
+  var id = slug(nom, 32);
+  if (SS.seasons.some(function (s) { return s.id === id; })) { toast('Une saison « ' + nom + ' » existe déjà'); return; }
+  var p = SS.cat.pointsDeVente.filter(function (x) { return x.id === dep; })[0] || { id: dep, nom: dep }, now = new Date().toISOString();
+  var doc = { format: SS_FMT, formatVersion: 1, id: id, nom: nom, creeLe: now, majLe: now, majPar: 'admin', depot: { id: p.id, nom: p.nom }, articles: {}, mouvements: {} };
+  SS.seasons.unshift({ id: id, doc: doc, sha: null, local: true });
+  SS.cur = { id: id, doc: doc, sha: null, ops: [], isNew: true, err: null, saving: false };
+  SS.view = 'base'; SS.newSeason = null; ssPersist(); ssSave();
+}
+/* Article absent du catalogue : ajouté directement au catalogue publié de la Caisse Sapins */
+function ssAddArticle() {
+  var na = SS.form.na, lib = (na.libelle || '').trim(), prix = parsePrice(na.prix), newCat = (na.newCat || '').trim();
+  if (!lib) { toast('Indiquez le libellé de l’article'); return; }
+  if (na.cat === '__new' && !newCat) { toast('Indiquez le nom de la nouvelle catégorie'); return; }
+  if (isNaN(prix) || prix < 0) { toast('Indiquez un prix de vente valide'); return; }
+  if (!getToken()) { toast('Déverrouillez l’appareil dans Paramètres pour modifier le catalogue'); return; }
+  SS.busy = true; render();
+  var tries = 0;
+  function attempt() {
+    return ghGetCatalogue(SAPIN_REPO, getToken()).then(function (r) {
+      if (!r.json) throw new Error('Le catalogue de la Caisse Sapins n’est pas encore publié : publiez-le d’abord dans Gestion sapin › Catalogue.');
+      var j = clone(r.json), cats = Array.isArray(j.categories) ? j.categories : (j.categories = []), k, ids = {};
+      cats.forEach(function (c) { (c.produits || []).forEach(function (p) { ids[p.id] = 1; }); });
+      if (na.cat === '__new') {
+        k = cats.filter(function (c) { return String(c.nom).trim().toLowerCase() === newCat.toLowerCase(); })[0];
+        if (!k) { var cid = slug(newCat), cids = {}; cats.forEach(function (c) { cids[c.id] = 1; }); if (cids[cid]) cid = uid(cid + '-', cids);
+          k = { id: cid, nom: newCat, ordre: cats.reduce(function (m, c) { return Math.max(m, c.ordre || 0); }, 0) + 1, actif: true, produits: [] }; cats.push(k); }
+      } else k = cats.filter(function (c) { return c.id === na.cat; })[0];
+      if (!k) throw new Error('Cette catégorie n’existe plus dans le catalogue. Actualisez la page.');
+      if (!Array.isArray(k.produits)) k.produits = [];
+      if (k.produits.some(function (p) { return String(p.libelle).trim().toLowerCase() === lib.toLowerCase(); })) throw new Error('« ' + lib + ' » existe déjà dans la catégorie ' + k.nom + '.');
+      var prod = { id: uid(slug(k.id).slice(0, 8) + '-', ids), libelle: lib, prix: Math.round(prix * 100) / 100, ordre: k.produits.reduce(function (m, p) { return Math.max(m, p.ordre || 0); }, 0) + 1, actif: true };
+      k.produits.push(prod);
+      delete j.exemple; j.version = (+j.version || 0) + 1; j.date = todayIso();
+      var body = { message: 'Catalogue v' + j.version + ' (Admin, stock des sapins : ajout de ' + lib + ')', content: utf8b64(JSON.stringify(j, null, 2) + '\n'), sha: r.sha };
+      return ghFetch('/repos/' + SAPIN_REPO + '/contents/catalogue.json', { method: 'PUT', body: JSON.stringify(body) }, getToken()).then(function (res) {
+        return { json: j, sha: res && res.content && res.content.sha, cat: k, prod: prod };
+      });
+    }).catch(function (e) { if ((e.status === 409 || e.status === 422) && tries++ < 2) return attempt(); throw e; });
+  }
+  attempt().then(function (x) {
+    SS.busy = false; SS.cat = normalizeCat(x.json); SS.catErr = null;
+    ssPatchCatEditor(x.json, x.sha, x.cat, x.prod);
+    if (SS.form) { SS.form.na = null; SS.form.focus = x.prod.id; }
+    toast('« ' + x.prod.libelle + ' » ajouté au catalogue (version ' + x.json.version + ')');
+  }, function (e) { SS.busy = false; toast(e && e.status !== undefined ? ghErrText(e).replace(/<[^>]+>/g, '') : (e && e.message) || 'Erreur'); });
+}
+/* L'éditeur du catalogue (Gestion sapin › Catalogue) garde un brouillon : on y reporte l'article ajouté */
+function ssPatchCatEditor(json, sha, cat, prod) {
+  var key = 'admin-cat-draft:' + SAPIN_REPO;
+  function patch(c) { if (!c || !Array.isArray(c.categories)) return; var k = c.categories.filter(function (x) { return x.id === cat.id; })[0]; if (!k) { k = clone(cat); k.produits = []; c.categories.push(k); } if (!k.produits.some(function (p) { return p.id === prod.id; })) k.produits.push(clone(prod)); }
+  function fix(o) { // o = { data, base, sha, source }
+    if (!o || !o.data) return null;
+    if (comparable(o.data) === comparable(o.base)) return 'drop';
+    if (o.source !== 'github') return null;
+    patch(o.data); patch(o.base); if (o.base) o.base.version = json.version; o.sha = sha; return 'keep';
+  }
+  var C = CAT_CUR === 'sapin' ? CAT : CAT_ST.sapin;
+  if (C && C.data) {
+    var r = fix(C);
+    if (r === 'drop') { C.data = null; C.base = null; C.sha = null; C.source = null; lsSet(key, null); }
+    else if (r === 'keep') lsSet(key, JSON.stringify({ data: C.data, base: C.base, sha: C.sha, source: C.source }));
+  } else {
+    var o = null; try { o = JSON.parse(lsGet(key) || 'null'); } catch (e) {}
+    var r2 = fix(o); if (r2 === 'drop') lsSet(key, null); else if (r2 === 'keep') lsSet(key, JSON.stringify(o));
+  }
+}
+function ssFilter(q) {
+  q = (q || '').trim().toLowerCase();
+  var rows = document.querySelectorAll('.sstab tr[data-ssrow]');
+  Array.prototype.forEach.call(rows, function (tr) { tr.hidden = !!q && tr.getAttribute('data-ssrow').indexOf(q) < 0; });
+  Array.prototype.forEach.call(document.querySelectorAll('.sstab tr.ssgrp'), function (g) {
+    var n = g.nextElementSibling, any = false; while (n && !n.classList.contains('ssgrp')) { if (!n.hidden) any = true; n = n.nextElementSibling; } g.hidden = !any;
+  });
+}
+document.addEventListener('click', function (e) {
+  var b = e.target.closest('[data-ss]'); if (!b || b.disabled) return;
+  var a = b.getAttribute('data-ss'), v = b.getAttribute('data-v');
+  if (a === 'view') { SS.view = v; SS.form = null; SS.confirm = null; if (!SS.cur) SS.view = 'season'; render(); }
+  else if (a === 'season') ssOpen(v);
+  else if (a === 'newSeason') { SS.view = 'season'; SS.newSeason = null; render(); }
+  else if (a === 'reload') { SS.loaded = false; render(); }
+  else if (a === 'save') ssSave();
+  else if (a === 'newLiv') { SS.form = { mid: null, date: todayIso(), q: {}, na: null }; SS.view = 'form'; render(); }
+  else if (a === 'editLiv') { var mv = ssDoc().mouvements[v]; if (!mv) return; var q = {}; Object.keys(mv.lignes || {}).forEach(function (k) { q[k] = fmtQ(mv.lignes[k]); }); SS.form = { mid: v, date: mv.date, q: q, na: null }; SS.view = 'form'; render(); }
+  else if (a === 'askDel') { SS.confirm = { id: v }; render(); }
+  else if (a === 'cancel') { SS.confirm = null; render(); }
+  else if (a === 'delLiv') { SS.confirm = null; ssOp([{ t: 'mv', id: v, v: null }]); toast('Livraison supprimée'); }
+  else if (a === 'naOpen') { var c0 = SS.cat && SS.cat.categories[0]; SS.form.na = { libelle: '', cat: c0 ? c0.id : '__new', newCat: '', prix: '' }; render(); var i0 = document.getElementById('naLib'); if (i0) i0.focus(); }
+  else if (a === 'naClose') { SS.form.na = null; render(); }
+  else if (a === 'naAdd') ssAddArticle();
+});
+document.addEventListener('input', function (e) {
+  var t = e.target;
+  if (t.hasAttribute('data-ssq') && SS.form) { SS.form.q[t.getAttribute('data-ssq')] = t.value; var s = document.getElementById('ssSum'); if (s) s.innerHTML = ssSumText(); }
+  else if (t.hasAttribute('data-ssn') && SS.form && SS.form.na) { var k = t.getAttribute('data-ssn'); SS.form.na[k] = t.value; if (k === 'cat') { var w = document.getElementById('naNewWrap'); if (w) w.hidden = t.value !== '__new'; } }
+  else if (t.getAttribute('data-ssf') === 'date' && SS.form) SS.form.date = t.value;
+  else if (t.getAttribute('data-ssf') === 'find') ssFilter(t.value);
+});
+document.addEventListener('submit', function (e) {
+  var f = e.target.closest('[data-ss-form]'); if (!f) return;
+  e.preventDefault();
+  if (f.getAttribute('data-ss-form') === 'liv') ssSubmitLiv(); else ssSubmitSeason();
+});
+/* Entrée dans une quantité : passer à la suivante au lieu d'enregistrer la livraison */
+document.addEventListener('keydown', function (e) {
+  var t = e.target; if (e.key !== 'Enter' || !t.hasAttribute || !t.hasAttribute('data-ssq')) return;
+  e.preventDefault();
+  var all = Array.prototype.filter.call(document.querySelectorAll('[data-ssq]'), function (x) { return !x.closest('tr').hidden; }), i = all.indexOf(t);
+  if (all[i + 1]) all[i + 1].focus(); else t.blur();
+});
 function sapHomeStatus() {
   var st = BIL_CUR === 'sapin' ? { FILES: FILES } : BIL_ST.sapin;
   var n = st ? st.FILES.filter(function (f) { return f.status === 'ok'; }).length : 0;
@@ -1484,7 +1876,7 @@ function vTests() {
 }
 function testRepos() {
   var tokens = getTokens(); PAR.busy = true; PAR.tests = null; render();
-  var repos = REPOS.concat([{ id: DATA_REPO, nom: 'Données du stock (' + DATA_REPO.split('/')[1] + ')' }, { id: SALES_REPO, nom: 'Ventes des caisses (' + SALES_REPO.split('/')[1] + ', lecture pour le Bilan)', lecture: true }]);
+  var repos = REPOS.concat([{ id: DATA_REPO, nom: 'Données du stock (' + DATA_REPO.split('/')[1] + ')' }, { id: SALES_REPO, nom: 'Ventes des caisses (' + SALES_REPO.split('/')[1] + ' : Bilan et stock des sapins)' }]);
   Promise.all(repos.map(function (r) {
     return Promise.all(tokens.map(function (t, ti) {
       return ghFetch('/repos/' + r.id, { exact: true }, t).then(function (j) { return { ti: ti, ok: true, push: !!(j.permissions && j.permissions.push) }; }, function (e) { return { ti: ti, ok: false, e: e }; });
@@ -2001,7 +2393,7 @@ function bghOpen() {
   var B = BGH;
   B.loading = true; render();
   ghFetch('/repos/' + SALES_REPO + '/git/trees/HEAD?recursive=1', {}, token).then(function (t) {
-    return (t.tree || []).filter(function (x) { return x.type === 'blob' && /\.json$/i.test(x.path); }).map(function (x) { return bghParse(x.path); });
+    return (t.tree || []).filter(function (x) { return x.type === 'blob' && /\.json$/i.test(x.path) && !/^(sapin\/)?stock\//.test(x.path); }).map(function (x) { return bghParse(x.path); });
   }, function (e) { if (e.status === 409) return []; throw e; }).then(function (l) {
     B.loading = false; B.files = l.sort(function (a, b) { return (a.date || '') < (b.date || '') ? 1 : (a.date || '') > (b.date || '') ? -1 : a.label.localeCompare(b.label); }); render();
   }, function (e) { B.loading = false; B.err = bghErr(e); B.files = []; render(); });

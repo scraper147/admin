@@ -86,7 +86,14 @@ Dans le comptage : champ **Rechercher un article**, filtres **À compter seuleme
 Tout ce qui concerne la vente des sapins est regroupé dans le menu **Gestion sapin**, avec trois onglets :
 
 - **Catalogue** : produits, prix et points de vente de la Caisse Sapins, publiés sur GitHub (dépôt `sapin`), comme dans le menu Catalogue.
-- **Stock** : à venir.
+- **Stock** : stock de la saison (un par année, par exemple « Sapins 2026 »), enregistré dans le dépôt privé `ventes`, fichier `sapin/stock/<saison>.json`.
+  - **Créer la saison** : nom et stand de stockage (Spy), une seule fois par an.
+  - **Encoder une livraison** : date, puis la quantité livrée pour chaque article (articles du catalogue de la Caisse Sapins, regroupés par catégorie, avec une recherche). Touche Entrée = article suivant.
+  - **Article absent du catalogue** : libellé, catégorie (ou nouvelle catégorie) et prix de vente. Il est ajouté directement au catalogue de la Caisse Sapins (nouvelle version publiée), puis on encode sa quantité.
+  - **Stock de base** : ce qui est arrivé au stand de stockage, article par article. **Livraisons** : la liste, avec Modifier et Supprimer.
+  - Un article retiré du catalogue reste visible dans le stock (« Plus dans le catalogue ») tant qu'il y en a.
+  - Sans internet, la livraison est gardée sur l'appareil et envoyée au retour du réseau.
+  - **Le jeton doit avoir l'écriture (Contents : Read and write) sur `ventes`** (Paramètres → Tester l'accès aux dépôts).
 - **Bilan** : ventes de la Caisse Sapins, fichiers déposés ou **Charger depuis le dépôt** (dossier `sapin` du dépôt `ventes`). Ce Bilan est séparé de celui du menu Bilan : chacun garde ses propres fichiers. Un fichier de la Caisse Bar ou Soirée déposé ici est refusé avec un message (et inversement).
 
 ## Mettre à jour l'app
