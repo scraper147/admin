@@ -216,6 +216,10 @@ td>.sub{display:block;font-size:12px;color:var(--muted);font-weight:400}
 .cxe .src{font-size:12px;font-weight:700;color:var(--faint);text-transform:uppercase;letter-spacing:.04em}
 .cxe .x{border:none;background:none;color:var(--red);font-weight:700;padding:2px 6px;font-size:14px}
 @media (max-width:560px){.cxe{grid-template-columns:52px minmax(0,1fr)}.cxe .src,.cxe .x,.cxe .cbtns{grid-column:2;justify-self:start}.row2{flex-wrap:wrap}}
+.klist{display:flex;flex-direction:column;gap:8px}
+.kitem{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px 14px;padding:10px 14px;border:1px solid var(--line);border-radius:12px;background:var(--bg)}
+.kitem .kt{display:flex;flex-direction:column;gap:2px;min-width:0;flex:1}
+.kitem input{max-width:320px}
 .cbadges{display:flex;flex-wrap:wrap;gap:4px;margin-top:4px}
 .cbadge{display:inline-block;font-size:11px;font-weight:700;padding:1px 7px;border-radius:6px;background:var(--soft);color:var(--muted);white-space:nowrap}
 .cbadge.warn{background:var(--gold-soft);color:var(--ink)}
@@ -1186,7 +1190,7 @@ var ICONS = {
 /* Ajouter un module = ajouter une entrée ici (ready:true + render). ctx = contexte du Bilan et du Catalogue. */
 var MODULES = [
   { id: 'bar', nom: 'Bar', court: 'Bar', ready: true, ctx: 'bar', render: function () { renderSub(); },
-    desc: 'Caisse Bar : bilan des ventes (par bar, heure par heure, par article) et catalogue publié sur GitHub.' },
+    desc: 'Caisse Bar : catalogue publié sur GitHub et bilan des ventes (par bar, heure par heure, par article).' },
   { id: 'chloro', nom: 'Chlorophylle Night', court: 'Chlorophylle Night', ready: true, ctx: 'soiree', render: function () { renderSub(); },
     desc: 'Caisse Soirée : catalogue (entrées, tickets, boissons), stock de l’événement et bilan de la soirée.' },
   { id: 'sapin', nom: 'Gestion sapin', court: 'Gestion sapin', ready: true, ctx: 'sapin', render: function () { renderSub(); },
@@ -1196,11 +1200,11 @@ var MODULES = [
 ];
 var MOD = 'accueil';
 var SUBS = {
-  bar: [{ id: 'bilan', nom: 'Bilan', render: function () { renderBilan(); } }, { id: 'catalogue', nom: 'Catalogue', render: function () { renderCatalogue(); } }],
+  bar: [{ id: 'catalogue', nom: 'Catalogue', render: function () { renderCatalogue(); } }, { id: 'bilan', nom: 'Bilan', render: function () { renderBilan(); } }],
   chloro: [{ id: 'catalogue', nom: 'Catalogue', render: function () { renderCatalogue(); } }, { id: 'stock', nom: 'Stock', render: function () { renderStock(); } }, { id: 'bilan', nom: 'Bilan', render: function () { renderBilan(); } }],
   sapin: [{ id: 'catalogue', nom: 'Catalogue', render: function () { renderCatalogue(); } }, { id: 'stock', nom: 'Stock', render: function () { renderSapStock(); } }, { id: 'caisse', nom: 'Caisse', render: function () { renderSapCaisse(); } }, { id: 'bilan', nom: 'Bilan', render: function () { renderBilan(); } }, { id: 'hist', nom: 'Historique de vente', render: function () { renderSapHist(); } }]
 };
-var SUB = { bar: 'bilan', chloro: 'catalogue', sapin: 'catalogue' };
+var SUB = { bar: 'catalogue', chloro: 'catalogue', sapin: 'catalogue' };
 /* Anciennes adresses (#bilan, #catalogue, #stock) : renvoyées vers le nouveau menu */
 var OLD_HASH = { bilan: ['bar', 'bilan'], catalogue: ['bar', 'catalogue'], stock: ['chloro', 'stock'] };
 function hashPart(h) {
@@ -1240,7 +1244,7 @@ function renderHome() {
     '<div class="band"><div class="home-hero"><h2>Administration des caisses</h2><p>Choisissez un module. Les fichiers chargés restent sur cet appareil et sont conservés quand vous passez d’un module à l’autre.</p></div></div>' +
     '<div class="mods">' + MODULES.map(function (m) {
       return '<button class="mod' + (m.ready ? '' : ' off') + '" data-a="go" data-v="' + m.id + '"><span class="ic">' + ICONS[m.id] + '</span><h3>' + esc(m.nom) + '</h3><p>' + esc(m.desc) + '</p>' +
-        '<span class="st num">' + (m.ready ? (m.id === 'bar' ? esc(ctxHomeStatus('bar', 'Bilan et catalogue de la Caisse Bar')) : m.id === 'chloro' ? esc(stkHomeStatus()) : m.id === 'sapin' ? esc(sapHomeStatus()) : m.id === 'parametres' ? (getToken() ? 'Publication déverrouillée' : 'Publication verrouillée') : 'Disponible') : 'Bientôt disponible') + '</span></button>';
+        '<span class="st num">' + (m.ready ? (m.id === 'bar' ? esc(ctxHomeStatus('bar', 'Catalogue et bilan de la Caisse Bar')) : m.id === 'chloro' ? esc(stkHomeStatus()) : m.id === 'sapin' ? esc(sapHomeStatus()) : m.id === 'parametres' ? (getToken() ? 'Publication déverrouillée' : 'Publication verrouillée') : 'Disponible') : 'Bientôt disponible') + '</span></button>';
     }).join('') + '</div>' + vApps() + vToast();
 }
 /* Liens vers les applications des caisses (même site GitHub Pages) */
@@ -2216,9 +2220,12 @@ function lsGet(k) { try { return localStorage.getItem(k); } catch (e) { return n
 function lsSet(k, v) { try { if (v == null) localStorage.removeItem(k); else localStorage.setItem(k, v); return true; } catch (e) { return false; } }
 function getToken() { return lsGet(TOKEN_KEY) || tokenMem; }
 function getTokens() { try { var t = JSON.parse(lsGet(TOKENS_KEY) || 'null'); if (Array.isArray(t) && t.length) return t; } catch (e) {} if (tokensMem && tokensMem.length) return tokensMem; var one = getToken(); return one ? [one] : []; }
-function setTokens(list) { list = list && list.length ? list : null; tokensMem = list; tokenMem = list ? list[0] : null; lsSet(TOKENS_KEY, list ? JSON.stringify(list) : null); lsSet(TOKEN_KEY, list ? list[0] : null); lsSet(MAP_KEY, null); }
+var TOKNAMES_KEY = 'admin-gh-tokens-noms', CLENAMES_KEY = 'admin-cle-noms';
+function getTokenNames() { try { var n = JSON.parse(lsGet(TOKNAMES_KEY) || '[]'); return Array.isArray(n) ? n : []; } catch (e) { return []; } }
+function tokenName(i) { var n = getTokenNames()[i]; return n || 'jeton ' + (i + 1); }
+function setTokens(list, names) { lsSet(TOKNAMES_KEY, list && list.length && names ? JSON.stringify(names) : list && list.length ? lsGet(TOKNAMES_KEY) : null); list = list && list.length ? list : null; tokensMem = list; tokenMem = list ? list[0] : null; lsSet(TOKENS_KEY, list ? JSON.stringify(list) : null); lsSet(TOKEN_KEY, list ? list[0] : null); lsSet(MAP_KEY, null); }
 function setToken(t) { setTokens(t ? [t] : null); }
-function addToken(t) { var l = getTokens().slice(); if (l.indexOf(t) < 0) l.push(t); setTokens(l); }
+function addToken(t, nom) { var l = getTokens().slice(), n = getTokenNames().slice(); while (n.length < l.length) n.push(''); if (l.indexOf(t) < 0) { l.push(t); n.push(nom || ''); } setTokens(l, n); }
 /* Jeton à utiliser pour un dépôt (établi par « Tester l'accès aux dépôts », fait aussi au déverrouillage) */
 function tokenFor(repo) { var ts = getTokens(); if (ts.length < 2) return ts[0] || null; var m = {}; try { m = JSON.parse(lsGet(MAP_KEY) || '{}'); } catch (e) {} return ts[m[repo]] || ts[0]; }
 function localCles() { var l = lsGet(LOCAL_CLE_KEY); if (!l) return []; try { var o = JSON.parse(l); return Array.isArray(o) ? o : [o]; } catch (e) { return []; } }
@@ -2226,6 +2233,10 @@ function embeddedCles() { return (CLE_CHIFFREE ? [CLE_CHIFFREE] : []).concat(CLE
 function pendingLocalCles() { var emb = embeddedCles(); return localCles().filter(function (c) { return !emb.some(function (x) { return x.data === c.data; }); }); }
 function allCles() { return embeddedCles().concat(pendingLocalCles()); }
 function getCle() { return allCles()[0] || null; }
+/* Nom d'une clé chiffrée : nom donné sur cet appareil, sinon champ « nom » de la clé, sinon « Clé n ». Le nom n'est pas secret. */
+function cleSig(c) { return String(c && c.data || '').slice(0, 24); }
+function cleAliases() { try { return JSON.parse(lsGet(CLENAMES_KEY) || '{}') || {}; } catch (e) { return {}; } }
+function cleLabel(c, i) { var a = cleAliases()[cleSig(c)]; return a || (c && c.nom) || (i === 0 ? 'Clé principale' : 'Clé ' + (i + 1)); }
 function normPass(p) { return String(p || '').normalize('NFC').trim().replace(/\s+/g, ' ').toLowerCase(); }
 function b64e(buf) { var s = '', a = new Uint8Array(buf); for (var i = 0; i < a.length; i++) s += String.fromCharCode(a[i]); return btoa(s); }
 function b64d(str) { var s = atob(str), a = new Uint8Array(s.length); for (var i = 0; i < s.length; i++) a[i] = s.charCodeAt(i); return a; }
@@ -2655,23 +2666,31 @@ function renderParametres() {
     '<p><span class="state ' + (unlocked ? 'ok' : 'lock') + '">' + (unlocked ? 'Déverrouillé sur cet appareil' : 'Verrouillé') + '</span></p>' +
     (PAR.msg ? '<div class="alert' + (PAR.msg.err ? ' err' : PAR.msg.ok ? ' ok' : '') + '">' + PAR.msg.t + '</div>' : '') +
     (pendingLocalCles().length ? '<div class="alert">' + (pendingLocalCles().length > 1 ? pendingLocalCles().length + ' clés chiffrées n\u2019existent' : 'Une clé chiffrée n\u2019existe') + ' que sur cet appareil. Copiez-la ci-dessous et envoyez-la à Claude pour que les autres appareils en profitent.</div>' : '') +
-    (unlocked && getTokens().length > 1 ? '<p class="hint">' + getTokens().length + ' jetons GitHub déverrouillés sur cet appareil.</p>' : '') +
+    (unlocked ? '<p class="hint">' + (getTokens().length > 1 ? getTokens().length + ' jetons déverrouillés sur cet appareil : ' : 'Jeton déverrouillé : ') + getTokens().map(function (t, i) { return esc(tokenName(i)); }).join(', ') + '.</p>' : '') +
     (unlocked ? '<div class="cbtns"><button class="btn" data-p="test"' + (PAR.busy ? ' disabled' : '') + '>Tester l’accès aux dépôts</button><button class="btn danger" data-p="lock">Verrouiller cet appareil</button></div>' + vTests()
       : cle ? '<form class="unlock" data-p-form="unlock"><label class="fl" for="pp">Phrase de passe admin</label><div class="row2"><input type="password" id="pp" autocomplete="current-password" autocapitalize="none" spellcheck="false" required><button class="pick" type="submit"' + (PAR.busy ? ' disabled' : '') + '>' + (PAR.busy ? 'Vérification…' : 'Déverrouiller') + '</button></div><p class="hint">Majuscules et espaces en trop ne comptent pas.</p></form>'
         : '<div class="alert">Aucune clé chiffrée n’est encore installée dans l’app. Préparez-la ci-dessous (une seule fois, sur un appareil de confiance).</div>') + '</section>';
+  var keys = allCles(), nEmb = embeddedCles().length;
+  var klist = keys.length ? '<section><h3>Clés chiffrées</h3><p class="lead">Les clés connues de cet appareil. Le nom sert seulement à les reconnaître ; un nom changé ici ne vaut que sur cet appareil pour une clé déjà installée dans l\u2019app.</p><div class="klist">' + keys.map(function (c, i) {
+      var emb = i < nEmb, edit = PAR.rename === i;
+      return '<div class="kitem"><div class="kt">' + (edit ? '<input type="text" id="kRen" maxlength="40" value="' + esc(cleLabel(c, i)) + '">' : '<strong>' + esc(cleLabel(c, i)) + '</strong>') +
+        '<span class="faint">' + (emb ? 'installée dans l\u2019app' : 'seulement sur cet appareil, à envoyer à Claude') + ' · ' + esc(String(c.salt || '').slice(0, 8)) + '…</span></div>' +
+        '<div class="cbtns">' + (edit ? '<button class="btn sm" data-p="renSave" data-v="' + i + '">Enregistrer</button><button class="btn sm" data-p="renCancel">Annuler</button>' : '<button class="btn sm" data-p="ren" data-v="' + i + '">Renommer</button>') + '</div></div>';
+    }).join('') + '</div></section>' : '';
   var prep = '<section><details' + (cle && !pendingLocalCles().length ? '' : ' open') + '><summary><h3>Préparer une clé chiffrée</h3></summary>' +
     '<p class="lead">À faire une fois par saison, quand un jeton expire, ou pour <strong>ajouter un deuxième jeton</strong>. Chaque jeton donne une clé ; les clés s\u2019ajoutent, elles ne se remplacent pas. Utilisez <strong>la même phrase de passe</strong> pour toutes : un seul déverrouillage suffit. Ni le jeton ni la phrase ne quittent la page.</p>' +
     '<ol class="steps"><li><strong>Créer le jeton sur GitHub</strong> : <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">github.com › Fine-grained token</a>. Expiration : fin de saison. Repository access : <em>Only select repositories</em> → ' + REPOS.concat([{ id: DATA_REPO }, { id: SALES_REPO }]).map(function (r) { return '<span class="mono">' + esc(r.id.split('/')[1]) + '</span>'; }).join(', ') + '. Permissions → Repository → <em>Contents : Read and write</em>. Rien d’autre.</li>' +
     '<li><strong>Coller le jeton et choisir la phrase de passe</strong>.</li><li><strong>Envoyer le texte obtenu à Claude</strong>, qui l’installe dans l’app. Toutes les tablettes Admin pourront alors se déverrouiller avec la phrase.</li></ol>' +
-    '<form class="prep" data-p-form="prep"><label class="fl" for="tok">Jeton GitHub</label><input type="password" id="tok" autocomplete="off" spellcheck="false" placeholder="github_pat_…" required>' +
+    '<form class="prep" data-p-form="prep"><label class="fl" for="cleNom">Nom de la clé</label><input type="text" id="cleNom" maxlength="40" required placeholder="Ex. Admin saison 2026, Tablette de Loïc" autocomplete="off"><p class="hint">Pour la reconnaître ensuite (il apparaît en clair dans la clé, ce n\u2019est pas un secret).</p><label class="fl" for="tok">Jeton GitHub</label><input type="password" id="tok" autocomplete="off" spellcheck="false" placeholder="github_pat_…" required>' +
     '<label class="fl" for="np1">Phrase de passe (4 à 5 mots)</label><input type="password" id="np1" autocomplete="new-password" autocapitalize="none" spellcheck="false" required data-p-strength>' +
     '<p class="hint" id="strength">Au moins 20 caractères.</p>' +
     '<label class="fl" for="np2">Retaper la phrase</label><input type="password" id="np2" autocomplete="new-password" autocapitalize="none" spellcheck="false" required>' +
     '<label class="tog"><input type="checkbox" id="alsoUnlock" checked>Utiliser aussi ce jeton sur cet appareil</label>' +
     '<div><button class="pick" type="submit"' + (PAR.busy ? ' disabled' : '') + '>' + (PAR.busy ? 'Chiffrement…' : 'Chiffrer et ajouter le jeton') + '</button></div></form>' +
-    pendingLocalCles().map(function (c, i, arr) { return '<div class="outbox"><label class="fl" for="cleOut-' + i + '">Clé chiffrée' + (arr.length > 1 ? ' n° ' + (i + 1) : '') + ' à envoyer à Claude</label><p class="hint">Préparée sur cet appareil. Tant qu\u2019elle n\u2019est pas intégrée dans l\u2019app, les autres appareils n\u2019en profitent pas.</p><textarea id="cleOut-' + i + '" readonly rows="5" class="mono">' + esc(JSON.stringify(c)) + '</textarea><div class="cbtns"><button class="btn" data-p="copy" data-v="' + i + '">Copier</button></div></div>'; }).join('') +
+    pendingLocalCles().map(function (c, i, arr) { return '<div class="outbox"><label class="fl" for="cleOut-' + i + '">Clé « ' + esc(cleLabel(c, embeddedCles().length + i)) + ' » à envoyer à Claude</label><p class="hint">Préparée sur cet appareil. Tant qu\u2019elle n\u2019est pas intégrée dans l\u2019app, les autres appareils n\u2019en profitent pas.</p><textarea id="cleOut-' + i + '" readonly rows="5" class="mono">' + esc(JSON.stringify(c)) + '</textarea><div class="cbtns"><button class="btn" data-p="copy" data-v="' + i + '">Copier</button></div></div>'; }).join('') +
     '</details></section>';
-  document.getElementById('mod').innerHTML = '<div class="band"><div class="band-top"><h1>Paramètres</h1></div><p class="soon-lead">Réglages de cet appareil.</p></div><main>' + pub + prep + '</main>' + vToast();
+  document.getElementById('mod').innerHTML = '<div class="band"><div class="band-top"><h1>Paramètres</h1></div><p class="soon-lead">Réglages de cet appareil.</p></div><main>' + pub + klist + prep + '</main>' + vToast();
+  if (PAR.rename != null) { var kr = document.getElementById('kRen'); if (kr) { kr.focus(); kr.select(); } }
 }
 function vTests() {
   if (!PAR.tests) return '';
@@ -2684,7 +2703,7 @@ function testRepos() {
     return Promise.all(tokens.map(function (t, ti) {
       return ghFetch('/repos/' + r.id, { exact: true }, t).then(function (j) { return { ti: ti, ok: true, push: !!(j.permissions && j.permissions.push) }; }, function (e) { return { ti: ti, ok: false, e: e }; });
     })).then(function (res) {
-      var best = res.filter(function (x) { return x.ok && (r.lecture || x.push); })[0] || res.filter(function (x) { return x.ok; })[0], tag = tokens.length > 1 && best ? ' <span class="faint">(jeton ' + (best.ti + 1) + ')</span>' : '';
+      var best = res.filter(function (x) { return x.ok && (r.lecture || x.push); })[0] || res.filter(function (x) { return x.ok; })[0], tag = tokens.length > 1 && best ? ' <span class="faint">(' + esc(tokenName(best.ti)) + ')</span>' : '';
       if (!best) return { id: r.id, nom: r.nom, t: '<span class="bad">' + ghErrText(res[0] && res[0].e, 'd\u2019accéder') + '</span>' };
       return { id: r.id, ti: best.ti, nom: r.nom, t: (r.lecture ? '<span class="good">lecture autorisée</span>' : best.push ? '<span class="good">écriture autorisée</span>' : '<span class="bad">lecture seule : impossible d\u2019enregistrer</span>') + tag };
     });
@@ -2699,15 +2718,16 @@ function parSubmit(form) {
     var pass = document.getElementById('pp').value; PAR.busy = true; PAR.msg = null; render();
     var cles = allCles();
     Promise.all(cles.map(function (c) { return decryptToken(c, pass).then(function (t) { return t; }, function () { return null; }); })).then(function (toks) {
-      var ok = []; toks.forEach(function (t) { if (t && ok.indexOf(t) < 0) ok.push(t); });
+      var ok = [], names = []; toks.forEach(function (t, i) { if (t && ok.indexOf(t) < 0) { ok.push(t); names.push(cleLabel(cles[i], i)); } });
       PAR.busy = false;
       if (!ok.length) { PAR.msg = { err: true, t: 'Phrase de passe incorrecte. Vérifiez les mots et leur ordre.' }; render(); var f = document.getElementById('pp'); if (f) f.focus(); return; }
-      setTokens(ok);
+      setTokens(ok, names);
       PAR.msg = { ok: true, t: 'Appareil déverrouillé' + (ok.length > 1 ? ' (' + ok.length + ' jetons)' : '') + (ok.length < cles.length ? '. ' + (cles.length - ok.length) + ' clé(s) n\u2019ont pas été ouvertes avec cette phrase.' : '.') };
       testRepos();
     });
   } else if (kind === 'prep') {
-    var tok = document.getElementById('tok').value.trim(), p1 = document.getElementById('np1').value, p2 = document.getElementById('np2').value, also = document.getElementById('alsoUnlock').checked;
+    var cnom = (document.getElementById('cleNom').value || '').trim().slice(0, 40), tok = document.getElementById('tok').value.trim(), p1 = document.getElementById('np1').value, p2 = document.getElementById('np2').value, also = document.getElementById('alsoUnlock').checked;
+    if (!cnom) { PAR.msg = { err: true, t: 'Donnez un nom à la clé pour pouvoir la reconnaître.' }; render(); return; }
     if (!/^(github_pat_|ghp_)[A-Za-z0-9_]{20,}$/.test(tok)) { PAR.msg = { err: true, t: 'Le jeton ne ressemble pas à un jeton GitHub (il commence par « github_pat_ »).' }; render(); return; }
     if (!passStrength(p1).ok) { PAR.msg = { err: true, t: 'Phrase de passe trop courte : au moins 20 caractères.' }; render(); return; }
     if (normPass(p1) !== normPass(p2)) { PAR.msg = { err: true, t: 'Les deux phrases de passe sont différentes.' }; render(); return; }
@@ -2717,9 +2737,10 @@ function parSubmit(form) {
       if (chk === false) { PAR.busy = false; PAR.msg = { err: true, t: 'Utilisez la même phrase de passe que la clé déjà installée : ainsi un seul déverrouillage ouvre tous les jetons.' }; render(); return; }
       if (chk && chk === tok) { PAR.busy = false; PAR.msg = { err: true, t: 'Ce jeton est déjà dans la clé installée : rien à ajouter. Pour donner accès à un nouveau dépôt, modifiez simplement ce jeton sur GitHub (Edit).' }; render(); return; }
       return encryptToken(tok, p1).then(function (blob) {
+        blob.nom = cnom;
         var list = localCles(); list.push(blob); lsSet(LOCAL_CLE_KEY, JSON.stringify(list)); PAR.out = JSON.stringify(blob);
-        if (also) addToken(tok);
-        PAR.busy = false; PAR.msg = { ok: true, t: 'Clé chiffrée ajoutée. Envoyez-la à Claude pour l\u2019installer dans l\u2019app' + (also ? ' ; cet appareil peut déjà l\u2019utiliser.' : '.') };
+        if (also) addToken(tok, cnom);
+        PAR.busy = false; PAR.msg = { ok: true, t: 'Clé « ' + esc(cnom) + ' » chiffrée et ajoutée. Envoyez-la à Claude pour l\u2019installer dans l\u2019app' + (also ? ' ; cet appareil peut déjà l\u2019utiliser.' : '.') };
         render(); if (also) testRepos();
       });
     }).catch(function (e) { PAR.busy = false; PAR.msg = { err: true, t: 'Chiffrement impossible sur ce navigateur (' + esc(e && e.message || e) + ').' }; render(); });
@@ -2729,6 +2750,18 @@ function parClick(el) {
   var p = el.getAttribute('data-p');
   if (p === 'lock') { setToken(null); PAR.tests = null; PAR.msg = { t: 'Appareil verrouillé. La phrase de passe sera demandée pour publier.' }; render(); }
   else if (p === 'test') testRepos();
+  else if (p === 'ren') { PAR.rename = +el.getAttribute('data-v'); render(); }
+  else if (p === 'renCancel') { PAR.rename = null; render(); }
+  else if (p === 'renSave') {
+    var i = +el.getAttribute('data-v'), c = allCles()[i], v = ((document.getElementById('kRen') || {}).value || '').trim().slice(0, 40);
+    if (c) {
+      var nEmb = embeddedCles().length;
+      if (i >= nEmb) { var lc = localCles(); lc.forEach(function (x) { if (x.data === c.data) { if (v) x.nom = v; else delete x.nom; } }); lsSet(LOCAL_CLE_KEY, JSON.stringify(lc)); }
+      var al = cleAliases(); if (v && v !== c.nom) al[cleSig(c)] = v; else delete al[cleSig(c)]; lsSet(CLENAMES_KEY, JSON.stringify(al));
+      var tn = getTokenNames(); if (getTokens().length === allCles().length) { tn[i] = cleLabel(c, i); lsSet(TOKNAMES_KEY, JSON.stringify(tn)); }
+    }
+    PAR.rename = null; toast('Nom de la clé enregistré'); render();
+  }
   else if (p === 'copy') {
     var ta = document.getElementById('cleOut-' + (el.getAttribute('data-v') || 0));
     var done = function () { toast('Clé copiée'); }, fail = function () { ta.focus(); ta.select(); toast('Sélectionnée : copiez-la avec Ctrl+C'); };

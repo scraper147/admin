@@ -2,7 +2,7 @@
 
 Application d'administration des caisses. Le menu principal a un module par activité, chacun avec ses onglets :
 
-- **Bar** : Bilan, Catalogue (Caisse Bar).
+- **Bar** : Catalogue, Bilan (Caisse Bar).
 - **Chlorophylle Night** : Catalogue, Stock (comptage par événement), Bilan (Caisse Soirée).
 - **Gestion sapin** : Catalogue, Stock, Caisse, Bilan, Historique de vente (Caisse Sapins).
 - **Paramètres**.
@@ -41,7 +41,7 @@ Elle s'installe sur un PC ou une tablette (Chrome / Edge) et fonctionne hors lig
    - type **Fine-grained token**, expiration : fin de saison ;
    - Repository access : **Only select repositories** → `bar`, `sapin`, `soiree`, `admin-donnees` et `ventes` ;
    - Permissions → Repository → **Contents : Read and write**. Rien d'autre.
-3. Collez le jeton, choisissez une **phrase de passe de 4 à 5 mots**, cliquez **Chiffrer le jeton**.
+3. Donnez un **nom** à la clé (ex. « Admin saison 2026 », pour la reconnaître ; il n'est pas secret), collez le jeton, choisissez une **phrase de passe de 4 à 5 mots**, cliquez **Chiffrer et ajouter le jeton**. La section **Clés chiffrées** liste les clés avec leur nom (**Renommer** possible) ; le test d'accès indique quelle clé ouvre chaque dépôt.
 4. Envoyez le texte chiffré à Claude : il le place dans `index.html` (constante `CLE_CHIFFREE`). Redéposez `index.html` et augmentez le cache de `sw.js`.
 
 Ni le jeton ni la phrase ne sont dans le code : seule la version chiffrée y est, illisible sans la phrase.
