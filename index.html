@@ -2031,7 +2031,7 @@ function renderSapCaisse() {
   main += '<section class="cxsum"><div class="row-between"><h3>' + esc(cxStandName(CX.pdv)) + ' · ' + esc(longDate(CX.date)) + '</h3><span>' + badges + '</span></div>' +
     '<p class="hint">' + stat + (salesTxt ? ' · Ventes cash : ' + salesTxt : '') + ' <button class="ghost sm ssre" data-cx="reload">Actualiser</button></p>' +
     '<div class="cxgrid">' +
-      cxTile('Fond de caisse', money(S.fondDeCaisse), S.fond ? 'à ' + esc(String(S.fond.horodatage || '').slice(11, 16)) : 'non saisi') +
+      cxTile('Fond de caisse', money(S.fondDeCaisse), S.fond ? 'saisi ' + esc(cTime(S.fond.horodatage, CX.date)) : 'non saisi') +
       cxTile('Ventes cash', money(vc), CX.sales && !CX.sales.none ? 'tablette' : '—') +
       cxTile('Apports', '+' + money(S.apports), '') +
       cxTile('Retraits', '−' + money(S.retraits), S.mouvements.filter(function (m) { return m.auto; }).length ? 'dont recettes ' + money(S.mouvements.filter(function (m) { return m.auto; }).reduce(function (s, m) { return s + m.montant; }, 0)) : '') +
@@ -2054,7 +2054,7 @@ function vCxCount(f) {
 function vCxForm(S) {
   var f = CX.form, k = f.kind, title = { fond: 'Fond de caisse', retrait: 'Retrait', apport: 'Ajout (apport)', comptage: 'Décompte final' }[k];
   var h = '<section class="cxform"><h3>' + title + '</h3><form data-cx-form="1" class="ssform">';
-  h += '<label class="fl" for="cxHeure">Heure</label><input type="time" id="cxHeure" data-cxf="heure" value="' + esc(f.heure) + '">';
+  h += '<p class="hint">Heure enregistrée : celle de l’enregistrement' + (CX.date !== todayIso() ? ' (aujourd’hui ' + esc(dmy(todayIso())) + ', saisie pour le ' + esc(dmy(CX.date)) + ')' : '') + '.</p>';
   if (k === 'fond' || k === 'comptage') h += vCxCount(f);
   else h += '<label class="fl" for="cxMontant">Montant (€)</label><input type="text" inputmode="decimal" id="cxMontant" data-cxf="montant" value="' + esc(f.montant || '') + '" placeholder="0,00" autocomplete="off">';
   if (k === 'retrait' || k === 'apport') {
@@ -2091,8 +2091,7 @@ function vCxJournal(S) {
 function cxSubmit() {
   var f = CX.form, k = f.kind, a = (k === 'fond' || k === 'comptage') ? cxAmount(f) : parsePrice(f.montant);
   if (isNaN(a) || a < 0 || (k !== 'fond' && k !== 'comptage' && !(a > 0))) { toast('Indiquez un montant valide'); return; }
-  if (!/^\d{2}:\d{2}$/.test(f.heure || '')) { toast('Indiquez l’heure'); return; }
-  var tz = cxNowIso().slice(19), iso = CX.date + 'T' + f.heure + ':00' + tz, id = cxId(k), v = { type: k, montant: cxR2(a), horodatage: iso, source: 'admin', saisiLe: new Date().toISOString() };
+  var iso = cxNowIso(), id = cxId(k), v = { type: k, montant: cxR2(a), horodatage: iso, source: 'admin', saisiLe: new Date().toISOString() };
   if (f.det) v.detail = Object.keys(f.det).reduce(function (o, c) { var n = parseInt(f.det[c], 10); if (n > 0) o[c] = String(n); return o; }, {});
   if (k === 'retrait' || k === 'apport') {
     if (!f.motif) { toast('Choisissez un motif'); return; }
@@ -2120,7 +2119,7 @@ document.addEventListener('click', function (e) {
   if (a === 'pdv') { CX.pdv = v; CX.path = null; render(); }
   else if (a === 'reload' || a === 'retry') { if (CX.ops.length && a === 'retry') cxSave(); else { CX.path = null; render(); } }
   else if (a === 'form') { if (v === 'comptage' && getToken() && CX.path && !CX.saving) { var pth = CX.path; ssGet(pth).then(function (r) { if (r && CX.path === pth) { CX.doc = cxNorm(r.json); CX.sha = r.sha; if (CX.form) { var fc = document.activeElement && document.activeElement.id; render(); var el2 = fc && document.getElementById(fc); if (el2) el2.focus(); } } }, function () {}); }
-    var n = new Date(); CX.form = { kind: v, heure: String(n.getHours()).padStart(2, '0') + ':' + String(n.getMinutes()).padStart(2, '0'), montant: '', det: null, motif: v === 'apport' ? 'Ajout de monnaie' : '', autre: '', laisse: '', focus: 'cxMontant' }; render(); }
+    var n = new Date(); CX.form = { kind: v, montant: '', det: null, motif: v === 'apport' ? 'Ajout de monnaie' : '', autre: '', laisse: '', focus: 'cxMontant' }; render(); }
   else if (a === 'cancelForm') { CX.form = null; render(); }
   else if (a === 'motif') { CX.form.motif = v; render(); if (v === 'Autre') { var i = document.getElementById('cxAutre'); if (i) i.focus(); } }
   else if (a === 'laisse0' || a === 'laisseAll') { var am = cxAmount(CX.form); CX.form.laisse = a === 'laisse0' ? '0' : isNaN(am) ? '' : String(am).replace('.', ','); var il = document.getElementById('cxLaisse'); if (il) il.value = CX.form.laisse; cxRefreshLive(); }
