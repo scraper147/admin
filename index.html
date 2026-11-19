@@ -169,6 +169,36 @@ tr.tot td{font-weight:800;border-top:2px solid var(--line);border-bottom:none}
 .mvtag.tr{background:var(--gold-soft);color:var(--ink)}
 .sslv p.mvwho{color:var(--ink);font-weight:600}
 @media (max-width:560px){.sstab th .lg{display:none}.sstab th .sm{display:inline}.ssgrid td:first-child{position:sticky;left:0;background:var(--surface);z-index:1}.ssgrid tr.ssgrp td:first-child{background:var(--soft)}section .row-between .cbtns{margin-bottom:6px}.ssarrow{display:none}.ssfhead>div{flex:1 1 100%}.ssfhead select{width:100%}}
+td>.sub{display:block;font-size:12px;color:var(--muted);font-weight:400}
+.cbadges{display:flex;flex-wrap:wrap;gap:4px;margin-top:4px}
+.cbadge{display:inline-block;font-size:11px;font-weight:700;padding:1px 7px;border-radius:6px;background:var(--soft);color:var(--muted);white-space:nowrap}
+.cbadge.warn{background:var(--gold-soft);color:var(--ink)}
+.cbadge.err{background:var(--red-soft);color:var(--red)}
+.ecart{font-weight:700}.ecart.ok{color:var(--green)}.ecart.bad{color:var(--red)}
+.warnt{color:var(--gold);font-weight:700}
+.cmain td,.cmain th,.ctot td,.ctot th{white-space:nowrap}
+.cmain td:first-child{min-width:150px;white-space:normal}
+.cmain td .sub,.ctot td .sub{display:block;font-size:12px;color:var(--muted);font-weight:400;white-space:normal}
+.clink{background:none;border:none;padding:0;font:inherit;font-weight:700;color:var(--ink);cursor:pointer;text-align:left}
+.clink .chev{color:var(--muted);display:inline-block;width:12px}
+.crow.open td{border-bottom:none}
+.cdrow>td{background:var(--bg);padding:14px 16px}
+.cdet{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px 22px;white-space:normal}
+.cdet>div{min-width:0}
+.cdet h4{margin:0 0 6px;font-size:14px;color:var(--muted)}
+.cdet p{margin:0}
+.cdout{display:none;margin-top:12px;background:var(--bg);border:1px solid var(--line);border-radius:14px;padding:14px}
+.cdout .cdet{margin-top:10px}
+@media (max-width:700px){.cmain tr.cdrow{display:none}.cdout{display:block}}
+.cdet .hint,.cdet>div:nth-child(3){grid-column:1/-1}
+.ctab{font-size:13px}.ctab td,.ctab th{padding:5px 6px;white-space:nowrap}
+.ctab tr.clast td{font-weight:700}
+.ctab tr.cbil td{padding-top:0;border-bottom:1px solid var(--soft)}
+.billets{display:flex;flex-wrap:wrap;gap:4px 10px;font-size:12px;color:var(--muted)}
+.csub{margin:18px 0 6px;font-size:16px}
+.cmot{margin:8px 0 0;font-size:14px;color:var(--muted)}
+.tmot{font-size:13px;color:var(--muted)}
+@media (max-width:900px){.cdet{grid-template-columns:1fr}}
 .nav .soon{font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--band-muted);border:1px solid var(--band-line);border-radius:6px;padding:0 5px;line-height:17px}
 .band{padding-top:6px}
 .band-top h1{font-size:26px}
@@ -392,6 +422,11 @@ var F = { soiree: null, bar: 'all', caisse: null };
 /* Caisses lues par le Bilan (préfixe du format des exports) */
 var CAISSES_BILAN = { 'caisse-bar/ventes': 'bar', 'agri-garden-caisse/ventes': 'sapin', 'chlorophylle-caisse/soiree': 'soiree' };
 var CAISSE_LABEL = { bar: 'Caisse Bar', sapin: 'Caisse Sapins', soiree: 'Caisse Soirée' };
+/* Article « Livraison » (ou « Frais de livraison ») : service, jamais déduit du stock, montré à part du chiffre d'affaires */
+var LIV_RE = /(^|\s)(frais de )?livraison$/i;
+function isLivLine(l) { return !!l && LIV_RE.test(String(l.libelle || '').trim()); }
+function isLivProduct(p) { return !!p && /^(frais de )?livraison$/i.test(String(p.libelle || '').trim()); }
+var CAISSE_OPEN = {};
 function caisseOf(fmt) { return CAISSES_BILAN[fmt] || null; }
 function okVentes(d) { var c = d && caisseOf(d.format); return !!c && (c === 'soiree' ? Array.isArray(d.enregistrements) : Array.isArray(d.ventes)); }
 /* Deux Bilans séparés : « main » (Caisse Bar, Caisse Soirée) et « sapin » (Gestion sapin › Bilan).
@@ -491,8 +526,8 @@ function allSales() {
   });
   return out;
 }
-function soirees() { var o = {}; if (F.caisse === 'soiree') { soirRecs().forEach(function (x) { o[x.night] = 1; }); return Object.keys(o).sort().reverse(); } allSales().forEach(function (s) { o[s.soiree] = 1; }); return Object.keys(o).sort().reverse(); }
-function bars() { var o = {}; (F.caisse === 'soiree' ? soirRecs().map(function (x) { return { barId: x.apId, bar: x.apNom }; }) : allSales()).forEach(function (s) { o[s.barId] = s.bar; }); return Object.keys(o).sort(function (a, b) { return o[a].localeCompare(o[b]); }).map(function (id) { return { id: id, nom: o[id] }; }); }
+function soirees() { var o = {}; if (F.caisse === 'soiree') { soirRecs().forEach(function (x) { o[x.night] = 1; }); return Object.keys(o).sort().reverse(); } allSales().forEach(function (s) { o[s.soiree] = 1; }); activeFiles().forEach(function (f) { if (f.data.date && hasCaisseData(f.data)) o[f.data.date] = 1; }); return Object.keys(o).sort().reverse(); }
+function bars() { var o = {}; (F.caisse === 'soiree' ? soirRecs().map(function (x) { return { barId: x.apId, bar: x.apNom }; }) : allSales().concat(activeFiles().filter(function (f) { return f.data.pointDeVente && hasCaisseData(f.data); }).map(function (f) { return { barId: f.data.pointDeVente.id, bar: f.data.pointDeVente.nom || f.data.pointDeVente.id }; }))).forEach(function (s) { o[s.barId] = s.bar; }); return Object.keys(o).sort(function (a, b) { return o[a].localeCompare(o[b]); }).map(function (id) { return { id: id, nom: o[id] }; }); }
 function filtered() {
   return allSales().filter(function (s) { return (F.soiree === 'all' || s.soiree === F.soiree) && (F.bar === 'all' || s.barId === F.bar); });
 }
@@ -500,7 +535,7 @@ function filtered() {
 /* ---------- Calculs ---------- */
 function stats(list) {
   var ok = list.filter(function (s) { return !s.v.annulation; }), ann = list.filter(function (s) { return s.v.annulation; });
-  var S = { n: ok.length, total: 0, cash: 0, bc: 0, mixte: 0, ann: ann, art: {}, cats: {}, hours: {}, perBar: {}, remLig: 0, nRemLig: 0, remTic: 0, nRemTic: 0, lignes: 0 };
+  var S = { liv: { n: 0, m: 0, na: 0, ma: 0, rows: {} }, n: ok.length, total: 0, cash: 0, bc: 0, mixte: 0, ann: ann, art: {}, cats: {}, hours: {}, perBar: {}, remLig: 0, nRemLig: 0, remTic: 0, nRemTic: 0, lignes: 0 };
   ok.forEach(function (s) {
     var v = s.v, p = v.paiement || { cash: 0, bancontact: 0 };
     var vt = +v.total || 0;
@@ -510,6 +545,12 @@ function stats(list) {
     var h = slot(v.horodatage), hb = S.hours[h] || (S.hours[h] = {});
     hb[s.barId] = (hb[s.barId] || 0) + vt;
     if (v.remiseTicket) { S.remTic += (v.sousTotal || 0) - vt; S.nRemTic++; }
+    var lq = 0, lm = 0; (v.lignes || []).forEach(function (l) { if (isLivLine(l)) { lq += +l.quantite || 0; lm += +l.total || 0; } });
+    if (lq || lm) {
+      var after = !!(v.livraisonAjoutee || v.venteLiee), lk = s.soiree + '|' + s.barId, lr = S.liv.rows[lk] || (S.liv.rows[lk] = { day: s.soiree, barId: s.barId, bar: s.bar, n: 0, m: 0, na: 0, ma: 0 });
+      S.liv.n += lq; S.liv.m += lm; lr.n += lq; lr.m += lm;
+      if (after) { S.liv.na += lq; S.liv.ma += lm; lr.na += lq; lr.ma += lm; }
+    }
     (v.lignes || []).forEach(function (l) {
       var key = l.produitId || ('libre:' + l.libelle), cat = l.categorie || (l.articleLibre ? 'Articles libres' : 'Sans catégorie');
       var a = S.art[key] || (S.art[key] = { libelle: l.libelle, cat: l.produitId ? cat : 'Articles libres', libre: !l.produitId, q: 0, m: 0 });
@@ -531,6 +572,7 @@ function warnings() {
   }
   var all = allSales(), bs = bars(), byS = {};
   all.forEach(function (s) { (byS[s.soiree] = byS[s.soiree] || {})[s.barId] = 1; });
+  activeFiles().forEach(function (f) { var d = f.data; if (d.date && d.pointDeVente && byS[d.date]) byS[d.date][d.pointDeVente.id] = 1; });
   Object.keys(byS).sort().forEach(function (so) { bs.forEach(function (b) { if (!byS[so][b.id]) w.push({ t: 'Aucune vente de <strong>' + esc(b.nom) + '</strong> pour ' + T().dela + ' ' + longDate(so) + ' : un fichier manque peut-être.' }); }); });
   return w;
 }
@@ -549,7 +591,8 @@ function renderBilanInner() {
   if (!activeFiles().length) { app.innerHTML = vBand(null) + (FILES.length || BGH.open ? '<main>' + vGhPanel() + vAlerts() + '</main>' : '') + vToast(); bindDrop(); return; }
   if (F.caisse === 'soiree') { var R = soirStats(soirFiltered()); app.innerHTML = vSoirBand(R) + vFilters() + '<main>' + vGhPanel() + vAlerts() + vSoirRecette(R) + vSoirEntrees(R) + vSoirCases(R) + vSoirBoissons(R) + vSoirHours(R) + vSoirApp(R) + vSoirAnn(R) + vFiles() + '</main>' + vToast(); bindDrop(); return; }
   var list = filtered(), S = stats(list);
-  app.innerHTML = vBand(S) + vFilters() + '<main>' + vGhPanel() + vAlerts() + vBars(S) + vHours(S) + vArticles(S) + vAdjust(S) + vFiles() + '</main>' + vToast();
+  var CR = caisseRows();
+  app.innerHTML = vBand(S) + vFilters() + '<main>' + vGhPanel() + vAlerts() + vBars(S) + vHours(S) + vCaisse(CR) + vLivraisons(S) + vTiroir(CR) + vArticles(S) + vAdjust(S) + vFiles() + '</main>' + vToast();
   bindDrop();
 }
 function vToast() { return toastMsg ? '<div class="toast" role="status">' + esc(toastMsg) + '</div>' : ''; }
@@ -575,7 +618,8 @@ function vBand(S) {
     '<span><span class="dot" style="background:#5E8F4E"></span>Bancontact <b>' + money(S.bc) + '</b> (' + Math.round(tot ? 100 - pc : 0) + ' %)</span></div>' +
     '<div class="facts num"><strong>' + S.n + '</strong> vente' + (S.n > 1 ? 's' : '') + ', panier moyen <strong>' + money(S.n ? S.total / S.n : 0) + '</strong>' +
     (S.mixte ? ', dont ' + S.mixte + ' en paiement mixte (réparti ci-dessus)' : '') +
-    (S.ann.length ? '. ' + S.ann.length + ' vente' + (S.ann.length > 1 ? 's' : '') + ' annulée' + (S.ann.length > 1 ? 's' : '') + ', non comptée' + (S.ann.length > 1 ? 's' : '') : '') + '.</div></div></div>';
+    (S.ann.length ? '. ' + S.ann.length + ' vente' + (S.ann.length > 1 ? 's' : '') + ' annulée' + (S.ann.length > 1 ? 's' : '') + ', non comptée' + (S.ann.length > 1 ? 's' : '') : '') + '.</div>' +
+    (S.liv.m ? '<div class="facts num">' + (F.caisse === 'sapin' ? 'Sapins et accessoires' : 'Articles') + ' <strong>' + money(tot - S.liv.m) + '</strong> · Livraisons <strong>' + money(S.liv.m) + '</strong> (' + S.liv.n + ')</div>' : '') + '</div></div>';
 }
 function vFilters() {
   var ss = soirees(), bs = bars();
@@ -652,6 +696,113 @@ function vAdjust(S) {
         (v.annulation.motif ? '<br><span class="motif">' + esc(v.annulation.motif) + '</span>' : '') + '</td><td class="r num">' + money(v.total) + '</td></tr>'; }).join('') + '</tbody></table></div>'
     : '<p class="empty">Aucune vente annulée.</p>';
   return '<section><h3>Remises et ventes annulées</h3>' + rem + '<p class="lead" style="margin-top:10px">' + (S.ann.length ? S.ann.length + ' vente' + (S.ann.length > 1 ? 's' : '') + ' annulée' + (S.ann.length > 1 ? 's' : '') + ', comptée' + (S.ann.length > 1 ? 's' : '') + ' dans aucun total :' : '') + '</p>' + ann + '</section>';
+}
+/* ---------- Caisse du jour, livraisons et tiroir (Caisse Sapins v13 → v28 ; champs absents des anciens fichiers) ---------- */
+function hasCaisseData(d) { return !!d && ((d.caisse && typeof d.caisse === 'object') || (Array.isArray(d.ouverturesTiroir) && d.ouverturesTiroir.length > 0)); }
+function caisseRows() {
+  if (F.caisse === 'soiree') return [];
+  return activeFiles().filter(function (f) { var d = f.data, p = d.pointDeVente || {};
+    return (F.soiree === 'all' || d.date === F.soiree) && (F.bar === 'all' || p.id === F.bar);
+  }).map(function (f) { var d = f.data, p = d.pointDeVente || { id: '?', nom: T().inconnu };
+    var tir = Array.isArray(d.ouverturesTiroir) ? d.ouverturesTiroir : null;
+    var sv = tir ? tir.filter(function (o) { return o && !o.venteId; }) : [];
+    return { key: (p.id || '?') + '|' + d.date, day: d.date, barId: p.id, bar: p.nom || p.id, c: d.caisse, has: 'caisse' in d, tir: tir, sansVente: sv, nsv: typeof d.nombreOuverturesSansVente === 'number' ? d.nombreOuverturesSansVente : sv.length, name: f.name };
+  }).sort(function (a, b) { return a.day < b.day ? 1 : a.day > b.day ? -1 : String(a.bar).localeCompare(String(b.bar)); });
+}
+function cNum(x) { return typeof x === 'number' && !isNaN(x) ? x : 0; }
+function cKind(m) { if (m.type !== 'retrait') return 'apport'; if (m.auto || m.motif === 'Recette de fin de journée') return 'recette'; if (m.motif === 'Dépôt au coffre') return 'coffre'; return 'autre'; }
+function cStatus(r) {
+  var c = r.c, comps = Array.isArray(c.comptages) ? c.comptages : [], last = comps[comps.length - 1] || null, b = [];
+  var st = { counted: !!last, last: last, recount: false, nextDay: false, noFond: !c.fond };
+  if (last) {
+    var ref = typeof last.attenduApres === 'number' ? last.attenduApres : last.attendu;
+    st.recount = typeof c.attendu === 'number' && typeof ref === 'number' && Math.abs(c.attendu - ref) >= 0.005;
+    st.nextDay = comps.some(function (k) { return k.viaFond || (k.horodatage && String(k.horodatage).slice(0, 10) !== r.day); });
+  }
+  if (!last) b.push('<span class="cbadge err">Non comptée</span>');
+  if (st.recount) b.push('<span class="cbadge warn">À recompter</span>');
+  if (st.nextDay) b.push('<span class="cbadge">Comptée le lendemain</span>');
+  if (st.noFond) b.push('<span class="cbadge warn">Fond non saisi</span>');
+  st.badges = b.join(' ');
+  st.label = [!last ? 'Non comptée' : st.recount ? 'À recompter' : 'Comptée', st.nextDay ? 'le lendemain' : '', st.noFond ? 'fond non saisi' : ''].filter(Boolean).join(', ');
+  return st;
+}
+function cEcart(x) { var ok = Math.abs(cNum(x)) < 0.005; return '<span class="ecart ' + (ok ? 'ok' : 'bad') + '">' + (x > 0.004 ? '+' : '') + money(cNum(x)) + '</span>'; }
+function cBillets(d) {
+  if (!d || typeof d !== 'object') return '';
+  var ks = Object.keys(d).filter(function (k) { return +d[k] > 0; }).sort(function (a, b) { return +b - +a; });
+  if (!ks.length) return '';
+  return '<span class="billets">' + ks.map(function (k) { var v = +k; return '<span>' + (+d[k]) + ' × ' + (v < 1 ? money(v) : v + ' €') + '</span>'; }).join('') + '</span>';
+}
+function cTime(iso, day) { if (!iso) return ''; var s = String(iso); return (s.slice(0, 10) !== day ? shortDate(s.slice(0, 10)) + ' ' : '') + s.slice(11, 16); }
+function cMotifs(c, type) {
+  var o = {}; (c.mouvements || []).forEach(function (m) { if (m && m.type === type) { var k = cKind(m) === 'recette' ? 'Recette de fin de journée' : (m.motif || 'Sans motif'); o[k] = (o[k] || 0) + cNum(m.montant); } });
+  return Object.keys(o).map(function (k) { return esc(k) + ' ' + money(o[k]); }).join(' · ');
+}
+function vCaisseDetail(r) {
+  var c = r.c, f = c.fond, mv = Array.isArray(c.mouvements) ? c.mouvements : [], cp = Array.isArray(c.comptages) ? c.comptages : [];
+  var h = '<div class="cdet">';
+  h += '<div><h4>Fond de caisse</h4>' + (f ? '<p class="num"><strong>' + money(cNum(f.montant)) + '</strong>' + (f.horodatage ? ' <span class="faint">à ' + esc(cTime(f.horodatage, r.day)) + '</span>' : '') + '</p>' + cBillets(f.detail) : '<p class="empty">Non saisi.</p>') + '</div>';
+  h += '<div><h4>Retraits et apports</h4>' + (mv.length ? '<div class="scroll"><table class="ctab"><thead><tr><th>Heure</th><th>Type</th><th>Motif</th><th class="r">Montant</th></tr></thead><tbody>' + mv.map(function (m) {
+      return '<tr><td class="num">' + esc(cTime(m.horodatage, r.day)) + '</td><td>' + (m.type === 'apport' ? 'Apport' : 'Retrait') + '</td><td>' + esc(m.motif || '') + (m.auto ? ' <span class="faint">(automatique)</span>' : '') + '</td><td class="r num">' + (m.type === 'apport' ? '+' : '−') + money(cNum(m.montant)) + '</td></tr>'; }).join('') + '</tbody></table></div>' : '<p class="empty">Aucun.</p>') + '</div>';
+  h += '<div><h4>Comptages' + (cp.length > 1 ? ' (le dernier fait foi)' : '') + '</h4>' + (cp.length ? '<div class="scroll"><table class="ctab"><thead><tr><th>Heure</th><th class="r">Compté</th><th class="r">Attendu</th><th class="r">Écart</th><th class="r">Laissé</th><th class="r">Recette</th></tr></thead><tbody>' + cp.map(function (k, i) {
+      return '<tr' + (i === cp.length - 1 ? ' class="clast"' : '') + '><td class="num">' + esc(cTime(k.horodatage, r.day)) + (k.viaFond ? ' <span class="cbadge">avec le fond du lendemain</span>' : '') + '</td><td class="r num">' + money(cNum(k.montant)) + '</td><td class="r num">' + money(cNum(k.attendu)) + '</td><td class="r num">' + cEcart(k.ecart) + '</td><td class="r num">' + money(cNum(k.laisse)) + '</td><td class="r num">' + (typeof k.recette === 'number' ? money(k.recette) : '—') + '</td></tr>' +
+        (cBillets(k.detail) ? '<tr class="cbil"><td colspan="6">' + cBillets(k.detail) + '</td></tr>' : ''); }).join('') + '</tbody></table></div>' : '<p class="empty">Pas encore comptée.</p>') + '</div>';
+  return h + '<p class="hint">Fichier : ' + esc(r.name) + '</p></div>';
+}
+function vCaisse(rows) {
+  var withC = rows.filter(function (r) { return r.c && typeof r.c === 'object'; }), empty = rows.filter(function (r) { return r.has && !r.c; });
+  if (!withC.length && !empty.length) return '';
+  var body = withC.map(function (r) {
+    var c = r.c, st = cStatus(r), open = !!CAISSE_OPEN[r.key], ret = cMotifs(c, 'retrait'), app = cMotifs(c, 'apport');
+    return '<tr class="crow' + (open ? ' open' : '') + '"><td><button class="clink" data-a="cdet" data-v="' + esc(r.key) + '" aria-expanded="' + open + '"><span class="chev" aria-hidden="true">' + (open ? '▾' : '▸') + '</span> ' + esc(shortDate(r.day)) + '</button><span class="sub">' + esc(r.bar) + '</span>' + (st.badges ? '<span class="cbadges">' + st.badges + '</span>' : '') + '</td>' +
+      '<td class="r num">' + money(cNum(c.fondDeCaisse)) + '</td><td class="r num">' + money(cNum(c.ventesCash)) + '</td>' +
+      '<td class="r num">' + money(cNum(c.apports)) + (app ? '<span class="sub">' + app + '</span>' : '') + '</td>' +
+      '<td class="r num">' + money(cNum(c.retraits)) + (ret ? '<span class="sub">' + ret + '</span>' : '') + '</td>' +
+      '<td class="r num">' + money(cNum(c.attendu)) + '</td>' +
+      '<td class="r num">' + (st.counted ? money(cNum(c.compte)) : '—') + '</td><td class="r num">' + (st.counted ? cEcart(c.ecart) : '—') + '</td><td class="r num">' + (st.counted ? money(cNum(c.laissePourDemain)) : '—') + '</td></tr>' +
+      (open ? '<tr class="cdrow"><td colspan="9">' + vCaisseDetail(r) + '</td></tr>' : '');
+  }).join('');
+  /* Sur téléphone, le détail s'affiche sous le tableau (le tableau défile en largeur) */
+  var outDet = withC.filter(function (r) { return CAISSE_OPEN[r.key]; }).map(function (r) {
+    return '<div class="cdout"><div class="row-between"><strong>' + esc(r.bar) + ' · ' + esc(longDate(r.day)) + '</strong><button class="btn sm" data-a="cdet" data-v="' + esc(r.key) + '">Fermer</button></div>' + vCaisseDetail(r) + '</div>';
+  }).join('');
+  /* Totaux de la période, par stand et tous stands */
+  var per = {}, order = [], mot = { retrait: {}, apport: {} };
+  function acc(id, nom) { if (!per[id]) { per[id] = { nom: nom, j: 0, ec: 0, nc: 0, rc: 0, rec: 0, cof: 0, aut: 0, app: 0 }; order.push(id); } return per[id]; }
+  var T0 = { nom: 'Tous les stands', j: 0, ec: 0, nc: 0, rc: 0, rec: 0, cof: 0, aut: 0, app: 0 };
+  withC.forEach(function (r) {
+    var c = r.c, st = cStatus(r), a = acc(r.barId, r.bar);
+    [a, T0].forEach(function (x) { x.j++; if (st.counted) x.ec += cNum(c.ecart); else x.nc++; if (st.recount) x.rc++; });
+    (c.mouvements || []).forEach(function (m) { if (!m) return; var k = cKind(m), v = cNum(m.montant);
+      [a, T0].forEach(function (x) { if (k === 'recette') x.rec += v; else if (k === 'coffre') x.cof += v; else if (k === 'autre') x.aut += v; else x.app += v; });
+      if (k === 'autre' || k === 'apport') { var o = mot[m.type === 'apport' ? 'apport' : 'retrait'], key = m.motif || 'Sans motif'; o[key] = (o[key] || 0) + v; } });
+  });
+  function trow(x, cls) { return '<tr' + (cls ? ' class="' + cls + '"' : '') + '><td>' + esc(x.nom) + '<span class="sub">' + x.j + ' jour' + (x.j > 1 ? 's' : '') + '</span></td><td class="r num">' + cEcart(x.ec) + '</td><td class="r num">' + (x.nc ? '<span class="bad">' + x.nc + '</span>' : '0') + '</td><td class="r num">' + (x.rc ? '<span class="warnt">' + x.rc + '</span>' : '0') + '</td><td class="r num">' + money(x.rec) + '</td><td class="r num">' + money(x.cof) + '</td><td class="r num">' + money(x.aut) + '</td><td class="r num">' + money(x.app) + '</td></tr>'; }
+  var tot = withC.length ? '<h4 class="csub">Totaux de la période</h4><div class="scroll"><table class="ctot"><thead><tr><th>Stand</th><th class="r">Écarts</th><th class="r">Non comptées</th><th class="r">À recompter</th><th class="r">Recettes retirées</th><th class="r">Dépôts au coffre</th><th class="r">Autres retraits</th><th class="r">Apports</th></tr></thead><tbody>' +
+    order.map(function (id) { return trow(per[id]); }).join('') + (order.length > 1 ? trow(T0, 'tot') : '') + '</tbody></table></div>' : '';
+  var ml = ['retrait', 'apport'].map(function (t) { var o = mot[t], ks = Object.keys(o); return ks.length ? '<p class="cmot"><strong>' + (t === 'retrait' ? 'Autres retraits' : 'Apports') + ' :</strong> ' + ks.sort(function (a, b) { return o[b] - o[a]; }).map(function (k) { return esc(k) + ' ' + money(o[k]); }).join(' · ') + '</p>' : ''; }).join('');
+  return '<section class="caisse"><h3>Caisse</h3><p class="lead">Par stand et par jour, chiffres de la tablette : attendu = fond + ventes cash + apports − retraits. Touchez un jour pour le détail des mouvements, des comptages et des billets.</p>' +
+    (withC.length ? '<div class="scroll"><table class="cmain"><thead><tr><th>Jour</th><th class="r">Fond</th><th class="r">Ventes cash</th><th class="r">Apports</th><th class="r">Retraits</th><th class="r">Attendu</th><th class="r">Compté</th><th class="r">Écart</th><th class="r">Laissé pour demain</th></tr></thead><tbody>' + body + '</tbody></table></div>' : '<p class="empty">Aucune caisse saisie sur cette période.</p>') + outDet +
+    (empty.length ? '<p class="hint">' + empty.length + ' journée' + (empty.length > 1 ? 's' : '') + ' sans saisie de caisse (ni fond, ni comptage) : ' + empty.map(function (r) { return esc(r.bar) + ' ' + esc(shortDate(r.day)); }).join(', ') + '.</p>' : '') + tot + ml + '</section>';
+}
+function vLivraisons(S) {
+  var rows = Object.keys(S.liv.rows).map(function (k) { return S.liv.rows[k]; }).sort(function (a, b) { return a.day < b.day ? 1 : a.day > b.day ? -1 : a.bar.localeCompare(b.bar); });
+  if (!rows.length) return '';
+  return '<section class="half"><h3>Livraisons</h3><p class="lead">Comprises dans le total des ventes, à part du chiffre des ' + (F.caisse === 'sapin' ? 'sapins et accessoires' : 'articles') + '. Une livraison ajoutée après le paiement compte au jour de la vente d’origine.</p><div class="scroll"><table><thead><tr><th>Jour</th><th class="r">Nombre</th><th class="r">Montant</th><th class="r">Après paiement</th></tr></thead><tbody>' +
+    rows.map(function (r) { return '<tr><td>' + esc(shortDate(r.day)) + '<span class="sub">' + esc(r.bar) + '</span></td><td class="r num">' + r.n + '</td><td class="r num">' + money(r.m) + '</td><td class="r num">' + (r.na ? r.na + ' · ' + money(r.ma) : '—') + '</td></tr>'; }).join('') +
+    (rows.length > 1 ? '<tr class="tot"><td>Total</td><td class="r num">' + S.liv.n + '</td><td class="r num">' + money(S.liv.m) + '</td><td class="r num">' + (S.liv.na ? S.liv.na + ' · ' + money(S.liv.ma) : '—') + '</td></tr>' : '') + '</tbody></table></div></section>';
+}
+function vTiroir(rows) {
+  var rs = rows.filter(function (r) { return r.tir && r.tir.length; });
+  if (!rs.length) return '';
+  var totO = 0, totS = 0;
+  var body = rs.map(function (r) {
+    var o = {}; r.sansVente.forEach(function (x) { var k = x.motif || 'Sans motif'; o[k] = (o[k] || 0) + 1; }); totO += r.tir.length; totS += r.nsv;
+    return '<tr><td>' + esc(shortDate(r.day)) + '<span class="sub">' + esc(r.bar) + '</span></td><td class="r num">' + r.tir.length + '</td><td class="r num">' + (r.nsv ? '<strong>' + r.nsv + '</strong>' : '0') + '</td><td class="tmot">' + (Object.keys(o).length ? Object.keys(o).sort(function (a, b) { return o[b] - o[a]; }).map(function (k) { return esc(k) + (o[k] > 1 ? ' ×' + o[k] : ''); }).join(' · ') : '—') + '</td></tr>';
+  }).join('');
+  return '<section class="half"><h3>Tiroir-caisse</h3><p class="lead">Ouvertures enregistrées par la tablette ; « sans vente » avec leur motif.</p><div class="scroll"><table><thead><tr><th>Jour</th><th class="r">Ouvertures</th><th class="r">Sans vente</th><th>Motifs (sans vente)</th></tr></thead><tbody>' + body +
+    (rs.length > 1 ? '<tr class="tot"><td>Total</td><td class="r num">' + totO + '</td><td class="r num">' + totS + '</td><td></td></tr>' : '') + '</tbody></table></div></section>';
 }
 function vFiles() {
   var rows = FILES.map(function (f, i) {
@@ -873,9 +1024,23 @@ function exportCsv() {
   download('bilan-articles_' + tag + '.csv', arts);
   var vs = [[T().per, T().pdv, 'Heure', 'ID vente', 'Articles', 'Total (€)', 'Cash (€)', 'Bancontact (€)', 'Mode', 'Annulée', 'Motif']];
   list.sort(function (x, y) { return x.v.horodatage < y.v.horodatage ? -1 : 1; }).forEach(function (s) { var v = s.v, p = v.paiement;
-    vs.push([s.soiree, s.bar, v.horodatage.slice(0, 16).replace('T', ' '), v.id, (v.lignes || []).map(function (l) { return l.quantite + ' x ' + l.libelle; }).join(', '), v.total, p.cash, p.bancontact, p.mode, v.annulation ? 'oui' : '', v.annulation ? v.annulation.motif : '']); });
+    var lm = (v.lignes || []).reduce(function (a, l) { return a + (isLivLine(l) ? +l.total || 0 : 0); }, 0);
+    vs.push([s.soiree, s.bar, v.horodatage.slice(0, 16).replace('T', ' '), v.id, (v.lignes || []).map(function (l) { return l.quantite + ' x ' + l.libelle; }).join(', '), v.total, p.cash, p.bancontact, p.mode, v.annulation ? 'oui' : '', v.annulation ? v.annulation.motif : '', lm || '', lm && (v.livraisonAjoutee || v.venteLiee) ? 'oui' : '']); });
+  vs[0].push('Livraison (€)', 'Livraison après paiement');
   setTimeout(function () { download('bilan-ventes_' + tag + '.csv', vs); }, 400);
-  toast('Deux fichiers pour Excel : articles et ventes');
+  var CR = caisseRows();
+  if (CR.length) {
+    var cs = [[T().per, T().pdv, 'Fond (€)', 'Ventes cash (€)', 'Apports (€)', 'Retraits (€)', 'Recettes retirées (€)', 'Dépôts au coffre (€)', 'Attendu (€)', 'Compté (€)', 'Écart (€)', 'Laissé pour demain (€)', 'Statut caisse', 'Comptages', 'Livraisons', 'Livraisons (€)', 'Livraisons après paiement', 'Livraisons après paiement (€)', 'Ouvertures du tiroir', 'Ouvertures sans vente']];
+    CR.forEach(function (r) {
+      var c = r.c, L = S.liv.rows[r.day + '|' + r.barId] || { n: 0, m: 0, na: 0, ma: 0 }, rec = 0, cof = 0;
+      if (c && typeof c === 'object') (c.mouvements || []).forEach(function (m) { var k = m && cKind(m); if (k === 'recette') rec += cNum(m.montant); else if (k === 'coffre') cof += cNum(m.montant); });
+      var st = c && typeof c === 'object' ? cStatus(r) : null;
+      cs.push([r.day, r.bar].concat(st ? [cNum(c.fondDeCaisse), cNum(c.ventesCash), cNum(c.apports), cNum(c.retraits), rec, cof, cNum(c.attendu), st.counted ? cNum(c.compte) : '', st.counted ? cNum(c.ecart) : '', st.counted ? cNum(c.laissePourDemain) : '', st.label, (c.comptages || []).length]
+        : ['', '', '', '', '', '', '', '', '', '', r.has ? 'Rien saisi' : 'Non disponible (ancienne version)', '']).concat([L.n, L.m, L.na, L.ma, r.tir ? r.tir.length : '', r.tir ? r.nsv : '']));
+    });
+    setTimeout(function () { download('bilan-caisse_' + tag + '.csv', cs); }, 800);
+    toast('Trois fichiers pour Excel : articles, ventes et caisse');
+  } else toast('Deux fichiers pour Excel : articles et ventes');
 }
 
 /* ---------- Exemples (deux bars, une soirée de 19 h à 3 h 30) ---------- */
@@ -1117,7 +1282,7 @@ function ssLabel(k, p) { return (k.prefixe === false ? '' : k.nom + ' ') + p.lib
 function ssGroups(doc) {
   var groups = [], seen = {};
   if (SS.cat) SS.cat.categories.forEach(function (k) {
-    var items = k.produits.map(function (p) { seen[p.id] = 1; return { id: p.id, libelle: ssLabel(k, p), cat: k.nom, actif: k.actif !== false && p.actif !== false }; });
+    var items = k.produits.filter(function (p) { if (isLivProduct(p)) { seen[p.id] = 1; return false; } return true; }).map(function (p) { seen[p.id] = 1; return { id: p.id, libelle: ssLabel(k, p), cat: k.nom, actif: k.actif !== false && p.actif !== false }; });
     if (items.length) groups.push({ nom: k.nom, items: items });
   });
   var extra = Object.keys(doc.articles).filter(function (id) { return !seen[id]; }).map(function (id) { var a = doc.articles[id] || {}; return { id: id, libelle: a.libelle || id, cat: a.categorie || '', actif: true, gone: !!SS.cat }; });
@@ -1163,7 +1328,8 @@ function ssStart(doc) {
 /* ---------- Ventes de la Caisse Sapins (dossier sapin/ du dépôt ventes) ----------
    Chaque fichier est résumé une seule fois (gardé par son sha) : point de vente, jour, quantités par article. */
 var SV = { loaded: false, loading: false, err: null, files: [], cache: null, at: null };
-var SV_KEY = 'admin-sapventes';
+var SV_KEY = 'admin-sapventes-2';
+try { localStorage.removeItem('admin-sapventes'); } catch (e) {}
 function svCache() {
   if (!SV.cache) { try { SV.cache = JSON.parse(lsGet(SV_KEY) || '{}') || {}; } catch (e) { SV.cache = {}; } }
   return SV.cache;
@@ -1178,6 +1344,7 @@ function svSummary(d) {
     if (pv.id && pv.nom) s.names[pv.id] = pv.nom;
     s.ids.push(v.id);
     (v.lignes || []).forEach(function (l) {
+      if (isLivLine(l)) return; // service : jamais déduit du stock
       if (!l.produitId) { s.libres += +l.quantite || 0; return; }
       var o = s.q[sid] || (s.q[sid] = {}), od = o[day] || (o[day] = {});
       od[l.produitId] = (od[l.produitId] || 0) + (+l.quantite || 0);
@@ -2565,7 +2732,7 @@ function bghOpen() {
   var B = BGH;
   B.loading = true; render();
   ghFetch('/repos/' + SALES_REPO + '/git/trees/HEAD?recursive=1', {}, token).then(function (t) {
-    return (t.tree || []).filter(function (x) { return x.type === 'blob' && /\.json$/i.test(x.path) && !/^(sapin\/)?stock\//.test(x.path); }).map(function (x) { return bghParse(x.path); });
+    return (t.tree || []).filter(function (x) { return x.type === 'blob' && /\.json$/i.test(x.path) && !/^(sapin\/)?stock\//.test(x.path); }).map(function (x) { var p = bghParse(x.path); p.sha = x.sha; return p; });
   }, function (e) { if (e.status === 409) return []; throw e; }).then(function (l) {
     B.loading = false; B.files = l.sort(function (a, b) { return (a.date || '') < (b.date || '') ? 1 : (a.date || '') > (b.date || '') ? -1 : a.label.localeCompare(b.label); }); render();
   }, function (e) { B.loading = false; B.err = bghErr(e); B.files = []; render(); });
@@ -2580,12 +2747,13 @@ function bghLoad(paths, soiree, quiet) {
   var token = getToken(); if (!token || !paths.length) return;
   var ctx = BIL_CUR;
   BGH.busy = true; render();
-  var have = {}; FILES.forEach(function (f) { have[f.name] = 1; });
-  var todo = paths.filter(function (p) { return !have[fileKey(p)]; });
+  var have = {}, shaOf = {}; FILES.forEach(function (f) { have[f.name] = f.sha || 1; }); (BGH.files || []).forEach(function (f) { shaOf[f.path] = f.sha; });
+  var todo = paths.filter(function (p) { var hv = have[fileKey(p)]; return !hv || (shaOf[p] && hv !== shaOf[p]); }), upd = 0;
   var skipped = 0, lastC = null;
   Promise.all(todo.map(function (p) { return bghRaw(p, token).then(function (txt) { return { p: p, txt: txt }; }); })).then(function (res) { var msg; bilWith(ctx, function () {
     res.forEach(function (r) {
-      var entry = { name: fileKey(r.p), data: null, status: 'err', note: '' };
+      var entry = { name: fileKey(r.p), data: null, status: 'err', note: '', sha: shaOf[r.p] };
+      for (var fi = FILES.length - 1; fi >= 0; fi--) if (FILES[fi].name === entry.name) { FILES.splice(fi, 1); upd++; }
       try { var d = JSON.parse(r.txt); if (okVentes(d) && bilAllowed(ctx).indexOf(caisseOf(d.format)) < 0) entry.note = bilWrongNote(caisseOf(d.format)); else if (okVentes(d)) { entry.data = d; entry.status = 'ok'; entry.caisse = caisseOf(d.format); lastC = entry.caisse; } else entry.note = ERR_FORMAT; } catch (e) { entry.note = 'Fichier illisible (JSON invalide).'; }
       if (entry.status === 'ok' || !quiet) FILES.push(entry); else skipped++;
     });
@@ -2593,7 +2761,7 @@ function bghLoad(paths, soiree, quiet) {
     dedupe(); fixCaisse(); BGH.busy = false; BGH.open = false; BGH.sel = {};
     F.soiree = defSoiree(); F.bar = 'all';
     var nb = res.length - skipped;
-    msg = (nb ? nb + ' fichier' + (nb > 1 ? 's' : '') + ' chargé' + (nb > 1 ? 's' : '') + ' depuis le dépôt' : res.length ? 'Aucun fichier de ventes lisible pour ce jour' : 'Ces fichiers sont déjà chargés'); });
+    msg = (nb ? nb + ' fichier' + (nb > 1 ? 's' : '') + ' chargé' + (nb > 1 ? 's' : '') + ' depuis le dépôt' + (upd ? ' (dont ' + upd + ' mis à jour)' : '') : res.length ? 'Aucun fichier de ventes lisible pour ce jour' : 'Ces fichiers sont déjà chargés'); });
     toast(msg);
   }, function (e) { bilWith(ctx, function () { BGH.busy = false; BGH.err = bghErr(e); }); render(); });
 }
@@ -2605,17 +2773,19 @@ function vGhPanel() {
   if (BGH.loading) return h + '<p class="empty">Chargement de la liste…</p></section>';
   if (!BGH.files || !BGH.files.length || !bghTabs().length) return h + (BGH.err ? '' : '<p class="empty">Aucun fichier de ventes ' + (BIL_CUR === 'sapin' ? 'de la Caisse Sapins ' : '') + 'dans le dépôt pour l’instant.</p>') + '</section>';
   var tabs = bghTabs(); if (BGH.tab === null || tabs.indexOf(BGH.tab) < 0) BGH.tab = tabs.indexOf('bar') >= 0 ? 'bar' : tabs[0];
-  var days = {}, loaded = {}; BGH.files.forEach(function (f) { if (f.top !== BGH.tab) return; var k = f.date || 'sans-date'; (days[k] = days[k] || []).push(f); }); FILES.forEach(function (f) { loaded[f.name] = 1; });
+  var days = {}, loaded = {}; BGH.files.forEach(function (f) { if (f.top !== BGH.tab) return; var k = f.date || 'sans-date'; (days[k] = days[k] || []).push(f); }); FILES.forEach(function (f) { loaded[f.name] = f.sha || true; });
+  var stale = BGH.files.filter(function (f) { var g = loaded[fileKey(f.path)]; return g && g !== true && f.sha && g !== f.sha; });
   var n = Object.keys(BGH.sel).filter(function (k) { return BGH.sel[k]; }).length;
   h += '<div class="ghtabs" role="tablist" aria-label="Dossiers du dépôt">' + tabs.map(function (t) {
       var c = BGH.files.filter(function (f) { return f.top === t; }).length;
       return '<button role="tab" aria-selected="' + (BGH.tab === t) + '" class="' + (BGH.tab === t ? 'on' : '') + '" data-g="tab" data-v="' + esc(t) + '">' + esc(bghTabName(t)) + ' <span class="faint num">' + c + '</span></button>';
     }).join('') + '</div>' +
+    (stale.length ? '<div class="alert">' + stale.length + ' fichier' + (stale.length > 1 ? 's' : '') + ' déjà chargé' + (stale.length > 1 ? 's ont' : ' a') + ' été modifié' + (stale.length > 1 ? 's' : '') + ' sur GitHub depuis (livraison ajoutée, caisse comptée après coup…). <button class="btn sm" data-g="refresh">Recharger ' + (stale.length > 1 ? 'ces fichiers' : 'ce fichier') + '</button></div>' : '') +
     '<p class="lead">' + (BGH.tab === 'bar' ? 'Une soirée qui dépasse minuit est répartie sur deux jours : « Charger les ventes » prend le jour et le lendemain.' : BGH.tab === 'soiree' ? 'Un fichier par appareil et par soirée : « Charger les ventes » charge tous les appareils de la soirée.' : '« Charger les ventes » charge les fichiers du jour.') + '</p><div class="ghdays">' +
     Object.keys(days).sort().reverse().map(function (d) {
       return '<div class="ghday"><div class="ghdate"><strong>' + (d === 'sans-date' ? 'Sans date' : longDate(d)) + '</strong>' + (d === 'sans-date' ? '' : '<button class="btn sm" data-g="soiree" data-v="' + d + '">Charger les ventes</button>') + '</div>' +
-        days[d].slice().sort(function (a, b) { return a.label.localeCompare(b.label); }).map(function (f) { var got = loaded[fileKey(f.path)];
-          return '<label class="tog' + (got ? ' got' : '') + '" title="' + esc(f.path) + '"><input type="checkbox" data-gsel="' + esc(f.path) + '"' + (got ? ' checked disabled' : BGH.sel[f.path] ? ' checked' : '') + '>' + esc(f.label) + (f.dir ? ' <span class="faint">' + esc(f.dir) + '</span>' : '') + (got ? ' <span class="faint">déjà chargé</span>' : '') + '</label>'; }).join('') + '</div>';
+        days[d].slice().sort(function (a, b) { return a.label.localeCompare(b.label); }).map(function (f) { var g0 = loaded[fileKey(f.path)], old = g0 && g0 !== true && f.sha && g0 !== f.sha, got = g0 && !old;
+          return '<label class="tog' + (got ? ' got' : '') + '" title="' + esc(f.path) + '"><input type="checkbox" data-gsel="' + esc(f.path) + '"' + (got ? ' checked disabled' : BGH.sel[f.path] ? ' checked' : '') + '>' + esc(f.label) + (f.dir ? ' <span class="faint">' + esc(f.dir) + '</span>' : '') + (got ? ' <span class="faint">déjà chargé</span>' : old ? ' <span class="warnt">modifié sur GitHub</span>' : '') + '</label>'; }).join('') + '</div>';
     }).join('') + '</div>' +
     '<div class="cbtns" style="margin-top:14px"><button class="pick" data-g="loadSel"' + (n && !BGH.busy ? '' : ' disabled') + '>' + (BGH.busy ? 'Chargement…' : 'Charger la sélection' + (n ? ' (' + n + ')' : '')) + '</button></div></section>';
   return h;
@@ -2630,6 +2800,7 @@ document.addEventListener('click', function (e) {
   if (g === 'open') bghOpen();
   else if (g === 'close') { BGH.open = false; render(); }
   else if (g === 'tab') { BGH.tab = v; render(); }
+  else if (g === 'refresh') { var ld = {}; FILES.forEach(function (f) { ld[f.name] = f.sha; }); bghLoad((BGH.files || []).filter(function (f) { var s0 = ld[fileKey(f.path)]; return s0 && f.sha && s0 !== f.sha; }).map(function (f) { return f.path; })); }
   else if (g === 'loadSel') bghLoad(Object.keys(BGH.sel).filter(function (k) { return BGH.sel[k]; }));
   else if (g === 'soiree') bghLoad(bghSoireePaths(v), v, true);
 });
@@ -2751,6 +2922,7 @@ document.addEventListener('click', function (e) {
   if (a === 'go') { go(v); return; }
   if (a === 'sapsub') { SAP_SUB = v; go('sapin'); return; }
   if (a === 'demo') { FILES = demoFiles().map(function (f) { return { name: f.name, data: f.data, status: 'ok', note: '', caisse: 'bar' }; }); F.caisse = 'bar'; dedupe(); F.soiree = defSoiree(); F.bar = 'all'; toast('Exemples chargés : 2 bars, 1 soirée'); return; }
+  if (a === 'cdet') { CAISSE_OPEN[v] = !CAISSE_OPEN[v]; render(); return; }
   if (a === 'caisse') { F.caisse = v; F.bar = 'all'; F.soiree = defSoiree(); render(); return; }
   if (a === 'soiree') F.soiree = v;
   else if (a === 'bar') F.bar = v;

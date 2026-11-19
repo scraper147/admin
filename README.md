@@ -97,7 +97,13 @@ Tout ce qui concerne la vente des sapins est regroupé dans le menu **Gestion sa
   - Un article retiré du catalogue reste visible dans le stock (« Plus dans le catalogue ») tant qu'il y en a.
   - Sans internet, la livraison est gardée sur l'appareil et envoyée au retour du réseau.
   - **Le jeton doit avoir l'écriture (Contents : Read and write) sur `ventes`** (Paramètres → Tester l'accès aux dépôts).
-- **Bilan** : ventes de la Caisse Sapins, fichiers déposés ou **Charger depuis le dépôt** (dossier `sapin` du dépôt `ventes`). Ce Bilan est séparé de celui du menu Bilan : chacun garde ses propres fichiers. Un fichier de la Caisse Bar ou Soirée déposé ici est refusé avec un message (et inversement).
+- **Bilan** : ventes de la Caisse Sapins, fichiers déposés ou **Charger depuis le dépôt** (dossier `sapin` du dépôt `ventes`).
+  - **Caisse** : par stand et par jour, fond, ventes cash, apports, retraits (avec leurs motifs), attendu, compté, écart (vert si nul, rouge sinon), laissé pour demain, et les badges « Non comptée », « À recompter », « Comptée le lendemain », « Fond non saisi ». Toucher un jour montre les mouvements, les comptages successifs et les billets. En dessous, les totaux de la période par stand (écarts, jours non comptés ou à recompter, recettes retirées, dépôts au coffre, autres retraits et apports).
+  - **Livraisons** : nombre et montant par stand et par jour, dont celles ajoutées après le paiement. Elles restent dans le total, mais le bandeau sépare « Sapins et accessoires » et « Livraisons ».
+  - **Tiroir-caisse** : ouvertures et ouvertures sans vente, avec leurs motifs.
+  - **Exporter pour Excel** donne un troisième fichier `bilan-caisse_….csv` (une ligne par stand et par jour : caisse, livraisons, tiroir).
+  - Un fichier peut être renvoyé par la tablette après coup (livraison ajoutée, caisse comptée le lendemain) : en rouvrant **+ Depuis le dépôt**, l'app signale les fichiers modifiés et propose de les recharger.
+  - Les anciens fichiers (sans caisse ni tiroir) s'affichent sans ces sections. Ce Bilan est séparé de celui du menu Bilan : chacun garde ses propres fichiers. Un fichier de la Caisse Bar ou Soirée déposé ici est refusé avec un message (et inversement).
 
 ## Mettre à jour l'app
 
