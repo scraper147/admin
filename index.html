@@ -191,6 +191,31 @@ td>.sub{display:block;font-size:12px;color:var(--muted);font-weight:400}
 .hsann{color:var(--red);font-weight:700;font-size:14px}
 .hsale.cancelled .hh b,.hsale.cancelled .hl>span:not(.hsann):not(.hsliv),.hsale.cancelled .hpm,.hsale.cancelled .htt{opacity:.45;text-decoration:line-through}
 @media (max-width:700px){.hsale{grid-template-columns:1fr auto;grid-template-areas:"hh htt" "hl hl" "hpm hpm";gap:4px 12px;padding:12px 14px}.hsale .hh{grid-area:hh;display:flex;gap:8px;align-items:baseline}.hsale .htt{grid-area:htt}.hsale .hl{grid-area:hl}.hsale .hpm{grid-area:hpm;font-size:13px}}
+.cxpick{max-width:1180px;margin:12px auto 0;display:flex;flex-wrap:wrap;gap:12px 22px;align-items:flex-end}
+.cxpick>div{display:flex;flex-direction:column;gap:6px}
+.cxpick .fl{color:var(--band-muted)}
+.cxpick input[type=date]{font:inherit;height:40px;border-radius:10px;border:1px solid var(--band-line);background:var(--band);color:var(--band-ink);padding:0 10px;color-scheme:dark}
+.cxpick .rchip{height:36px;font-size:14px}
+.cxgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px;margin:12px 0}
+.cxt{background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:12px 14px;display:flex;flex-direction:column;gap:2px}
+.cxt .l{font-size:13px;color:var(--muted);font-weight:600}.cxt strong{font-size:20px}.cxt .s{font-size:12px;color:var(--faint)}
+.cxt.em{border-color:var(--gold);background:var(--gold-soft)}
+.cxacts{margin-top:6px}
+.cbadge.ok2{background:var(--soft);color:var(--green)}
+.cxform form{max-width:640px}
+.cxdt{margin:4px 0}
+.coins{display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:8px}
+.coin{display:flex;flex-direction:column;gap:4px;font-size:13px;font-weight:700;color:var(--muted)}
+.coin input{height:40px !important;text-align:right}
+.cxlive{margin:6px 0 2px;font-size:15px}
+.cxmot{gap:6px}
+.cxjr{display:flex;flex-direction:column;border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.cxe{display:grid;grid-template-columns:70px minmax(0,1fr) auto auto;gap:12px;align-items:start;padding:10px 14px;border-bottom:1px solid var(--soft)}
+.cxe:last-child{border-bottom:none}.cxe.old{opacity:.6}.cxe.danger{background:var(--red-soft)}
+.cxe .b{display:flex;flex-direction:column;gap:2px;min-width:0}.cxe .d{font-size:14px;color:var(--muted)}
+.cxe .src{font-size:12px;font-weight:700;color:var(--faint);text-transform:uppercase;letter-spacing:.04em}
+.cxe .x{border:none;background:none;color:var(--red);font-weight:700;padding:2px 6px;font-size:14px}
+@media (max-width:560px){.cxe{grid-template-columns:52px minmax(0,1fr)}.cxe .src,.cxe .x,.cxe .cbtns{grid-column:2;justify-self:start}.row2{flex-wrap:wrap}}
 .cbadges{display:flex;flex-wrap:wrap;gap:4px;margin-top:4px}
 .cbadge{display:inline-block;font-size:11px;font-weight:700;padding:1px 7px;border-radius:6px;background:var(--soft);color:var(--muted);white-space:nowrap}
 .cbadge.warn{background:var(--gold-soft);color:var(--ink)}
@@ -748,15 +773,17 @@ function vAdjust(S) {
   return '<section><h3>Remises et ventes annulées</h3>' + rem + '<p class="lead" style="margin-top:10px">' + (S.ann.length ? S.ann.length + ' vente' + (S.ann.length > 1 ? 's' : '') + ' annulée' + (S.ann.length > 1 ? 's' : '') + ', comptée' + (S.ann.length > 1 ? 's' : '') + ' dans aucun total :' : '') + '</p>' + ann + '</section>';
 }
 /* ---------- Caisse du jour, livraisons et tiroir (Caisse Sapins v13 → v28 ; champs absents des anciens fichiers) ---------- */
-function hasCaisseData(d) { return !!d && ((d.caisse && typeof d.caisse === 'object') || (Array.isArray(d.ouverturesTiroir) && d.ouverturesTiroir.length > 0)); }
+function hasCaisseData(d) { if (d && BIL_CUR === 'sapin' && d.pointDeVente && CXFILES[cxPath(d.date, d.pointDeVente.id)] && CXFILES[cxPath(d.date, d.pointDeVente.id)].doc) return true; return !!d && ((d.caisse && typeof d.caisse === 'object') || (Array.isArray(d.ouverturesTiroir) && d.ouverturesTiroir.length > 0)); }
 function caisseRows() {
   if (F.caisse === 'soiree') return [];
+  if (BIL_CUR === 'sapin' && BGH.cxFiles && BGH.cxFiles.length) { var want = {}; activeFiles().forEach(function (f) { var d = f.data, p = d.pointDeVente || {}; if (p.id) want[cxPath(d.date, p.id)] = 1; }); cxBilanLoad(BGH.cxFiles.filter(function (x) { return want[x.path]; })); }
   return activeFiles().filter(function (f) { var d = f.data, p = d.pointDeVente || {};
     return (F.soiree === 'all' || d.date === F.soiree) && (F.bar === 'all' || p.id === F.bar);
   }).map(function (f) { var d = f.data, p = d.pointDeVente || { id: '?', nom: T().inconnu };
     var tir = Array.isArray(d.ouverturesTiroir) ? d.ouverturesTiroir : null;
     var sv = tir ? tir.filter(function (o) { return o && !o.venteId; }) : [];
-    return { key: (p.id || '?') + '|' + d.date, day: d.date, barId: p.id, bar: p.nom || p.id, c: d.caisse, has: 'caisse' in d, tir: tir, sansVente: sv, nsv: typeof d.nombreOuverturesSansVente === 'number' ? d.nombreOuverturesSansVente : sv.length, name: f.name };
+    var cx = BIL_CUR === 'sapin' && p.id ? cxForBilan(d.date, p.id, d) : null;
+    return { key: (p.id || '?') + '|' + d.date, day: d.date, barId: p.id, bar: p.nom || p.id, c: cx || d.caisse, cxf: !!cx, has: 'caisse' in d || !!cx, tir: tir, sansVente: sv, nsv: typeof d.nombreOuverturesSansVente === 'number' ? d.nombreOuverturesSansVente : sv.length, name: f.name };
   }).sort(function (a, b) { return a.day < b.day ? 1 : a.day > b.day ? -1 : String(a.bar).localeCompare(String(b.bar)); });
 }
 function cNum(x) { return typeof x === 'number' && !isNaN(x) ? x : 0; }
@@ -805,7 +832,7 @@ function vCaisse(rows) {
   if (!withC.length && !empty.length) return '';
   var body = withC.map(function (r) {
     var c = r.c, st = cStatus(r), open = !!CAISSE_OPEN[r.key], ret = cMotifs(c, 'retrait'), app = cMotifs(c, 'apport');
-    return '<tr class="crow' + (open ? ' open' : '') + '"><td><button class="clink" data-a="cdet" data-v="' + esc(r.key) + '" aria-expanded="' + open + '"><span class="chev" aria-hidden="true">' + (open ? '▾' : '▸') + '</span> ' + esc(shortDate(r.day)) + '</button><span class="sub">' + esc(r.bar) + '</span>' + (st.badges ? '<span class="cbadges">' + st.badges + '</span>' : '') + '</td>' +
+    return '<tr class="crow' + (open ? ' open' : '') + '"><td><button class="clink" data-a="cdet" data-v="' + esc(r.key) + '" aria-expanded="' + open + '"><span class="chev" aria-hidden="true">' + (open ? '▾' : '▸') + '</span> ' + esc(shortDate(r.day)) + '</button><span class="sub">' + esc(r.bar) + (r.cxf ? ' · fichier de caisse' : '') + '</span>' + (st.badges ? '<span class="cbadges">' + st.badges + '</span>' : '') + '</td>' +
       '<td class="r num">' + money(cNum(c.fondDeCaisse)) + '</td><td class="r num">' + money(cNum(c.ventesCash)) + '</td>' +
       '<td class="r num">' + money(cNum(c.apports)) + (app ? '<span class="sub">' + app + '</span>' : '') + '</td>' +
       '<td class="r num">' + money(cNum(c.retraits)) + (ret ? '<span class="sub">' + ret + '</span>' : '') + '</td>' +
@@ -1166,7 +1193,7 @@ var MODULES = [
     desc: 'Déverrouiller la publication sur GitHub et préparer la clé chiffrée.' }
 ];
 var MOD = 'accueil';
-var SAP_SUBS = [{ id: 'catalogue', nom: 'Catalogue' }, { id: 'stock', nom: 'Stock' }, { id: 'bilan', nom: 'Bilan' }, { id: 'hist', nom: 'Historique de vente' }];
+var SAP_SUBS = [{ id: 'catalogue', nom: 'Catalogue' }, { id: 'stock', nom: 'Stock' }, { id: 'caisse', nom: 'Caisse' }, { id: 'bilan', nom: 'Bilan' }, { id: 'hist', nom: 'Historique de vente' }];
 var SAP_SUB = 'catalogue';
 function hashPart(h) { var p = (h || '').replace('#', '').split('/'); if (p[0] === 'sapin' && SAP_SUBS.some(function (x) { return x.id === p[1]; })) SAP_SUB = p[1]; return p[0]; }
 (function () { var h = hashPart(location.hash); if (h && MODULES.some(function (m) { return m.id === h; })) MOD = h; })();
@@ -1223,6 +1250,7 @@ function renderSapin() {
   if (SAP_SUB === 'catalogue') renderCatalogue();
   else if (SAP_SUB === 'bilan') renderBilan();
   else if (SAP_SUB === 'hist') renderSapHist();
+  else if (SAP_SUB === 'caisse') renderSapCaisse();
   else renderSapStock();
 }
 /* ================= Gestion sapin › Stock ================= */
@@ -1407,7 +1435,7 @@ function svLoad() {
   var tok = getToken(); if (!tok || SV.loading) return;
   SV.loading = true; SV.err = null; render();
   ghFetch('/repos/' + SALES_REPO + '/git/trees/HEAD?recursive=1', {}, tok).then(function (t) {
-    var files = (t.tree || []).filter(function (x) { return x.type === 'blob' && /^sapin\//.test(x.path) && !/^sapin\/stock\//.test(x.path) && /\.json$/i.test(x.path); });
+    var files = (t.tree || []).filter(function (x) { return x.type === 'blob' && /^sapin\//.test(x.path) && !/^sapin\/(stock|caisse)\//.test(x.path) && /\.json$/i.test(x.path); });
     var cache = svCache(), todo = files.filter(function (f) { return !cache[f.sha]; });
     return Promise.all(todo.map(function (f) { return bghRaw(f.path, tok).then(function (txt) { var s; try { s = svSummary(JSON.parse(txt)); } catch (e) { s = { ok: false }; } cache[f.sha] = s; }); })).then(function () {
       var keep = {}; files.forEach(function (f) { keep[f.sha] = cache[f.sha]; }); SV.cache = keep;
@@ -1779,7 +1807,7 @@ function hsList() {
   var tok = getToken(); if (!tok || HS.loading) return;
   HS.loading = true; HS.err = null; render();
   ghFetch('/repos/' + SALES_REPO + '/git/trees/HEAD?recursive=1', {}, tok).then(function (t) {
-    HS.files = (t.tree || []).filter(function (x) { return x.type === 'blob' && /^sapin\//.test(x.path) && !/^sapin\/stock\//.test(x.path) && /\.json$/i.test(x.path); })
+    HS.files = (t.tree || []).filter(function (x) { return x.type === 'blob' && /^sapin\//.test(x.path) && !/^sapin\/(stock|caisse)\//.test(x.path) && /\.json$/i.test(x.path); })
       .map(function (x) { return hsParse(x); }).sort(function (a, b) { return (b.date || '') < (a.date || '') ? -1 : (b.date || '') > (a.date || '') ? 1 : a.stand.localeCompare(b.stand); });
     HS.loading = false;
     if (!HS.sel && !HS.data && HS.files.length) hsOpen(HS.files[0].path); else render();
@@ -1868,6 +1896,265 @@ document.addEventListener('change', function (e) {
   if (t.getAttribute && t.getAttribute('data-hs') === 'sel' && t.value) hsOpen(t.value);
   else if (t.hasAttribute && t.hasAttribute('data-hsfile') && t.files && t.files[0]) { hsLocal(t.files[0]); t.value = ''; }
 });
+/* ================= Gestion sapin › Caisse (fichier de caisse partagé avec la Caisse Sapins) =================
+   ventes/sapin/caisse/<AAAA-MM-JJ>_<pdvId>.json : fond, retraits, apports et comptages d'un stand pour un jour.
+   Les saisies sont rangées par identifiant (objet « entrees ») : l'Admin et la tablette relisent le fichier,
+   ajoutent ou retirent seulement leurs saisies, puis réécrivent avec le sha (jamais d'écrasement).
+   Les ventes cash viennent du fichier de ventes de la tablette (champ caisse.ventesCash, sinon calculées). */
+var CX_FMT = 'agri-garden-caisse/caisse', CX_DIR = 'sapin/caisse';
+var CX_COINS = ['500', '200', '100', '50', '20', '10', '5', '2', '1', '0.5', '0.2', '0.1', '0.05', '0.02', '0.01'];
+var CX_RETRAITS = ['Dépôt au coffre', 'Remboursement client', 'Dépense', 'Autre'];
+var CX_APPORTS = ['Ajout de monnaie', 'Autre'];
+var CX = { date: null, pdv: null, cat: null, catErr: null, catLoading: false, path: null, doc: null, sha: null, ops: [], loading: false, saving: false, err: null, sales: null, salesLoading: false, form: null, confirm: null };
+var CXFILES = {}; // fichiers de caisse lus pour le Bilan : { path: { sha, doc } }
+function cxPath(date, pdv) { return CX_DIR + '/' + date + '_' + pdv + '.json'; }
+function cxKey(path) { return 'admin-caisse:' + path; }
+function cxNorm(d) { d = d && typeof d === 'object' ? d : {}; if (!d.entrees || typeof d.entrees !== 'object' || Array.isArray(d.entrees)) d.entrees = {}; return d; }
+function cxApply(doc, op) { if (op.t === 'add') doc.entrees[op.id] = op.v; else if (op.t === 'del') delete doc.entrees[op.id]; return doc; }
+function cxDoc() { var d = cxNorm(clone(CX.doc || {})); CX.ops.forEach(function (o) { cxApply(d, o); }); return d; }
+function cxR2(x) { return Math.round(x * 100) / 100; }
+/* Résumé au même format que le champ « caisse » des fichiers de ventes (utilisé par le Bilan) */
+function cxSummary(doc, ventesCash) {
+  var E = Object.keys(doc.entrees).map(function (id) { var e = doc.entrees[id]; return e ? Object.assign({ id: id }, e) : null; }).filter(Boolean)
+    .sort(function (a, b) { return (a.horodatage || '') < (b.horodatage || '') ? -1 : (a.horodatage || '') > (b.horodatage || '') ? 1 : 0; });
+  var fonds = E.filter(function (e) { return e.type === 'fond'; }), fond = fonds[fonds.length - 1] || null;
+  var mv = E.filter(function (e) { return e.type === 'retrait' || e.type === 'apport'; }).map(function (e) { return { id: e.id, type: e.type, montant: +e.montant || 0, motif: e.motif || '', horodatage: e.horodatage, source: e.source }; });
+  var comps = E.filter(function (e) { return e.type === 'comptage'; });
+  comps.forEach(function (k) { if (+k.recette > 0) mv.push({ id: k.id + '-recette', type: 'retrait', montant: +k.recette, motif: 'Recette de fin de journée', horodatage: k.horodatage, auto: true, source: k.source }); });
+  mv.sort(function (a, b) { return (a.horodatage || '') < (b.horodatage || '') ? -1 : 1; });
+  var ap = mv.filter(function (m) { return m.type === 'apport'; }).reduce(function (s, m) { return s + m.montant; }, 0);
+  var re = mv.filter(function (m) { return m.type === 'retrait'; }).reduce(function (s, m) { return s + m.montant; }, 0);
+  var fd = fond ? +fond.montant || 0 : 0, vc = +ventesCash || 0, last = comps[comps.length - 1] || null;
+  return { source: 'fichier-caisse', fondDeCaisse: fd, ventesCash: vc, apports: cxR2(ap), retraits: cxR2(re), attendu: cxR2(fd + vc + ap - re),
+    compte: last ? +last.montant : null, ecart: last ? +last.ecart : null, laissePourDemain: last && typeof last.laisse === 'number' ? last.laisse : null,
+    fond: fond ? { montant: fd, horodatage: fond.horodatage, detail: fond.detail || null, source: fond.source } : null, mouvements: mv,
+    comptages: comps.map(function (k) { return { id: k.id, horodatage: k.horodatage, montant: +k.montant, detail: k.detail || null, attendu: +k.attendu, ecart: +k.ecart, laisse: k.laisse, recette: +k.recette || 0, attenduApres: +k.attenduApres, viaFond: !!k.viaFond, source: k.source }; }),
+    entrees: E };
+}
+/* Ventes cash du stand ce jour-là, lues dans le fichier de ventes de la tablette (le plus récent) */
+function cxSalesCash(d) {
+  if (d && d.caisse && typeof d.caisse.ventesCash === 'number') return { v: d.caisse.ventesCash, exact: true };
+  var v = 0; (d.ventes || []).forEach(function (x) { if (x && !x.annulation) v += +(x.paiement || {}).cash || 0; });
+  return { v: cxR2(v), exact: false };
+}
+function cxLoadSales() {
+  var date = CX.date, pdv = CX.pdv, tok = getToken(); if (!tok) return;
+  CX.salesLoading = true;
+  ghFetch('/repos/' + SALES_REPO + '/contents/sapin', {}, tok).then(function (l) {
+    var hits = (Array.isArray(l) ? l : []).filter(function (f) { return f.type === 'file' && f.name.indexOf(date + '_' + pdv + '_') === 0 && /\.json$/i.test(f.name); });
+    return Promise.all(hits.map(function (f) { return bghRaw(f.path, tok).then(function (t) { try { return JSON.parse(t); } catch (e) { return null; } }); }));
+  }, function (e) { if (e.status === 404) return []; throw e; }).then(function (docs) {
+    if (CX.date !== date || CX.pdv !== pdv) return;
+    var best = null; docs.forEach(function (d) { if (d && d.format === 'agri-garden-caisse/ventes' && (!best || (d.miseAJour || '') > (best.miseAJour || ''))) best = d; });
+    var sc = best ? cxSalesCash(best) : null;
+    CX.sales = best ? { v: sc.v, exact: sc.exact, at: best.miseAJour || '', n: (best.ventes || []).filter(function (x) { return x && !x.annulation; }).length, tiroir: best.caisse && best.caisse.source !== 'fichier-caisse' && Array.isArray(best.caisse.comptages) ? best.caisse : null } : { v: 0, none: true };
+    CX.salesLoading = false; render();
+  }).catch(function (e) { CX.salesLoading = false; CX.sales = { v: 0, err: bghErr(e) }; render(); });
+}
+function cxLoadCat() {
+  if (CX.catLoading) return; CX.catLoading = true;
+  ghGetCatalogue(SAPIN_REPO, getToken()).then(function (r) { CX.cat = r.json ? normalizeCat(r.json) : null; CX.catErr = r.json ? null : 'Le catalogue de la Caisse Sapins n’est pas encore publié.'; CX.catLoading = false; render(); },
+    function (e) { CX.catLoading = false; CX.catErr = ghErrText(e, 'de lire'); render(); });
+}
+function cxOpen() {
+  if (!CX.date || !CX.pdv) return;
+  var path = cxPath(CX.date, CX.pdv), loc = null;
+  CX.path = path; CX.doc = null; CX.sha = null; CX.err = null; CX.sales = null; CX.form = null; CX.confirm = null;
+  try { loc = JSON.parse(lsGet(cxKey(path)) || 'null'); } catch (e) {}
+  CX.ops = loc && Array.isArray(loc.ops) ? loc.ops : [];
+  if (!getToken()) { CX.doc = loc && loc.doc ? loc.doc : null; render(); return; }
+  CX.loading = true; render();
+  ssGet(path).then(function (r) {
+    if (CX.path !== path) return;
+    CX.loading = false; CX.doc = r ? cxNorm(r.json) : (loc && loc.doc) || null; CX.sha = r ? r.sha : null; render();
+    if (CX.ops.length) cxSave();
+  }, function (e) { if (CX.path !== path) return; CX.loading = false; CX.doc = loc && loc.doc || null; CX.err = ssErrText(e); render(); });
+  cxLoadSales();
+}
+function cxPersist() { lsSet(cxKey(CX.path), CX.ops.length ? JSON.stringify({ doc: CX.doc, ops: CX.ops }) : null); }
+function cxSave(tries) {
+  if (!CX.path || CX.saving || !CX.ops.length) return;
+  if (!getToken()) { CX.err = 'Appareil verrouillé : la saisie est gardée sur cet appareil. Déverrouillez-le dans Paramètres pour l’enregistrer sur GitHub.'; cxPersist(); render(); return; }
+  var path = CX.path, ops = CX.ops.slice(), stand = cxStandName(CX.pdv);
+  CX.saving = true; CX.err = null; render();
+  ssGet(path).then(function (r) {
+    var base = r ? cxNorm(r.json) : cxNorm({ format: CX_FMT, formatVersion: 1, date: CX.date, pointDeVente: { id: CX.pdv, nom: stand }, creeLe: new Date().toISOString() });
+    ops.forEach(function (o) {
+      /* décompte : attendu et écart recalculés sur la dernière version (saisies de la tablette comprises) */
+      if (o.t === 'add' && o.v && o.v.type === 'comptage' && o.v.source === 'admin' && !o.v.fige) {
+        var S0 = cxSummary(base, CX.sales ? CX.sales.v : 0); o.v.attendu = S0.attendu; o.v.ecart = cxR2(o.v.montant - S0.attendu); o.v.attenduApres = cxR2(S0.attendu - o.v.recette);
+      }
+      cxApply(base, o);
+    });
+    base.majLe = new Date().toISOString(); base.majPar = 'admin';
+    return ssPut(path, base, r && r.sha, 'Caisse ' + stand + ' du ' + dmy(CX.date) + ' (Admin)').then(function (res) { return { doc: base, sha: res && res.content && res.content.sha }; });
+  }).then(function (x) {
+    if (CX.path !== path) { CX.saving = false; return; }
+    CX.saving = false; CX.doc = x.doc; CX.sha = x.sha; CX.ops = CX.ops.slice(ops.length); cxPersist(); render(); if (CX.ops.length) cxSave();
+  }, function (e) {
+    CX.saving = false;
+    if ((e.status === 409 || e.status === 422) && (tries || 0) < 2) { cxSave((tries || 0) + 1); return; }
+    CX.err = ssErrText(e); cxPersist(); render();
+  });
+}
+function cxOp(op) { CX.ops.push(op); cxPersist(); cxSave(); }
+window.addEventListener('online', function () { if (CX.ops.length) cxSave(); });
+function cxStands() { return CX.cat ? CX.cat.pointsDeVente.filter(function (p) { return p.actif !== false; }) : []; }
+function cxStandName(id) { var p = (CX.cat ? CX.cat.pointsDeVente : []).filter(function (x) { return x.id === id; })[0]; return p ? p.nom : id; }
+function cxNowIso() { var d = new Date(), o = -d.getTimezoneOffset(), sg = o >= 0 ? '+' : '-'; o = Math.abs(o); return todayIso() + 'T' + String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0') + ':' + String(d.getSeconds()).padStart(2, '0') + sg + String(Math.floor(o / 60)).padStart(2, '0') + ':' + String(o % 60).padStart(2, '0'); }
+function cxId(type) { return type + '-admin-' + new Date().toISOString().replace(/\D/g, '').slice(0, 14) + '-' + Math.random().toString(36).slice(2, 6); }
+function cxDetailTotal(det) { var t = 0; Object.keys(det || {}).forEach(function (k) { var n = parseInt(det[k], 10); if (n > 0) t += n * +k; }); return cxR2(t); }
+
+/* ---------- Rendu ---------- */
+function renderSapCaisse() {
+  var el = document.getElementById('mod');
+  if (!CX.date) CX.date = todayIso();
+  if (!CX.cat && !CX.catErr && getToken()) cxLoadCat();
+  var st = cxStands();
+  if (!CX.pdv && st.length) { CX.pdv = (st.filter(function (p) { return /spy/i.test(p.nom); })[0] || st[0]).id; }
+  if (CX.pdv && CX.path !== cxPath(CX.date, CX.pdv) && !CX.loading) { cxOpen(); return; }
+  var band = '<div class="band"><div class="band-top"><h1>Caisse</h1></div><div class="cxpick">' +
+    '<div><label class="fl" for="cxDate">Jour</label><input type="date" id="cxDate" data-cx="date" value="' + esc(CX.date) + '"></div>' +
+    '<div class="cxstands"><span class="fl">Point de vente</span><div class="rsel">' + (st.length ? st.map(function (p) { return '<button class="rchip' + (CX.pdv === p.id ? ' on' : '') + '" data-cx="pdv" data-v="' + esc(p.id) + '">' + esc(p.nom) + '</button>'; }).join('') : '<span class="soon-lead" style="margin:0">' + (CX.catLoading ? 'Chargement des points de vente…' : 'Points de vente indisponibles.') + '</span>') + '</div></div></div></div>';
+  var alerts = [];
+  if (!getToken()) alerts.push('<div class="alert">Appareil verrouillé : la caisse enregistrée sur GitHub ne peut pas être lue. <button class="btn sm" data-a="go" data-v="parametres">Déverrouiller</button></div>');
+  if (CX.catErr) alerts.push('<div class="alert err">' + CX.catErr + '</div>');
+  if (CX.err) alerts.push('<div class="alert err">' + CX.err + ' <button class="btn sm" data-cx="retry">Réessayer</button></div>');
+  var main = alerts.length ? '<div class="alerts">' + alerts.join('') + '</div>' : '';
+  if (!CX.pdv) { el.innerHTML = band + '<main>' + main + '</main>' + vToast(); return; }
+  if (CX.loading) { el.innerHTML = band + '<main>' + main + '<section><p class="empty">Chargement de la caisse…</p></section></main>' + vToast(); return; }
+  var doc = cxDoc(), vc = CX.sales ? CX.sales.v : 0, S = cxSummary(doc, vc), last = S.comptages[S.comptages.length - 1];
+  var recount = last && Math.abs(S.attendu - last.attenduApres) >= 0.005;
+  var badges = [!S.fond ? '<span class="cbadge warn">Fond non saisi</span>' : '', !last ? '<span class="cbadge err">Non comptée</span>' : recount ? '<span class="cbadge warn">À recompter</span>' : '<span class="cbadge ok2">Comptée</span>'].join(' ');
+  var salesTxt = CX.salesLoading ? 'lecture des ventes…' : !CX.sales ? '' : CX.sales.err ? '<span class="bad">' + CX.sales.err + '</span>' : CX.sales.none ? 'aucun fichier de ventes de la tablette pour ce jour' : CX.sales.n + ' vente' + (CX.sales.n > 1 ? 's' : '') + (CX.sales.at ? ', fichier reçu le ' + esc(hsDm(CX.sales.at)) + ' à ' + esc(String(CX.sales.at).slice(11, 16)) : '') + (CX.sales.exact ? '' : ' (calculées depuis les ventes : ancienne version de la caisse)');
+  var stat = CX.saving ? '<span class="sv">Enregistrement…</span>' : CX.ops.length ? '<span class="sv warn">' + CX.ops.length + ' saisie' + (CX.ops.length > 1 ? 's' : '') + ' pas encore sur GitHub</span>' : (doc.majLe ? '<span class="good">Enregistré</span> <span class="faint">(' + esc(dmy(doc.majLe.slice(0, 10))) + ', ' + esc(doc.majPar === 'admin' ? 'Admin' : 'caisse') + ')</span>' : '<span class="faint">Rien de saisi pour ce jour</span>');
+  main += '<section class="cxsum"><div class="row-between"><h3>' + esc(cxStandName(CX.pdv)) + ' · ' + esc(longDate(CX.date)) + '</h3><span>' + badges + '</span></div>' +
+    '<p class="hint">' + stat + (salesTxt ? ' · Ventes cash : ' + salesTxt : '') + ' <button class="ghost sm ssre" data-cx="reload">Actualiser</button></p>' +
+    '<div class="cxgrid">' +
+      cxTile('Fond de caisse', money(S.fondDeCaisse), S.fond ? 'à ' + esc(String(S.fond.horodatage || '').slice(11, 16)) : 'non saisi') +
+      cxTile('Ventes cash', money(vc), CX.sales && !CX.sales.none ? 'tablette' : '—') +
+      cxTile('Apports', '+' + money(S.apports), '') +
+      cxTile('Retraits', '−' + money(S.retraits), S.mouvements.filter(function (m) { return m.auto; }).length ? 'dont recettes ' + money(S.mouvements.filter(function (m) { return m.auto; }).reduce(function (s, m) { return s + m.montant; }, 0)) : '') +
+      cxTile('Attendu en caisse', money(S.attendu), 'fond + ventes cash + apports − retraits', 'em') +
+      (last ? cxTile('Dernier décompte', money(last.montant), 'écart ' + cEcart(last.ecart) + (typeof last.laisse === 'number' ? ' · laissé ' + money(last.laisse) : ''), '') : '') +
+    '</div>' + (recount ? '<div class="alert">Depuis le dernier décompte, l’attendu a changé de ' + money(S.attendu - last.attenduApres) + ' (ventes, retraits ou apports après le comptage) : recomptez.</div>' : '') +
+    '<div class="cbtns cxacts"><button class="pick" data-cx="form" data-v="fond">' + (S.fond ? 'Modifier le fond' : 'Fond de caisse') + '</button><button class="pick" data-cx="form" data-v="retrait">Retrait</button><button class="pick" data-cx="form" data-v="apport">Ajout</button><button class="pick" data-cx="form" data-v="comptage">Décompte final</button></div></section>';
+  if (CX.form) main += vCxForm(S);
+  main += vCxJournal(S);
+  el.innerHTML = band + '<main>' + main + '</main>' + vToast();
+  if (CX.form && CX.form.focus) { var fi = document.getElementById(CX.form.focus); CX.form.focus = null; if (fi) { fi.focus(); fi.scrollIntoView({ block: 'center' }); } }
+}
+function cxTile(l, v, s, cls) { return '<div class="cxt' + (cls ? ' ' + cls : '') + '"><span class="l">' + l + '</span><strong class="num">' + v + '</strong>' + (s ? '<span class="s">' + s + '</span>' : '') + '</div>'; }
+function cxAmount(f) { return f.det ? cxDetailTotal(f.det) : parsePrice(f.montant); }
+function vCxCount(f) {
+  return '<label class="tog cxdt"><input type="checkbox" data-cxf="useDet"' + (f.det ? ' checked' : '') + '>Compter par billets et pièces</label>' +
+    (f.det ? '<div class="coins">' + CX_COINS.map(function (k) { var v = +k; return '<label class="coin"><span>' + (v < 1 ? money(v) : v + ' €') + '</span><input type="text" inputmode="numeric" data-cxc="' + k + '" value="' + esc(f.det[k] || '') + '" placeholder="0" autocomplete="off"></label>'; }).join('') + '</div>'
+      : '<label class="fl" for="cxMontant">Montant (€)</label><input type="text" inputmode="decimal" id="cxMontant" data-cxf="montant" value="' + esc(f.montant || '') + '" placeholder="0,00" autocomplete="off">');
+}
+function vCxForm(S) {
+  var f = CX.form, k = f.kind, title = { fond: 'Fond de caisse', retrait: 'Retrait', apport: 'Ajout (apport)', comptage: 'Décompte final' }[k];
+  var h = '<section class="cxform"><h3>' + title + '</h3><form data-cx-form="1" class="ssform">';
+  h += '<label class="fl" for="cxHeure">Heure</label><input type="time" id="cxHeure" data-cxf="heure" value="' + esc(f.heure) + '">';
+  if (k === 'fond' || k === 'comptage') h += vCxCount(f);
+  else h += '<label class="fl" for="cxMontant">Montant (€)</label><input type="text" inputmode="decimal" id="cxMontant" data-cxf="montant" value="' + esc(f.montant || '') + '" placeholder="0,00" autocomplete="off">';
+  if (k === 'retrait' || k === 'apport') {
+    var list = k === 'retrait' ? CX_RETRAITS : CX_APPORTS;
+    h += '<span class="fl">Motif</span><div class="rsel cxmot">' + list.map(function (m) { return '<button type="button" class="chip' + (f.motif === m ? ' on' : '') + '" data-cx="motif" data-v="' + esc(m) + '">' + esc(m) + '</button>'; }).join('') + '</div>' +
+      '<div id="cxAutreW"' + (f.motif === 'Autre' ? '' : ' hidden') + '><label class="fl" for="cxAutre">Précisez</label><input type="text" id="cxAutre" data-cxf="autre" value="' + esc(f.autre || '') + '" maxlength="80"></div>';
+  }
+  if (k === 'comptage') {
+    var a = cxAmount(f), att = S.attendu;
+    h += '<p class="cxlive num" id="cxLive">' + cxLive(a, att) + '</p>' +
+      '<label class="fl" for="cxLaisse">Laissé pour demain (€)</label><div class="row2"><input type="text" inputmode="decimal" id="cxLaisse" data-cxf="laisse" value="' + esc(f.laisse || '') + '" placeholder="obligatoire" autocomplete="off">' +
+      '<button type="button" class="btn sm" data-cx="laisse0">Tout retirer (0 €)</button><button type="button" class="btn sm" data-cx="laisseAll">Tout laisser</button></div>' +
+      '<p class="hint" id="cxRet">' + cxRetTxt(a, parsePrice(f.laisse)) + '</p>';
+  }
+  h += '<div class="cbtns"><button class="pick" type="submit">Enregistrer</button><button class="btn" type="button" data-cx="cancelForm">Annuler</button></div></form></section>';
+  return h;
+}
+function cxLive(a, att) { if (isNaN(a)) return 'Attendu en caisse : <strong>' + money(att) + '</strong>'; var e = cxR2(a - att); return 'Compté <strong>' + money(a) + '</strong> · attendu ' + money(att) + ' · écart ' + cEcart(e); }
+function cxRetTxt(a, l) { if (isNaN(a) || isNaN(l)) return 'Retiré (recette) = compté − laissé.'; if (l > a + 0.004) return '<span class="bad">Le laissé dépasse le compté.</span>'; return 'Retiré (recette) : <strong>' + money(a - l) + '</strong>, noté comme « Recette de fin de journée ».'; }
+function vCxJournal(S) {
+  var E = S.entrees.slice().reverse();
+  var h = '<section><h3>Journal de la journée</h3><p class="lead">Saisies de l’Admin et de la tablette, de la plus récente à la plus ancienne. Le dernier fond et le dernier décompte font foi.</p>';
+  if (!E.length) return h + '<p class="empty">Aucune saisie.</p></section>';
+  var lastF = S.fond, lastC = S.comptages[S.comptages.length - 1];
+  return h + '<div class="cxjr">' + E.map(function (e) {
+    var t = { fond: 'Fond de caisse', retrait: 'Retrait', apport: 'Ajout', comptage: 'Décompte' }[e.type] || e.type, conf = CX.confirm === e.id;
+    var old = (e.type === 'fond' && lastF && lastF.horodatage !== e.horodatage) || (e.type === 'comptage' && lastC && lastC.id !== e.id);
+    var det = e.type === 'comptage' ? 'compté ' + money(+e.montant) + ' · attendu ' + money(+e.attendu) + ' · écart ' + cEcart(+e.ecart) + (typeof e.laisse === 'number' ? ' · laissé ' + money(e.laisse) + ' · retiré ' + money(+e.recette || 0) : '') : money(+e.montant || 0) + (e.motif ? ' · ' + esc(e.motif) : '');
+    return '<div class="cxe' + (old ? ' old' : '') + (conf ? ' danger' : '') + '"><span class="h num">' + esc(cTime(e.horodatage, CX.date)) + '</span><div class="b"><strong>' + t + '</strong>' + (old ? ' <span class="faint">(remplacé)</span>' : '') + (e.viaFond ? ' <span class="cbadge">avec le fond du lendemain</span>' : '') + '<span class="d">' + det + '</span>' + (cBillets(e.detail) || '') + '</div>' +
+      '<span class="src">' + (e.source === 'admin' ? 'Admin' : 'Tablette') + '</span>' +
+      (conf ? '<span class="cbtns"><button class="btn danger sm" data-cx="del" data-v="' + esc(e.id) + '">Supprimer</button><button class="btn sm" data-cx="nodel">Annuler</button></span>' : '<button class="x" data-cx="askDel" data-v="' + esc(e.id) + '" aria-label="Supprimer">Supprimer</button>') + '</div>';
+  }).join('') + '</div></section>';
+}
+function cxSubmit() {
+  var f = CX.form, k = f.kind, a = (k === 'fond' || k === 'comptage') ? cxAmount(f) : parsePrice(f.montant);
+  if (isNaN(a) || a < 0 || (k !== 'fond' && k !== 'comptage' && !(a > 0))) { toast('Indiquez un montant valide'); return; }
+  if (!/^\d{2}:\d{2}$/.test(f.heure || '')) { toast('Indiquez l’heure'); return; }
+  var tz = cxNowIso().slice(19), iso = CX.date + 'T' + f.heure + ':00' + tz, id = cxId(k), v = { type: k, montant: cxR2(a), horodatage: iso, source: 'admin', saisiLe: new Date().toISOString() };
+  if (f.det) v.detail = Object.keys(f.det).reduce(function (o, c) { var n = parseInt(f.det[c], 10); if (n > 0) o[c] = String(n); return o; }, {});
+  if (k === 'retrait' || k === 'apport') {
+    if (!f.motif) { toast('Choisissez un motif'); return; }
+    if (f.motif === 'Autre' && !(f.autre || '').trim()) { toast('Précisez le motif'); return; }
+    v.motif = f.motif === 'Autre' ? 'Autre : ' + f.autre.trim() : f.motif;
+  }
+  if (k === 'comptage') {
+    var l = parsePrice(f.laisse);
+    if (isNaN(l) || l < 0) { toast('Indiquez le montant laissé pour demain (0 si vous emportez tout)'); return; }
+    if (l > a + 0.004) { toast('Le laissé dépasse le compté'); return; }
+    var S = cxSummary(cxDoc(), CX.sales ? CX.sales.v : 0);
+    v.attendu = S.attendu; v.ecart = cxR2(a - S.attendu); v.laisse = cxR2(l); v.recette = cxR2(a - l); v.attenduApres = cxR2(S.attendu - v.recette);
+  }
+  CX.form = null; cxOp({ t: 'add', id: id, v: v });
+  toast({ fond: 'Fond de caisse enregistré', retrait: 'Retrait enregistré', apport: 'Ajout enregistré', comptage: 'Décompte enregistré' }[k]);
+}
+function cxRefreshLive() {
+  var f = CX.form; if (!f || f.kind !== 'comptage') return;
+  var a = cxAmount(f), S = cxSummary(cxDoc(), CX.sales ? CX.sales.v : 0), e1 = document.getElementById('cxLive'), e2 = document.getElementById('cxRet');
+  if (e1) e1.innerHTML = cxLive(a, S.attendu); if (e2) e2.innerHTML = cxRetTxt(a, parsePrice(f.laisse));
+}
+document.addEventListener('click', function (e) {
+  var b = e.target.closest('[data-cx]'); if (!b || b.disabled || b.tagName === 'INPUT') return;
+  var a = b.getAttribute('data-cx'), v = b.getAttribute('data-v');
+  if (a === 'pdv') { CX.pdv = v; CX.path = null; render(); }
+  else if (a === 'reload' || a === 'retry') { if (CX.ops.length && a === 'retry') cxSave(); else { CX.path = null; render(); } }
+  else if (a === 'form') { if (v === 'comptage' && getToken() && CX.path && !CX.saving) { var pth = CX.path; ssGet(pth).then(function (r) { if (r && CX.path === pth) { CX.doc = cxNorm(r.json); CX.sha = r.sha; if (CX.form) { var fc = document.activeElement && document.activeElement.id; render(); var el2 = fc && document.getElementById(fc); if (el2) el2.focus(); } } }, function () {}); }
+    var n = new Date(); CX.form = { kind: v, heure: String(n.getHours()).padStart(2, '0') + ':' + String(n.getMinutes()).padStart(2, '0'), montant: '', det: null, motif: v === 'apport' ? 'Ajout de monnaie' : '', autre: '', laisse: '', focus: 'cxMontant' }; render(); }
+  else if (a === 'cancelForm') { CX.form = null; render(); }
+  else if (a === 'motif') { CX.form.motif = v; render(); if (v === 'Autre') { var i = document.getElementById('cxAutre'); if (i) i.focus(); } }
+  else if (a === 'laisse0' || a === 'laisseAll') { var am = cxAmount(CX.form); CX.form.laisse = a === 'laisse0' ? '0' : isNaN(am) ? '' : String(am).replace('.', ','); var il = document.getElementById('cxLaisse'); if (il) il.value = CX.form.laisse; cxRefreshLive(); }
+  else if (a === 'askDel') { CX.confirm = v; render(); }
+  else if (a === 'nodel') { CX.confirm = null; render(); }
+  else if (a === 'del') { CX.confirm = null; cxOp({ t: 'del', id: v }); toast('Saisie supprimée'); }
+});
+document.addEventListener('input', function (e) {
+  var t = e.target;
+  if (t.getAttribute && t.getAttribute('data-cx') === 'date' && t.value) { CX.date = t.value; CX.path = null; render(); return; }
+  if (!CX.form) return;
+  if (t.hasAttribute('data-cxf')) {
+    var k = t.getAttribute('data-cxf');
+    if (k === 'useDet') { CX.form.det = t.checked ? {} : null; render(); return; }
+    CX.form[k] = t.value; cxRefreshLive();
+  } else if (t.hasAttribute('data-cxc')) { CX.form.det[t.getAttribute('data-cxc')] = t.value; cxRefreshLive(); }
+});
+document.addEventListener('change', function (e) { var t = e.target; if (t.getAttribute && t.getAttribute('data-cxf') === 'useDet') { CX.form.det = t.checked ? {} : null; render(); } });
+document.addEventListener('submit', function (e) { if (!e.target.closest('[data-cx-form]')) return; e.preventDefault(); cxSubmit(); });
+
+/* ---------- Bilan : le fichier de caisse partagé, s'il existe, remplace le champ « caisse » du fichier de ventes ---------- */
+function cxBilanLoad(paths) {
+  var tok = getToken(); if (!tok) return;
+  var todo = paths.filter(function (p) { var c = CXFILES[p.path]; return !c || (c.sha !== p.sha && !c.loading); });
+  if (!todo.length) return;
+  todo.forEach(function (p) { CXFILES[p.path] = Object.assign(CXFILES[p.path] || {}, { loading: true }); });
+  Promise.all(todo.map(function (p) { return bghRaw(p.path, tok).then(function (t) { var d = null; try { d = JSON.parse(t); } catch (e) {} CXFILES[p.path] = { sha: p.sha, doc: d && d.format === CX_FMT ? cxNorm(d) : null }; }, function () { CXFILES[p.path] = { sha: p.sha, doc: null, err: true }; }); }))
+    .then(function () { render(); });
+}
+function cxForBilan(day, pdv, salesData) {
+  var path = cxPath(day, pdv), c = CXFILES[path];
+  if (!c || !c.doc) return null;
+  return cxSummary(c.doc, cxSalesCash(salesData).v);
+}
 function sapHomeStatus() {
   var st = BIL_CUR === 'sapin' ? { FILES: FILES } : BIL_ST.sapin;
   var n = st ? st.FILES.filter(function (f) { return f.status === 'ok'; }).length : 0;
@@ -2887,7 +3174,8 @@ function bghOpen() {
   var B = BGH;
   B.loading = true; render();
   ghFetch('/repos/' + SALES_REPO + '/git/trees/HEAD?recursive=1', {}, token).then(function (t) {
-    return (t.tree || []).filter(function (x) { return x.type === 'blob' && /\.json$/i.test(x.path) && !/^(sapin\/)?stock\//.test(x.path); }).map(function (x) { var p = bghParse(x.path); p.sha = x.sha; return p; });
+    BGH.cxFiles = (t.tree || []).filter(function (x) { return x.type === 'blob' && /^sapin\/caisse\/.+\.json$/i.test(x.path); }).map(function (x) { return { path: x.path, sha: x.sha }; });
+    return (t.tree || []).filter(function (x) { return x.type === 'blob' && /\.json$/i.test(x.path) && !/^(sapin\/)?(stock|caisse)\//.test(x.path); }).map(function (x) { var p = bghParse(x.path); p.sha = x.sha; return p; });
   }, function (e) { if (e.status === 409) return []; throw e; }).then(function (l) {
     B.loading = false; B.files = l.sort(function (a, b) { return (a.date || '') < (b.date || '') ? 1 : (a.date || '') > (b.date || '') ? -1 : a.label.localeCompare(b.label); }); render();
   }, function (e) { B.loading = false; B.err = bghErr(e); B.files = []; render(); });
