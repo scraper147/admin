@@ -41,7 +41,7 @@ button:focus-visible,label:focus-within{outline:3px solid var(--gold);outline-of
 
 /* Bandeau nuit */
 .band{background:var(--band);color:var(--band-ink);padding:22px clamp(16px,4vw,48px) 30px}
-.band-top{display:flex;align-items:center;gap:14px}
+.band-top{display:flex;align-items:center;gap:14px;max-width:1180px;margin:0 auto}
 .band-top img{height:46px;border-radius:8px;display:block}
 .band-top h1{font-family:var(--display);font-weight:600;font-size:21px;letter-spacing:.02em;margin:0;flex:1;min-width:0}
 .band-top .tools{display:flex;gap:8px}
@@ -159,6 +159,16 @@ tr.tot td{font-weight:800;border-top:2px solid var(--line);border-bottom:none}
 .sslv.danger{border-color:var(--red)}
 .sslv p{margin:0;font-size:14px;color:var(--muted)}
 .sslv p b{color:var(--ink)}
+.sschips{margin:0 0 10px}
+.ssre{margin-left:4px;color:var(--ink);border-color:var(--line)}
+.ssgrid th .sub{display:block;font-size:11px;font-weight:600;color:var(--faint);text-transform:none;letter-spacing:0}
+.ssgrid td.neg{color:var(--red);font-weight:700}
+.sstab th .sm{display:none}
+.ssarrow{align-self:flex-end;padding-bottom:10px;font-size:20px;color:var(--muted)}
+.mvtag{display:inline-block;font-size:12px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;padding:2px 8px;border-radius:6px;background:var(--soft);color:var(--green-d,var(--green))}
+.mvtag.tr{background:var(--gold-soft);color:var(--ink)}
+.sslv p.mvwho{color:var(--ink);font-weight:600}
+@media (max-width:560px){.sstab th .lg{display:none}.sstab th .sm{display:inline}.ssgrid td:first-child{position:sticky;left:0;background:var(--surface);z-index:1}.ssgrid tr.ssgrp td:first-child{background:var(--soft)}section .row-between .cbtns{margin-bottom:6px}.ssarrow{display:none}.ssfhead>div{flex:1 1 100%}.ssfhead select{width:100%}}
 .nav .soon{font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--band-muted);border:1px solid var(--band-line);border-radius:6px;padding:0 5px;line-height:17px}
 .band{padding-top:6px}
 .band-top h1{font-size:26px}
@@ -1006,7 +1016,7 @@ function renderSapin() {
    Les articles viennent du catalogue de la Caisse Sapins (mêmes identifiants) ; le stock garde une copie
    (libellé, catégorie) de chaque article utilisé, pour rester lisible si le catalogue change. */
 var SS_FMT = 'agri-garden-caisse/stock', SS_DIR = 'sapin/stock';
-var SS = { loaded: false, loading: false, err: null, seasons: [], cat: null, catErr: null, cur: null, view: 'base', form: null, newSeason: null, confirm: null, busy: false };
+var SS = { loaded: false, loading: false, err: null, seasons: [], cat: null, catErr: null, cur: null, view: 'stands', form: null, newSeason: null, confirm: null, busy: false, standSel: 'all', mvFilter: 'all' };
 function ssPath(id) { return SS_DIR + '/' + id + '.json'; }
 function ssKey(id) { return 'admin-sapstock:' + id; }
 function ssGet(path) {
@@ -1021,6 +1031,7 @@ function ssNorm(d) {
   d = d && typeof d === 'object' ? d : {};
   if (!d.mouvements || typeof d.mouvements !== 'object' || Array.isArray(d.mouvements)) d.mouvements = {};
   if (!d.articles || typeof d.articles !== 'object' || Array.isArray(d.articles)) d.articles = {};
+  if (!d.stands || typeof d.stands !== 'object' || Array.isArray(d.stands)) d.stands = {};
   if (!d.depot) d.depot = { id: '', nom: '' };
   return d;
 }
@@ -1028,6 +1039,7 @@ function ssApply(doc, op) {
   if (op.t === 'mv') { if (op.v == null) delete doc.mouvements[op.id]; else doc.mouvements[op.id] = op.v; }
   else if (op.t === 'art') doc.articles[op.id] = op.v;
   else if (op.t === 'depot') doc.depot = op.v;
+  else if (op.t === 'stand') doc.stands[op.id] = op.v;
   return doc;
 }
 function ssDoc() { var c = SS.cur; if (!c) return null; var d = ssNorm(clone(c.doc)); c.ops.forEach(function (o) { ssApply(d, o); }); return d; }
@@ -1085,7 +1097,7 @@ function ssLoad() {
     ssLocal().forEach(function (o) { if (!SS.seasons.some(function (s) { return s.id === o.doc.id; })) SS.seasons.push({ id: o.doc.id, sha: o.sha, doc: ssNorm(o.doc), local: true }); });
     SS.seasons.sort(function (a, b) { return a.id < b.id ? 1 : -1; });
     var keep = SS.cur && SS.seasons.some(function (s) { return s.id === SS.cur.id; }) ? SS.cur.id : SS.seasons[0] && SS.seasons[0].id;
-    var pv = SS.cur && SS.cur.id === keep && (SS.view === 'livs' || SS.view === 'base') ? SS.view : null;
+    var pv = SS.cur && SS.cur.id === keep && (SS.view === 'mvts' || SS.view === 'stands') ? SS.view : null;
     SS.cur = null; if (keep) { ssOpen(keep); if (pv && SS.view !== pv) { SS.view = pv; render(); } } else render();
   });
 }
@@ -1095,7 +1107,7 @@ function ssOpen(id) {
   if (!s && !loc) return;
   var remote = s && !s.local;
   SS.cur = { id: id, doc: ssNorm(clone(remote ? s.doc : (loc ? loc.doc : s.doc))), sha: remote ? s.sha : loc ? loc.sha : s.sha, ops: loc ? loc.ops || [] : [], isNew: loc ? !!loc.isNew && !remote : false, err: loc ? loc.err : null, saving: false };
-  SS.view = 'base'; SS.form = null; SS.confirm = null; SS.newSeason = null;
+  SS.view = 'stands'; SS.form = null; SS.confirm = null; SS.newSeason = null;
   render();
   if (SS.cur.ops.length || SS.cur.isNew) ssSave();
 }
@@ -1113,16 +1125,99 @@ function ssGroups(doc) {
   if (extra.length) groups.push({ nom: SS.cat ? 'Plus dans le catalogue' : 'Articles du stock', items: extra, gone: !!SS.cat });
   return groups;
 }
-function ssCalc(doc) {
-  var q = {};
-  Object.keys(doc.mouvements).forEach(function (m) {
-    var v = doc.mouvements[m];
-    if (v && v.type === 'livraison' && v.stand === doc.depot.id) Object.keys(v.lignes || {}).forEach(function (a) { q[a] = (q[a] || 0) + (+v.lignes[a] || 0); });
-  });
-  return q;
+/* Stands : points de vente du catalogue (actifs, ou inactifs s'ils ont du stock), stand de stockage en premier,
+   puis ceux qui n'apparaissent que dans les mouvements ou les ventes. */
+function ssStands(doc, used) {
+  var out = [], seen = {}, pdvs = SS.cat ? SS.cat.pointsDeVente : [];
+  function add(id, nom, actif) { if (!id || seen[id]) return; seen[id] = 1; out.push({ id: id, nom: nom || (doc.stands[id] && doc.stands[id].nom) || (id === doc.depot.id && doc.depot.nom) || id, actif: actif !== false }); }
+  var dp = pdvs.filter(function (p) { return p.id === doc.depot.id; })[0];
+  add(doc.depot.id, dp ? dp.nom : doc.depot.nom, true);
+  pdvs.forEach(function (p) { if (p.actif !== false || (used && used[p.id])) add(p.id, p.nom, p.actif); });
+  Object.keys(used || {}).forEach(function (id) { add(id, used[id] !== 1 ? used[id] : null, true); });
+  return out;
 }
-function ssLivs(doc) {
-  return Object.keys(doc.mouvements).map(function (id) { return { id: id, v: doc.mouvements[id] }; }).filter(function (x) { return x.v && x.v.type === 'livraison'; })
+function ssStandName(doc, id) { var s = ssStands(doc, null).filter(function (x) { return x.id === id; })[0]; return s ? s.nom : (doc.stands[id] && doc.stands[id].nom) || id; }
+/* Stock de chaque stand : livré + reçu − envoyé − vendu (ventes lues dans le dépôt, depuis le début de la saison) */
+function ssCompute(doc, skipMid) {
+  var q = {}, used = {};
+  function cell(s, a) { var o = q[s] || (q[s] = {}); return o[a] || (o[a] = { liv: 0, inn: 0, out: 0, sold: 0 }); }
+  Object.keys(doc.mouvements).forEach(function (m) {
+    var v = doc.mouvements[m]; if (!v || m === skipMid) return;
+    Object.keys(v.lignes || {}).forEach(function (a) {
+      var n = +v.lignes[a] || 0;
+      if (v.type === 'livraison') { cell(v.stand, a).liv += n; used[v.stand] = used[v.stand] || 1; }
+      else if (v.type === 'transfert') { cell(v.de, a).out += n; cell(v.vers, a).inn += n; used[v.de] = used[v.de] || 1; used[v.vers] = used[v.vers] || 1; }
+    });
+  });
+  var sv = svSold(doc);
+  Object.keys(sv.q).forEach(function (s) { used[s] = sv.names[s] || used[s] || 1; Object.keys(sv.q[s]).forEach(function (a) { cell(s, a).sold += sv.q[s][a]; }); });
+  Object.keys(q).forEach(function (s) { Object.keys(q[s]).forEach(function (a) { var c = q[s][a]; c.rest = c.liv + c.inn - c.out - c.sold; }); });
+  return { q: q, used: used, sv: sv, get: function (s, a) { return (q[s] && q[s][a]) || { liv: 0, inn: 0, out: 0, sold: 0, rest: 0 }; } };
+}
+function ssStart(doc) {
+  if (doc.debut) return doc.debut;
+  var d = null; Object.keys(doc.mouvements).forEach(function (m) { var v = doc.mouvements[m]; if (v && v.date && (!d || v.date < d)) d = v.date; });
+  return d;
+}
+
+/* ---------- Ventes de la Caisse Sapins (dossier sapin/ du dépôt ventes) ----------
+   Chaque fichier est résumé une seule fois (gardé par son sha) : point de vente, jour, quantités par article. */
+var SV = { loaded: false, loading: false, err: null, files: [], cache: null, at: null };
+var SV_KEY = 'admin-sapventes';
+function svCache() {
+  if (!SV.cache) { try { SV.cache = JSON.parse(lsGet(SV_KEY) || '{}') || {}; } catch (e) { SV.cache = {}; } }
+  return SV.cache;
+}
+function svSummary(d) {
+  if (!d || d.format !== 'agri-garden-caisse/ventes' || !Array.isArray(d.ventes)) return { ok: false };
+  var fp = d.pointDeVente || {}, s = { ok: true, key: (fp.id || '?') + '|' + (d.date || ''), maj: d.miseAJour || '', names: {}, q: {}, libres: 0, ids: [] };
+  if (fp.id) s.names[fp.id] = fp.nom || fp.id;
+  d.ventes.forEach(function (v) {
+    if (!v || v.annulation || typeof v.horodatage !== 'string') return;
+    var pv = v.pointDeVente || fp, sid = pv.id || '?', day = v.horodatage.slice(0, 10);
+    if (pv.id && pv.nom) s.names[pv.id] = pv.nom;
+    s.ids.push(v.id);
+    (v.lignes || []).forEach(function (l) {
+      if (!l.produitId) { s.libres += +l.quantite || 0; return; }
+      var o = s.q[sid] || (s.q[sid] = {}), od = o[day] || (o[day] = {});
+      od[l.produitId] = (od[l.produitId] || 0) + (+l.quantite || 0);
+    });
+  });
+  return s;
+}
+function svLoad() {
+  var tok = getToken(); if (!tok || SV.loading) return;
+  SV.loading = true; SV.err = null; render();
+  ghFetch('/repos/' + SALES_REPO + '/git/trees/HEAD?recursive=1', {}, tok).then(function (t) {
+    var files = (t.tree || []).filter(function (x) { return x.type === 'blob' && /^sapin\//.test(x.path) && !/^sapin\/stock\//.test(x.path) && /\.json$/i.test(x.path); });
+    var cache = svCache(), todo = files.filter(function (f) { return !cache[f.sha]; });
+    return Promise.all(todo.map(function (f) { return bghRaw(f.path, tok).then(function (txt) { var s; try { s = svSummary(JSON.parse(txt)); } catch (e) { s = { ok: false }; } cache[f.sha] = s; }); })).then(function () {
+      var keep = {}; files.forEach(function (f) { keep[f.sha] = cache[f.sha]; }); SV.cache = keep;
+      try { localStorage.setItem(SV_KEY, JSON.stringify(keep)); } catch (e) {}
+      SV.files = files; SV.loaded = true; SV.loading = false; SV.at = new Date(); render();
+    });
+  }, function (e) { if (e.status === 409) return { tree: [] }; throw e; }).catch(function (e) { SV.loading = false; SV.loaded = true; SV.err = bghErr(e); render(); });
+}
+/* Quantités vendues par stand et par article depuis le début de la saison (un fichier par point de vente et par jour : le plus récent gagne) */
+function svSold(doc) {
+  var res = { q: {}, names: {}, nFiles: 0, libres: 0, bad: 0, start: ssStart(doc), maxDay: null };
+  if (!SV.loaded || !res.start) return res;
+  var cache = svCache(), best = {};
+  SV.files.forEach(function (f) { var s = cache[f.sha]; if (!s) return; if (!s.ok) { res.bad++; return; } if (!best[s.key] || s.maj > best[s.key].maj) best[s.key] = s; });
+  var seen = {};
+  Object.keys(best).forEach(function (k) {
+    var s = best[k], counted = false;
+    Object.keys(s.q).forEach(function (sid) { Object.keys(s.q[sid]).forEach(function (day) {
+      if (day < res.start) return; counted = true;
+      if (!res.maxDay || day > res.maxDay) res.maxDay = day;
+      var o = res.q[sid] || (res.q[sid] = {}); Object.keys(s.q[sid][day]).forEach(function (a) { o[a] = (o[a] || 0) + s.q[sid][day][a]; });
+    }); });
+    if (counted) { res.nFiles++; res.libres += s.libres; Object.keys(s.names).forEach(function (id) { res.names[id] = s.names[id]; }); }
+  });
+  return res;
+}
+function ssMvList(doc) {
+  return Object.keys(doc.mouvements).map(function (id) { return { id: id, v: doc.mouvements[id] }; }).filter(function (x) { return x.v && (x.v.type === 'livraison' || x.v.type === 'transfert'); })
     .sort(function (a, b) { return a.v.date < b.v.date ? 1 : a.v.date > b.v.date ? -1 : (a.v.creeLe || '') < (b.v.creeLe || '') ? 1 : -1; });
 }
 function ssArtName(doc, id) {
@@ -1139,12 +1234,17 @@ function renderSapStock() {
   if (!SS.loaded) { el.innerHTML = ssBand('Stock des sapins', '') + '<main><section><p class="empty">Chargement du stock et du catalogue…</p></section></main>' + vToast(); return; }
   var alerts = ssAlerts();
   if (!SS.cur || SS.view === 'season') { el.innerHTML = ssBand('Stock des sapins', ssSeasonChips()) + '<main>' + alerts + vSsSeason() + '</main>' + vToast(); return; }
+  if (!SV.loaded && !SV.loading && getToken()) { svLoad(); return; }
   var doc = ssDoc();
-  if (SS.view === 'form') { el.innerHTML = ssBand(SS.form.mid ? 'Modifier la livraison' : 'Encoder une livraison', '<p class="soon-lead">' + esc(doc.nom) + ' · livrée au stand de stockage <strong>' + esc(doc.depot.nom || doc.depot.id) + '</strong></p>') + '<main>' + alerts + vSsForm(doc) + '</main>' + vToast(); ssAfterRender(); return; }
-  var nl = ssLivs(doc).length;
-  el.innerHTML = ssBand('Stock des sapins · ' + esc(doc.nom), ssSeasonChips() + '<p class="soon-lead">Stand de stockage : <strong>' + esc(doc.depot.nom || doc.depot.id) + '</strong> · ' + ssStatus() + '</p>' +
-    '<div class="stabs" role="tablist" aria-label="Stock des sapins"><button role="tab" aria-selected="' + (SS.view === 'base') + '" class="' + (SS.view === 'base' ? 'on' : '') + '" data-ss="view" data-v="base">Stock de base</button><button role="tab" aria-selected="' + (SS.view === 'livs') + '" class="' + (SS.view === 'livs' ? 'on' : '') + '" data-ss="view" data-v="livs">Livraisons <span class="num">(' + nl + ')</span></button></div>') +
-    '<main>' + alerts + (SS.view === 'livs' ? vSsLivs(doc) : vSsBase(doc)) + '</main>' + vToast();
+  if (SS.view === 'form') {
+    var f = SS.form, tr = f.type === 'transfert';
+    el.innerHTML = ssBand((f.mid ? 'Modifier ' : 'Encoder ') + (tr ? 'un transfert' : 'une livraison'), '<p class="soon-lead">' + esc(doc.nom) + (tr ? ' · d’un stand vers un autre' : ' · livrée au stand de stockage <strong>' + esc(ssStandName(doc, doc.depot.id)) + '</strong>') + '</p>') +
+      '<main>' + alerts + vSsForm(doc) + '</main>' + vToast(); ssAfterRender(); return;
+  }
+  var nl = ssMvList(doc).length;
+  el.innerHTML = ssBand('Stock des sapins · ' + esc(doc.nom), ssSeasonChips() + '<p class="soon-lead">Stand de stockage : <strong>' + esc(ssStandName(doc, doc.depot.id)) + '</strong> · ' + ssStatus() + '</p>' +
+    '<div class="stabs" role="tablist" aria-label="Stock des sapins"><button role="tab" aria-selected="' + (SS.view === 'stands') + '" class="' + (SS.view === 'stands' ? 'on' : '') + '" data-ss="view" data-v="stands">Stock par stand</button><button role="tab" aria-selected="' + (SS.view === 'mvts') + '" class="' + (SS.view === 'mvts' ? 'on' : '') + '" data-ss="view" data-v="mvts">Mouvements <span class="num">(' + nl + ')</span></button></div>') +
+    '<main>' + alerts + (SS.view === 'mvts' ? vSsMvts(doc) : vSsStands(doc)) + '</main>' + vToast();
 }
 function ssAfterRender() { if (SS.form && SS.form.focus) { var i = document.getElementById('ssq-' + SS.form.focus); SS.form.focus = null; if (i) { i.focus(); i.scrollIntoView({ block: 'center' }); } } }
 function ssBand(title, extra) { return '<div class="band"><div class="band-top"><h1>' + title + '</h1></div>' + (extra || '') + '</div>'; }
@@ -1179,46 +1279,94 @@ function vSsSeason() {
   return h + '<form class="ssform" data-ss-form="season">' +
     '<label class="fl" for="ssNom">Nom de la saison</label><input type="text" id="ssNom" required value="' + esc(f.nom) + '">' +
     '<label class="fl" for="ssDepot">Stand de stockage (stock de base)</label><select id="ssDepot">' + pdvs.map(function (p) { return '<option value="' + esc(p.id) + '"' + (f.depot === p.id ? ' selected' : '') + '>' + esc(p.nom) + '</option>'; }).join('') + '</select>' +
-    '<div class="cbtns"><button class="pick" type="submit">Créer la saison</button>' + (SS.cur ? '<button class="btn" type="button" data-ss="view" data-v="base">Annuler</button>' : '') + '</div></form></section>';
+    '<div class="cbtns"><button class="pick" type="submit">Créer la saison</button>' + (SS.cur ? '<button class="btn" type="button" data-ss="view" data-v="stands">Annuler</button>' : '') + '</div></form></section>';
 }
-function vSsBase(doc) {
-  var q = ssCalc(doc), tot = 0, rows = '';
-  ssGroups(doc).forEach(function (g) {
-    var items = g.items.filter(function (it) { return g.gone ? q[it.id] : true; });
-    if (!items.length) return;
-    rows += '<tr class="ssgrp"><td colspan="2">' + esc(g.nom) + '</td></tr>' + items.map(function (it) {
-      var n = q[it.id] || 0; tot += n;
-      return '<tr' + (n ? '' : ' class="off"') + '><td>' + esc(it.libelle) + (it.actif ? '' : '<span class="sub">masqué en caisse</span>') + '</td><td class="r num">' + (n ? fmtQ(n) : '—') + '</td></tr>';
-    }).join('');
-  });
-  return '<section><div class="row-between"><h3>Stock à ' + esc(doc.depot.nom || doc.depot.id) + '</h3><button class="pick" data-ss="newLiv">+ Encoder une livraison</button></div>' +
-    '<p class="lead">Total des livraisons reçues au stand de stockage.</p>' +
-    (rows ? '<div class="scroll"><table class="stab bil sstab"><thead><tr><th>Article</th><th class="r">En stock</th></tr></thead><tbody>' + rows +
-      '<tr class="sstot"><td>Total</td><td class="r num">' + fmtQ(tot) + '</td></tr></tbody></table></div>' : '<p class="empty">Aucun article : le catalogue de la Caisse Sapins est vide ou n’a pas pu être lu.</p>') + '</section>';
+function ssActs() { return '<div class="cbtns"><button class="pick" data-ss="newLiv">+ Livraison</button><button class="pick" data-ss="newTr">+ Transfert</button></div>'; }
+function svLine(doc, C) {
+  if (!getToken()) return '<p class="hint">Ventes non déduites : déverrouillez l’appareil pour lire les fichiers de ventes.</p>';
+  if (SV.loading) return '<p class="hint">Lecture des fichiers de ventes…</p>';
+  if (SV.err) return '<div class="alert err">Ventes non déduites : ' + SV.err + ' <button class="btn sm" data-ss="sales">Réessayer</button></div>';
+  var sv = C.sv, at = SV.at ? String(SV.at.getHours()).padStart(2, '0') + ':' + String(SV.at.getMinutes()).padStart(2, '0') : '';
+  if (!sv.start) return '<p class="hint">Les ventes seront déduites à partir du premier mouvement de la saison.</p>';
+  return '<p class="hint">Ventes déduites depuis le ' + dmy(sv.start) + ' : ' + sv.nFiles + ' fichier' + (sv.nFiles > 1 ? 's' : '') + ' de la Caisse Sapins' + (sv.maxDay ? ', jusqu’au ' + dmy(sv.maxDay) : '') + (at ? ' (lus à ' + at + ')' : '') + '. ' +
+    (sv.libres ? sv.libres + ' article' + (sv.libres > 1 ? 's' : '') + ' libre' + (sv.libres > 1 ? 's' : '') + ' vendu' + (sv.libres > 1 ? 's' : '') + ' (hors catalogue) non déduit' + (sv.libres > 1 ? 's' : '') + '. ' : '') +
+    (sv.bad ? sv.bad + ' fichier' + (sv.bad > 1 ? 's' : '') + ' illisible' + (sv.bad > 1 ? 's' : '') + ' ignoré' + (sv.bad > 1 ? 's' : '') + '. ' : '') +
+    '<button class="ghost sm ssre" data-ss="sales">Relire les ventes</button></p>';
 }
-function vSsLivs(doc) {
-  var l = ssLivs(doc);
-  var h = '<section><div class="row-between"><h3>Livraisons</h3><button class="pick" data-ss="newLiv">+ Encoder une livraison</button></div>';
-  if (!l.length) return h + '<p class="empty">Aucune livraison encodée pour cette saison.</p></section>';
+function vSsStands(doc) {
+  var C = ssCompute(doc), stands = ssStands(doc, C.used), sel = SS.standSel;
+  if (sel !== 'all' && !stands.some(function (s) { return s.id === sel; })) sel = SS.standSel = 'all';
+  var chips = '<div class="rsel sschips" role="group" aria-label="Stand"><button class="chip' + (sel === 'all' ? ' on' : '') + '" data-ss="stand" data-v="all">Tous les stands</button>' +
+    stands.map(function (s) { return '<button class="chip' + (sel === s.id ? ' on' : '') + '" data-ss="stand" data-v="' + esc(s.id) + '">' + esc(s.nom) + '</button>'; }).join('') + '</div>';
+  var head, rows = '', tot = {}, groups = ssGroups(doc), cols;
+  function has(id) { return stands.some(function (s) { var c = C.get(s.id, id); return c.liv || c.inn || c.out || c.sold; }); }
+  if (sel === 'all') {
+    cols = stands.length + 2;
+    head = '<tr><th>Article</th>' + stands.map(function (s) { return '<th class="r">' + esc(s.nom) + (s.id === doc.depot.id ? '<span class="sub">stockage</span>' : '') + '</th>'; }).join('') + '<th class="r">Total</th></tr>';
+    groups.forEach(function (g) {
+      var items = g.items.filter(function (it) { return g.gone ? has(it.id) : true; }); if (!items.length) return;
+      rows += '<tr class="ssgrp"><td colspan="' + cols + '">' + esc(g.nom) + '</td></tr>' + items.map(function (it) {
+        var sum = 0, any = has(it.id);
+        var tds = stands.map(function (s) { var c = C.get(s.id, it.id); sum += c.rest; tot[s.id] = (tot[s.id] || 0) + c.rest; var t = c.liv || c.inn || c.out || c.sold;
+          return '<td class="r num' + (c.rest < 0 ? ' neg' : '') + '">' + (t ? fmtQ(c.rest) : '—') + '</td>'; }).join('');
+        tot._ = (tot._ || 0) + sum;
+        return '<tr' + (any ? '' : ' class="off"') + '><td>' + esc(it.libelle) + (it.actif ? '' : '<span class="sub">masqué en caisse</span>') + '</td>' + tds + '<td class="r num' + (sum < 0 ? ' neg' : '') + '"><b>' + (any ? fmtQ(sum) : '—') + '</b></td></tr>';
+      }).join('');
+    });
+    if (rows) rows += '<tr class="sstot"><td>Total</td>' + stands.map(function (s) { return '<td class="r num">' + fmtQ(tot[s.id] || 0) + '</td>'; }).join('') + '<td class="r num">' + fmtQ(tot._ || 0) + '</td></tr>';
+  } else {
+    cols = 6; var K = ['liv', 'inn', 'out', 'sold', 'rest'];
+    head = '<tr><th>Article</th><th class="r">Livré</th><th class="r">Reçu</th><th class="r">Envoyé</th><th class="r">Vendu</th><th class="r">Restant</th></tr>';
+    groups.forEach(function (g) {
+      var items = g.items.filter(function (it) { var c = C.get(sel, it.id); return !g.gone || c.liv || c.inn || c.out || c.sold; }); if (!items.length) return;
+      rows += '<tr class="ssgrp"><td colspan="6">' + esc(g.nom) + '</td></tr>' + items.map(function (it) {
+        var c = C.get(sel, it.id), any = c.liv || c.inn || c.out || c.sold;
+        K.forEach(function (k) { tot[k] = (tot[k] || 0) + c[k]; });
+        return '<tr' + (any ? '' : ' class="off"') + '><td>' + esc(it.libelle) + '</td>' + K.map(function (k) { return '<td class="r num' + (k === 'rest' && c.rest < 0 ? ' neg' : '') + '">' + (k === 'rest' ? '<b>' + (any ? fmtQ(c.rest) : '—') + '</b>' : c[k] ? fmtQ(c[k]) : '—') + '</td>'; }).join('') + '</tr>';
+      }).join('');
+    });
+    if (rows) rows += '<tr class="sstot"><td>Total</td>' + K.map(function (k) { return '<td class="r num">' + fmtQ(tot[k] || 0) + '</td>'; }).join('') + '</tr>';
+  }
+  var neg = []; stands.forEach(function (s) { groups.forEach(function (g) { g.items.forEach(function (it) { if (C.get(s.id, it.id).rest < 0) neg.push(s.nom + ' : ' + it.libelle); }); }); });
+  return '<section><div class="row-between"><h3>' + (sel === 'all' ? 'Stock restant par stand' : 'Stock de ' + esc(ssStandName(doc, sel))) + '</h3>' + ssActs() + '</div>' +
+    '<p class="lead">' + (sel === 'all' ? 'Restant = livré + reçu des autres stands − envoyé − vendu. Choisissez un stand pour le détail.' : 'Détail du stand : livraisons, transferts reçus et envoyés, ventes de la caisse.') + '</p>' +
+    chips + svLine(doc, C) +
+    (neg.length ? '<div class="alert">Stock négatif : ' + neg.slice(0, 6).map(esc).join(' · ') + (neg.length > 6 ? ' …' : '') + '. Il manque peut-être une livraison ou un transfert.</div>' : '') +
+    (rows ? '<div class="scroll"><table class="stab bil sstab ssgrid"><thead>' + head + '</thead><tbody>' + rows + '</tbody></table></div>' : '<p class="empty">Aucun article : le catalogue de la Caisse Sapins est vide ou n’a pas pu être lu.</p>') + '</section>';
+}
+function vSsMvts(doc) {
+  var all = ssMvList(doc), f = SS.mvFilter, l = all.filter(function (x) { return f === 'all' || x.v.type === f; });
+  var nb = function (t) { return all.filter(function (x) { return x.v.type === t; }).length; };
+  var h = '<section><div class="row-between"><h3>Mouvements</h3>' + ssActs() + '</div>' +
+    '<div class="rsel sschips" role="group" aria-label="Type"><button class="chip' + (f === 'all' ? ' on' : '') + '" data-ss="mvf" data-v="all">Tous (' + all.length + ')</button><button class="chip' + (f === 'livraison' ? ' on' : '') + '" data-ss="mvf" data-v="livraison">Livraisons (' + nb('livraison') + ')</button><button class="chip' + (f === 'transfert' ? ' on' : '') + '" data-ss="mvf" data-v="transfert">Transferts (' + nb('transfert') + ')</button></div>';
+  if (!l.length) return h + '<p class="empty">Aucun mouvement' + (f === 'all' ? ' encodé pour cette saison.' : ' de ce type.') + '</p></section>';
   return h + '<div class="sslivs">' + l.map(function (x) {
-    var v = x.v, ids = Object.keys(v.lignes || {}), n = ids.reduce(function (s, a) { return s + (+v.lignes[a] || 0); }, 0);
+    var v = x.v, ids = Object.keys(v.lignes || {}), n = ids.reduce(function (s, a) { return s + (+v.lignes[a] || 0); }, 0), tr = v.type === 'transfert';
     var conf = SS.confirm && SS.confirm.id === x.id;
-    return '<div class="sslv' + (conf ? ' danger' : '') + '"><div class="row-between"><strong>' + esc(longDate(v.date)) + ' ' + esc(v.date.slice(0, 4)) + '</strong><span class="num">' + ssPcs(n) + '</span></div>' +
+    return '<div class="sslv' + (conf ? ' danger' : '') + '"><div class="row-between"><span><span class="mvtag' + (tr ? ' tr' : '') + '">' + (tr ? 'Transfert' : 'Livraison') + '</span> <strong>' + esc(longDate(v.date)) + ' ' + esc(v.date.slice(0, 4)) + '</strong></span><span class="num">' + ssPcs(n) + '</span></div>' +
+      '<p class="mvwho">' + (tr ? esc(ssStandName(doc, v.de)) + ' → ' + esc(ssStandName(doc, v.vers)) : 'Livrée à ' + esc(ssStandName(doc, v.stand))) + '</p>' +
       '<p>' + ids.map(function (a) { return esc(ssArtName(doc, a)) + ' <b class="num">× ' + fmtQ(v.lignes[a]) + '</b>'; }).join(' · ') + '</p>' +
-      (v.source && v.source !== 'admin' ? '<p class="faint">Encodée depuis : ' + esc(v.source) + '</p>' : '') +
-      (conf ? '<div class="cbtns"><span>Supprimer cette livraison ?</span><button class="btn danger sm" data-ss="delLiv" data-v="' + esc(x.id) + '">Supprimer</button><button class="btn sm" data-ss="cancel">Annuler</button></div>'
+      (v.source && v.source !== 'admin' ? '<p class="faint">Encodé depuis : ' + esc(v.source) + '</p>' : '') +
+      (conf ? '<div class="cbtns"><span>Supprimer ce' + (tr ? ' transfert' : 'tte livraison') + ' ?</span><button class="btn danger sm" data-ss="delLiv" data-v="' + esc(x.id) + '">Supprimer</button><button class="btn sm" data-ss="cancel">Annuler</button></div>'
         : '<div class="cbtns"><button class="btn sm" data-ss="editLiv" data-v="' + esc(x.id) + '">Modifier</button><button class="btn sm" data-ss="askDel" data-v="' + esc(x.id) + '">Supprimer</button></div>') + '</div>';
   }).join('') + '</div></section>';
 }
+function ssAvail(doc) { var f = SS.form; if (f.type !== 'transfert' || !f.de) return null; var C = ssCompute(doc, f.mid), o = {}; ssGroups(doc).forEach(function (g) { g.items.forEach(function (it) { o[it.id] = C.get(f.de, it.id).rest; }); }); return o; }
 function vSsForm(doc) {
-  var f = SS.form, rows = '';
+  var f = SS.form, rows = '', tr = f.type === 'transfert', av = ssAvail(doc), C0 = tr ? ssCompute(doc, f.mid) : null, ncol = tr ? 3 : 2;
+  SS.avail = av;
   ssGroups(doc).forEach(function (g) {
-    rows += '<tr class="ssgrp"><td colspan="2">' + esc(g.nom) + '</td></tr>' + g.items.map(function (it) {
-      var v = f.q[it.id] == null ? '' : f.q[it.id];
+    var items = g.items.filter(function (it) { return !(tr && g.gone) || (av && av[it.id]) || f.q[it.id]; });
+    if (!items.length) return;
+    rows += '<tr class="ssgrp"><td colspan="' + ncol + '">' + esc(g.nom) + '</td></tr>' + items.map(function (it) {
+      var v = f.q[it.id] == null ? '' : f.q[it.id], pv = parseQ(v), over = tr && av && pv > 0 && pv > av[it.id];
       return '<tr data-ssrow="' + esc((it.libelle + ' ' + it.cat).toLowerCase()) + '"><td><label for="ssq-' + esc(it.id) + '">' + esc(it.libelle) + '</label>' + (it.actif ? '' : '<span class="sub">masqué en caisse</span>') + '</td>' +
-        '<td class="r"><input type="text" inputmode="numeric" class="qty num" id="ssq-' + esc(it.id) + '" data-ssq="' + esc(it.id) + '" value="' + esc(v) + '" placeholder="0" autocomplete="off"></td></tr>';
+        (tr ? '<td class="r num' + (av && av[it.id] < 0 ? ' neg' : '') + '">' + (av ? fmtQ(av[it.id]) : '—') + '</td>' : '') +
+        '<td class="r"><input type="text" inputmode="numeric" class="qty num' + (over ? ' bad' : '') + '" id="ssq-' + esc(it.id) + '" data-ssq="' + esc(it.id) + '" value="' + esc(v) + '" placeholder="0" autocomplete="off"></td></tr>';
     }).join('');
   });
+  var stands = ssStands(doc, C0 ? C0.used : null);
+  function sel(id, key, lab) { return '<div><label class="fl" for="' + id + '">' + lab + '</label><select id="' + id + '" data-ssf="' + key + '">' + stands.map(function (s) { return '<option value="' + esc(s.id) + '"' + (f[key] === s.id ? ' selected' : '') + '>' + esc(s.nom) + (s.id === doc.depot.id ? ' (stockage)' : '') + '</option>'; }).join('') + '</select></div>'; }
   var cats = SS.cat ? SS.cat.categories : [], na = f.na;
   var naBox = !na ? '<button class="btn" type="button" data-ss="naOpen">+ Article absent du catalogue</button>'
     : '<div class="ssna"><h4>Nouvel article</h4><p class="hint">Il est ajouté au catalogue de la Caisse Sapins (une nouvelle version est publiée), puis apparaît dans la liste ci-dessus.</p>' +
@@ -1228,26 +1376,40 @@ function vSsForm(doc) {
       '<label class="fl" for="naPrix">Prix de vente (€)</label><input type="text" inputmode="decimal" id="naPrix" data-ssn="prix" value="' + esc(na.prix) + '" placeholder="Ex. 69">' +
       '<div class="cbtns"><button class="pick" type="button" data-ss="naAdd"' + (SS.busy ? ' disabled' : '') + '>' + (SS.busy ? 'Publication…' : 'Ajouter au catalogue') + '</button><button class="btn" type="button" data-ss="naClose">Annuler</button></div></div>';
   return '<section><form class="ssliv" data-ss-form="liv">' +
-    '<div class="ssfhead"><div><label class="fl" for="ssDate">Date de la livraison</label><input type="date" id="ssDate" data-ssf="date" value="' + esc(f.date) + '" required></div>' +
+    '<div class="ssfhead"><div><label class="fl" for="ssDate">Date ' + (tr ? 'du transfert' : 'de la livraison') + '</label><input type="date" id="ssDate" data-ssf="date" value="' + esc(f.date) + '" required></div>' +
+    (tr ? sel('ssDe', 'de', 'Depuis le stand') + '<span class="ssarrow" aria-hidden="true">→</span>' + sel('ssVers', 'vers', 'Vers le stand') : '') +
     '<div class="ssfind"><label class="fl" for="ssFind">Rechercher</label><input type="text" id="ssFind" data-ssf="find" placeholder="Article…" autocomplete="off"></div></div>' +
-    '<div class="scroll"><table class="stab bil sstab"><thead><tr><th>Article</th><th class="r">Quantité livrée</th></tr></thead><tbody>' + rows + '</tbody></table></div>' +
-    '<div class="ssnabox">' + naBox + '</div>' +
-    '<div class="ssfoot"><p class="num" id="ssSum">' + ssSumText() + '</p><div class="cbtns"><button class="pick" type="submit">' + (f.mid ? 'Enregistrer les modifications' : 'Enregistrer la livraison') + '</button><button class="btn" type="button" data-ss="view" data-v="' + (f.mid ? 'livs' : 'base') + '">Annuler</button></div></div>' +
+    (tr && f.de === f.vers ? '<div class="alert">Choisissez deux stands différents.</div>' : '') +
+    '<div class="scroll"><table class="stab bil sstab"><thead><tr><th>Article</th>' + (tr ? '<th class="r"><span class="lg">Disponible à ' + esc(ssStandName(doc, f.de)) + '</span><span class="sm">Dispo.</span></th>' : '') + '<th class="r">' + (tr ? '<span class="lg">Quantité transférée</span><span class="sm">Qté</span>' : 'Quantité livrée') + '</th></tr></thead><tbody>' + rows + '</tbody></table></div>' +
+    (tr ? '' : '<div class="ssnabox">' + naBox + '</div>') +
+    (f.warn ? '<div class="alert ssover">' + f.warn + ' <span class="cbtns"><button class="btn danger sm" type="button" data-ss="force">Enregistrer quand même</button></span></div>' : '') +
+    '<div class="ssfoot"><p class="num" id="ssSum">' + ssSumText() + '</p><div class="cbtns"><button class="pick" type="submit">' + (f.mid ? 'Enregistrer les modifications' : tr ? 'Enregistrer le transfert' : 'Enregistrer la livraison') + '</button><button class="btn" type="button" data-ss="view" data-v="' + (f.mid ? 'mvts' : 'stands') + '">Annuler</button></div></div>' +
     '</form></section>';
 }
 function ssSumText() {
   var f = SS.form, n = 0, k = 0, bad = 0;
   Object.keys(f.q).forEach(function (a) { var v = parseQ(f.q[a]); if (v == null) return; if (isNaN(v) || v < 0 || Math.round(v) !== v) { bad++; return; } if (v > 0) { n += v; k++; } });
-  return bad ? '<span class="bad">' + bad + ' quantité' + (bad > 1 ? 's' : '') + ' invalide' + (bad > 1 ? 's' : '') + ' (nombre entier attendu)</span>' : k ? k + ' article' + (k > 1 ? 's' : '') + ' · ' + ssPcs(n) : 'Aucune quantité encodée';
+  var over = ssOver();
+  return bad ? '<span class="bad">' + bad + ' quantité' + (bad > 1 ? 's' : '') + ' invalide' + (bad > 1 ? 's' : '') + ' (nombre entier attendu)</span>' : k ? k + ' article' + (k > 1 ? 's' : '') + ' · ' + ssPcs(n) + (over.length ? ' · <span class="bad">' + over.length + ' au-delà du disponible</span>' : '') : 'Aucune quantité encodée';
+}
+function ssOver() {
+  var f = SS.form, av = SS.avail, o = []; if (!f || f.type !== 'transfert' || !av) return o;
+  Object.keys(f.q).forEach(function (a) { var v = parseQ(f.q[a]); if (v > 0 && v > (av[a] || 0)) o.push(a); });
+  return o;
 }
 
 /* ---------- Actions ---------- */
-function ssSubmitLiv() {
-  var f = SS.form, doc = ssDoc(), lignes = {}, bad = false;
+function ssSubmitLiv(force) {
+  var f = SS.form, doc = ssDoc(), lignes = {}, bad = false, tr = f.type === 'transfert';
   Object.keys(f.q).forEach(function (a) { var v = parseQ(f.q[a]); if (v == null) return; if (isNaN(v) || v < 0 || Math.round(v) !== v) bad = true; else if (v > 0) lignes[a] = v; });
   if (bad) { toast('Corrigez les quantités invalides (nombre entier attendu)'); return; }
   if (!Object.keys(lignes).length) { toast('Encodez au moins une quantité'); return; }
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(f.date || '')) { toast('Indiquez la date de la livraison'); return; }
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(f.date || '')) { toast('Indiquez la date ' + (tr ? 'du transfert' : 'de la livraison')); return; }
+  if (tr && (!f.de || !f.vers || f.de === f.vers)) { toast('Choisissez deux stands différents'); return; }
+  if (tr && !force) {
+    ssAvail(doc); var over = ssOver().filter(function (a) { return lignes[a]; });
+    if (over.length) { f.warn = 'Plus que le stock disponible à ' + esc(ssStandName(doc, f.de)) + ' pour : ' + over.map(function (a) { return esc(ssArtName(doc, a)) + ' (' + fmtQ(lignes[a]) + ' pour ' + fmtQ(SS.avail[a] || 0) + ')'; }).join(', ') + '. Il manque peut-être une livraison, ou des ventes ne sont pas encore lues.'; render(); var w = document.querySelector('.ssover'); if (w) w.scrollIntoView({ block: 'center' }); return; }
+  }
   var ops = [], g = ssGroups(doc), byId = {};
   g.forEach(function (x) { x.items.forEach(function (it) { byId[it.id] = it; }); });
   Object.keys(lignes).forEach(function (a) {
@@ -1255,12 +1417,15 @@ function ssSubmitLiv() {
     if (snap && JSON.stringify(snap) !== JSON.stringify(doc.articles[a])) ops.push({ t: 'art', id: a, v: snap });
   });
   var old = f.mid ? doc.mouvements[f.mid] : null, now = new Date().toISOString();
-  var mv = { type: 'livraison', date: f.date, stand: doc.depot.id, lignes: lignes, creeLe: old ? old.creeLe : now, source: old ? old.source || 'admin' : 'admin' };
+  var mv = tr ? { type: 'transfert', date: f.date, de: f.de, vers: f.vers, lignes: lignes, creeLe: old ? old.creeLe : now, source: old ? old.source || 'admin' : 'admin' }
+    : { type: 'livraison', date: f.date, stand: old && old.stand ? old.stand : doc.depot.id, lignes: lignes, creeLe: old ? old.creeLe : now, source: old ? old.source || 'admin' : 'admin' };
   if (old) { mv.modifieLe = now; mv.modifiePar = 'admin'; }
-  var mid = f.mid || 'liv-' + now.replace(/\D/g, '').slice(0, 14) + '-' + Math.random().toString(36).slice(2, 6);
+  (tr ? [f.de, f.vers] : [mv.stand]).forEach(function (sid) { var nm = ssStandName(doc, sid); if (!doc.stands[sid] || doc.stands[sid].nom !== nm) ops.push({ t: 'stand', id: sid, v: { nom: nm } }); });
+  var mid = f.mid || (tr ? 'tr-' : 'liv-') + now.replace(/\D/g, '').slice(0, 14) + '-' + Math.random().toString(36).slice(2, 6);
   ops.push({ t: 'mv', id: mid, v: mv });
-  SS.view = f.mid ? 'livs' : 'base'; SS.form = null;
+  SS.view = f.mid ? 'mvts' : 'stands'; if (tr && !f.mid) SS.standSel = f.vers; SS.form = null;
   ssOp(ops);
+  if (tr) { toast(old ? 'Transfert modifié' : 'Transfert enregistré : ' + ssPcs(Object.keys(lignes).reduce(function (s, a) { return s + lignes[a]; }, 0)) + ' vers ' + ssStandName(doc, f.vers)); return; }
   toast(old ? 'Livraison modifiée' : 'Livraison enregistrée : ' + ssPcs(Object.keys(lignes).reduce(function (s, a) { return s + lignes[a]; }, 0)));
 }
 function ssSubmitSeason() {
@@ -1272,7 +1437,7 @@ function ssSubmitSeason() {
   var doc = { format: SS_FMT, formatVersion: 1, id: id, nom: nom, creeLe: now, majLe: now, majPar: 'admin', depot: { id: p.id, nom: p.nom }, articles: {}, mouvements: {} };
   SS.seasons.unshift({ id: id, doc: doc, sha: null, local: true });
   SS.cur = { id: id, doc: doc, sha: null, ops: [], isNew: true, err: null, saving: false };
-  SS.view = 'base'; SS.newSeason = null; ssPersist(); ssSave();
+  SS.view = 'stands'; SS.newSeason = null; ssPersist(); ssSave();
 }
 /* Article absent du catalogue : ajouté directement au catalogue publié de la Caisse Sapins */
 function ssAddArticle() {
@@ -1346,22 +1511,29 @@ document.addEventListener('click', function (e) {
   if (a === 'view') { SS.view = v; SS.form = null; SS.confirm = null; if (!SS.cur) SS.view = 'season'; render(); }
   else if (a === 'season') ssOpen(v);
   else if (a === 'newSeason') { SS.view = 'season'; SS.newSeason = null; render(); }
-  else if (a === 'reload') { SS.loaded = false; render(); }
+  else if (a === 'reload') { SS.loaded = false; SV.loaded = false; render(); }
   else if (a === 'save') ssSave();
-  else if (a === 'newLiv') { SS.form = { mid: null, date: todayIso(), q: {}, na: null }; SS.view = 'form'; render(); }
-  else if (a === 'editLiv') { var mv = ssDoc().mouvements[v]; if (!mv) return; var q = {}; Object.keys(mv.lignes || {}).forEach(function (k) { q[k] = fmtQ(mv.lignes[k]); }); SS.form = { mid: v, date: mv.date, q: q, na: null }; SS.view = 'form'; render(); }
+  else if (a === 'newLiv') { SS.form = { type: 'livraison', mid: null, date: todayIso(), q: {}, na: null }; SS.view = 'form'; render(); }
+  else if (a === 'newTr') { var d0 = ssDoc(), st = ssStands(d0, ssCompute(d0).used), de = SS.standSel !== 'all' ? SS.standSel : d0.depot.id, vers = (st.filter(function (s) { return s.id !== de; })[0] || {}).id || '';
+    SS.form = { type: 'transfert', mid: null, date: todayIso(), de: de, vers: vers, q: {}, na: null }; SS.view = 'form'; render(); }
+  else if (a === 'editLiv') { var mv = ssDoc().mouvements[v]; if (!mv) return; var q = {}; Object.keys(mv.lignes || {}).forEach(function (k) { q[k] = fmtQ(mv.lignes[k]); }); SS.form = { type: mv.type, mid: v, date: mv.date, de: mv.de, vers: mv.vers, q: q, na: null }; SS.view = 'form'; render(); }
+  else if (a === 'force') ssSubmitLiv(true);
+  else if (a === 'stand') { SS.standSel = v; render(); }
+  else if (a === 'mvf') { SS.mvFilter = v; render(); }
+  else if (a === 'sales') svLoad();
   else if (a === 'askDel') { SS.confirm = { id: v }; render(); }
   else if (a === 'cancel') { SS.confirm = null; render(); }
-  else if (a === 'delLiv') { SS.confirm = null; ssOp([{ t: 'mv', id: v, v: null }]); toast('Livraison supprimée'); }
+  else if (a === 'delLiv') { var t0 = (ssDoc().mouvements[v] || {}).type; SS.confirm = null; ssOp([{ t: 'mv', id: v, v: null }]); toast(t0 === 'transfert' ? 'Transfert supprimé' : 'Livraison supprimée'); }
   else if (a === 'naOpen') { var c0 = SS.cat && SS.cat.categories[0]; SS.form.na = { libelle: '', cat: c0 ? c0.id : '__new', newCat: '', prix: '' }; render(); var i0 = document.getElementById('naLib'); if (i0) i0.focus(); }
   else if (a === 'naClose') { SS.form.na = null; render(); }
   else if (a === 'naAdd') ssAddArticle();
 });
 document.addEventListener('input', function (e) {
   var t = e.target;
-  if (t.hasAttribute('data-ssq') && SS.form) { SS.form.q[t.getAttribute('data-ssq')] = t.value; var s = document.getElementById('ssSum'); if (s) s.innerHTML = ssSumText(); }
+  if (t.hasAttribute('data-ssq') && SS.form) { var aq = t.getAttribute('data-ssq'), pq = parseQ(t.value); SS.form.q[aq] = t.value; SS.form.warn = null; if (SS.avail) t.classList.toggle('bad', pq > 0 && pq > (SS.avail[aq] || 0)); var s = document.getElementById('ssSum'); if (s) s.innerHTML = ssSumText(); }
   else if (t.hasAttribute('data-ssn') && SS.form && SS.form.na) { var k = t.getAttribute('data-ssn'); SS.form.na[k] = t.value; if (k === 'cat') { var w = document.getElementById('naNewWrap'); if (w) w.hidden = t.value !== '__new'; } }
   else if (t.getAttribute('data-ssf') === 'date' && SS.form) SS.form.date = t.value;
+  else if ((t.getAttribute('data-ssf') === 'de' || t.getAttribute('data-ssf') === 'vers') && SS.form) { SS.form[t.getAttribute('data-ssf')] = t.value; SS.form.warn = null; render(); }
   else if (t.getAttribute('data-ssf') === 'find') ssFilter(t.value);
 });
 document.addEventListener('submit', function (e) {

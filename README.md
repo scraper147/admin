@@ -90,7 +90,10 @@ Tout ce qui concerne la vente des sapins est regroupé dans le menu **Gestion sa
   - **Créer la saison** : nom et stand de stockage (Spy), une seule fois par an.
   - **Encoder une livraison** : date, puis la quantité livrée pour chaque article (articles du catalogue de la Caisse Sapins, regroupés par catégorie, avec une recherche). Touche Entrée = article suivant.
   - **Article absent du catalogue** : libellé, catégorie (ou nouvelle catégorie) et prix de vente. Il est ajouté directement au catalogue de la Caisse Sapins (nouvelle version publiée), puis on encode sa quantité.
-  - **Stock de base** : ce qui est arrivé au stand de stockage, article par article. **Livraisons** : la liste, avec Modifier et Supprimer.
+  - **+ Transfert** : date, stand de départ, stand d'arrivée (n'importe lequel vers n'importe lequel), puis les quantités. La colonne « Dispo. » montre le stock restant au stand de départ ; si on dépasse, l'app prévient et demande de confirmer.
+  - **Stock par stand** : le restant de chaque stand, article par article (livré + reçu − envoyé − vendu). Cliquer un stand donne le détail (Livré, Reçu, Envoyé, Vendu, Restant). Un stock négatif est signalé en rouge.
+  - **Ventes** : l'app lit les fichiers de la Caisse Sapins dans le dépôt `ventes` (dossier `sapin`) et retire ce qui a été vendu à chaque stand depuis le premier mouvement de la saison. Ventes annulées et articles libres (hors catalogue) ne sont pas retirés ; pour un même stand et un même jour, seul l'export le plus récent compte. **Relire les ventes** pour prendre les derniers envois des caisses.
+  - **Mouvements** : livraisons et transferts, avec Modifier et Supprimer.
   - Un article retiré du catalogue reste visible dans le stock (« Plus dans le catalogue ») tant qu'il y en a.
   - Sans internet, la livraison est gardée sur l'appareil et envoyée au retour du réseau.
   - **Le jeton doit avoir l'écriture (Contents : Read and write) sur `ventes`** (Paramètres → Tester l'accès aux dépôts).
