@@ -99,7 +99,9 @@ Tout ce qui concerne la vente des sapins est regroupé dans le menu **Gestion sa
   - **Le jeton doit avoir l'écriture (Contents : Read and write) sur `ventes`** (Paramètres → Tester l'accès aux dépôts).
 - **Bilan** : ventes de la Caisse Sapins, fichiers déposés ou **Charger depuis le dépôt** (dossier `sapin` du dépôt `ventes`).
   - **Caisse** : par stand et par jour, fond, ventes cash, apports, retraits (avec leurs motifs), attendu, compté, écart (vert si nul, rouge sinon), laissé pour demain, et les badges « Non comptée », « À recompter », « Comptée le lendemain », « Fond non saisi ». Toucher un jour montre les mouvements, les comptages successifs et les billets. En dessous, les totaux de la période par stand (écarts, jours non comptés ou à recompter, recettes retirées, dépôts au coffre, autres retraits et apports).
-  - **Livraisons** : nombre et montant par stand et par jour, dont celles ajoutées après le paiement. Elles restent dans le total, mais le bandeau sépare « Sapins et accessoires » et « Livraisons ».
+  - **Livraisons** : nombre de livraisons par stand et par jour (le bandeau indique le chiffre « Sapins et accessoires » et le nombre de livraisons).
+  - **Par article** : quantités vendues par point de vente (Spy, Eghezee, Meux, Boninne), puis le total de tous les stands, le montant et la part.
+  - **Remises** : total des remises par stand et par jour (sur article, sur ticket, total).
   - **Tiroir-caisse** : ouvertures et ouvertures sans vente, avec leurs motifs.
   - **Exporter pour Excel** donne un troisième fichier `bilan-caisse_….csv` (une ligne par stand et par jour : caisse, livraisons, tiroir).
   - Un fichier peut être renvoyé par la tablette après coup (livraison ajoutée, caisse comptée le lendemain) : en rouvrant **+ Depuis le dépôt**, l'app signale les fichiers modifiés et propose de les recharger.
