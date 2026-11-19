@@ -2229,8 +2229,12 @@ function addToken(t, nom) { var l = getTokens().slice(), n = getTokenNames().sli
 /* Jeton à utiliser pour un dépôt (établi par « Tester l'accès aux dépôts », fait aussi au déverrouillage) */
 function tokenFor(repo) { var ts = getTokens(); if (ts.length < 2) return ts[0] || null; var m = {}; try { m = JSON.parse(lsGet(MAP_KEY) || '{}'); } catch (e) {} return ts[m[repo]] || ts[0]; }
 function localCles() { var l = lsGet(LOCAL_CLE_KEY); if (!l) return []; try { var o = JSON.parse(l); return Array.isArray(o) ? o : [o]; } catch (e) { return []; } }
-function embeddedCles() { return (CLE_CHIFFREE ? [CLE_CHIFFREE] : []).concat(CLES_SUPP); }
-function pendingLocalCles() { var emb = embeddedCles(); return localCles().filter(function (c) { return !emb.some(function (x) { return x.data === c.data; }); }); }
+/* Clés installées dans l'app mais retirées sur cet appareil (on ne peut pas les enlever du code depuis la page) */
+var CLEHIDE_KEY = 'admin-cle-retirees';
+function hiddenCles() { try { var l = JSON.parse(lsGet(CLEHIDE_KEY) || '[]'); return Array.isArray(l) ? l : []; } catch (e) { return []; } }
+function allEmbeddedCles() { return (CLE_CHIFFREE ? [CLE_CHIFFREE] : []).concat(CLES_SUPP); }
+function embeddedCles() { var hid = hiddenCles(); return allEmbeddedCles().filter(function (c) { return hid.indexOf(String(c.data || '').slice(0, 24)) < 0; }); }
+function pendingLocalCles() { var emb = allEmbeddedCles(); return localCles().filter(function (c) { return !emb.some(function (x) { return x.data === c.data; }); }); }
 function allCles() { return embeddedCles().concat(pendingLocalCles()); }
 function getCle() { return allCles()[0] || null; }
 /* Nom d'une clé chiffrée : nom donné sur cet appareil, sinon champ « nom » de la clé, sinon « Clé n ». Le nom n'est pas secret. */
@@ -2675,8 +2679,11 @@ function renderParametres() {
       var emb = i < nEmb, edit = PAR.rename === i;
       return '<div class="kitem"><div class="kt">' + (edit ? '<input type="text" id="kRen" maxlength="40" value="' + esc(cleLabel(c, i)) + '">' : '<strong>' + esc(cleLabel(c, i)) + '</strong>') +
         '<span class="faint">' + (emb ? 'installée dans l\u2019app' : 'seulement sur cet appareil, à envoyer à Claude') + ' · ' + esc(String(c.salt || '').slice(0, 8)) + '…</span></div>' +
-        '<div class="cbtns">' + (edit ? '<button class="btn sm" data-p="renSave" data-v="' + i + '">Enregistrer</button><button class="btn sm" data-p="renCancel">Annuler</button>' : '<button class="btn sm" data-p="ren" data-v="' + i + '">Renommer</button>') + '</div></div>';
-    }).join('') + '</div></section>' : '';
+        '<div class="cbtns">' + (edit ? '<button class="btn sm" data-p="renSave" data-v="' + i + '">Enregistrer</button><button class="btn sm" data-p="renCancel">Annuler</button>'
+          : PAR.del === i ? '<span class="bad">' + (emb ? 'Retirer de cet appareil ?' : 'Supprimer cette clé ?') + '</span><button class="btn danger sm" data-p="delKey" data-v="' + i + '">' + (emb ? 'Retirer' : 'Supprimer') + '</button><button class="btn sm" data-p="delCancel">Annuler</button>'
+          : '<button class="btn sm" data-p="ren" data-v="' + i + '">Renommer</button><button class="btn danger sm" data-p="askDelKey" data-v="' + i + '">Retirer</button>') + '</div></div>';
+    }).join('') + '</div>' + (PAR.del != null ? '<p class="hint">' + (PAR.del < nEmb ? 'Cette clé est installée dans l\u2019app : elle sera seulement ignorée sur cet appareil. Pour la retirer de toutes les tablettes, demandez à Claude de l\u2019enlever de l\u2019app. Pour la rendre vraiment inutilisable, supprimez le jeton sur GitHub.' : 'La clé préparée sur cet appareil sera effacée. Si elle a déjà été envoyée à Claude, elle reste dans l\u2019app.') + '</p>' : '') +
+      (hiddenCles().length ? '<p class="hint">' + hiddenCles().length + ' clé' + (hiddenCles().length > 1 ? 's' : '') + ' de l\u2019app retirée' + (hiddenCles().length > 1 ? 's' : '') + ' sur cet appareil. <button class="ghost sm ssre" data-p="unhide">Les remettre</button></p>' : '') + '</section>' : (hiddenCles().length ? '<section><h3>Clés chiffrées</h3><p class="hint">' + hiddenCles().length + ' clé(s) de l\u2019app retirée(s) sur cet appareil. <button class="ghost sm ssre" data-p="unhide">Les remettre</button></p></section>' : '');
   var prep = '<section><details' + (cle && !pendingLocalCles().length ? '' : ' open') + '><summary><h3>Préparer une clé chiffrée</h3></summary>' +
     '<p class="lead">À faire une fois par saison, quand un jeton expire, ou pour <strong>ajouter un deuxième jeton</strong>. Chaque jeton donne une clé ; les clés s\u2019ajoutent, elles ne se remplacent pas. Utilisez <strong>la même phrase de passe</strong> pour toutes : un seul déverrouillage suffit. Ni le jeton ni la phrase ne quittent la page.</p>' +
     '<ol class="steps"><li><strong>Créer le jeton sur GitHub</strong> : <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">github.com › Fine-grained token</a>. Expiration : fin de saison. Repository access : <em>Only select repositories</em> → ' + REPOS.concat([{ id: DATA_REPO }, { id: SALES_REPO }]).map(function (r) { return '<span class="mono">' + esc(r.id.split('/')[1]) + '</span>'; }).join(', ') + '. Permissions → Repository → <em>Contents : Read and write</em>. Rien d’autre.</li>' +
@@ -2750,7 +2757,24 @@ function parClick(el) {
   var p = el.getAttribute('data-p');
   if (p === 'lock') { setToken(null); PAR.tests = null; PAR.msg = { t: 'Appareil verrouillé. La phrase de passe sera demandée pour publier.' }; render(); }
   else if (p === 'test') testRepos();
-  else if (p === 'ren') { PAR.rename = +el.getAttribute('data-v'); render(); }
+  else if (p === 'ren') { PAR.rename = +el.getAttribute('data-v'); PAR.del = null; render(); }
+  else if (p === 'askDelKey') { PAR.del = +el.getAttribute('data-v'); PAR.rename = null; render(); }
+  else if (p === 'delCancel') { PAR.del = null; render(); }
+  else if (p === 'unhide') { lsSet(CLEHIDE_KEY, null); PAR.msg = { t: 'Clés de l\u2019app remises sur cet appareil. Déverrouillez à nouveau pour les utiliser.' }; render(); }
+  else if (p === 'delKey') {
+    var di = +el.getAttribute('data-v'), keys0 = allCles(), dc = keys0[di], nE = embeddedCles().length, lbl = dc ? cleLabel(dc, di) : '';
+    if (dc) {
+      /* jeton correspondant : même position si chaque clé a donné un jeton au déverrouillage */
+      var toks = getTokens(), names = getTokenNames();
+      if (toks.length === keys0.length && toks.length > 1) { toks = toks.slice(); names = names.slice(); toks.splice(di, 1); names.splice(di, 1); setTokens(toks, names); }
+      else if (toks.length === keys0.length && toks.length === 1) setToken(null);
+      if (di < nE) { var hl = hiddenCles(); hl.push(String(dc.data || '').slice(0, 24)); lsSet(CLEHIDE_KEY, JSON.stringify(hl)); }
+      else { lsSet(LOCAL_CLE_KEY, JSON.stringify(localCles().filter(function (x) { return x.data !== dc.data; }))); }
+      var al = cleAliases(); delete al[cleSig(dc)]; lsSet(CLENAMES_KEY, JSON.stringify(al));
+      PAR.tests = null;
+    }
+    PAR.del = null; toast('Clé « ' + lbl + ' » ' + (di < nE ? 'retirée de cet appareil' : 'supprimée')); render();
+  }
   else if (p === 'renCancel') { PAR.rename = null; render(); }
   else if (p === 'renSave') {
     var i = +el.getAttribute('data-v'), c = allCles()[i], v = ((document.getElementById('kRen') || {}).value || '').trim().slice(0, 40);

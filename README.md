@@ -41,7 +41,7 @@ Elle s'installe sur un PC ou une tablette (Chrome / Edge) et fonctionne hors lig
    - type **Fine-grained token**, expiration : fin de saison ;
    - Repository access : **Only select repositories** → `bar`, `sapin`, `soiree`, `admin-donnees` et `ventes` ;
    - Permissions → Repository → **Contents : Read and write**. Rien d'autre.
-3. Donnez un **nom** à la clé (ex. « Admin saison 2026 », pour la reconnaître ; il n'est pas secret), collez le jeton, choisissez une **phrase de passe de 4 à 5 mots**, cliquez **Chiffrer et ajouter le jeton**. La section **Clés chiffrées** liste les clés avec leur nom (**Renommer** possible) ; le test d'accès indique quelle clé ouvre chaque dépôt.
+3. Donnez un **nom** à la clé (ex. « Admin saison 2026 », pour la reconnaître ; il n'est pas secret), collez le jeton, choisissez une **phrase de passe de 4 à 5 mots**, cliquez **Chiffrer et ajouter le jeton**. La section **Clés chiffrées** liste les clés avec leur nom (**Renommer**, **Retirer** : une clé préparée sur l'appareil est effacée ; une clé installée dans l'app est seulement ignorée sur cet appareil, « Les remettre » l'annule — pour l'enlever de toutes les tablettes, demandez à Claude ; pour la rendre inutilisable, supprimez le jeton sur GitHub) ; le test d'accès indique quelle clé ouvre chaque dépôt.
 4. Envoyez le texte chiffré à Claude : il le place dans `index.html` (constante `CLE_CHIFFREE`). Redéposez `index.html` et augmentez le cache de `sw.js`.
 
 Ni le jeton ni la phrase ne sont dans le code : seule la version chiffrée y est, illisible sans la phrase.
