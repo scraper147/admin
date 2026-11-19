@@ -475,10 +475,11 @@ function isLivProduct(p) { return !!p && /^(frais de )?livraison$/i.test(String(
 var CAISSE_OPEN = {};
 function caisseOf(fmt) { return CAISSES_BILAN[fmt] || null; }
 function okVentes(d) { var c = d && caisseOf(d.format); return !!c && (c === 'soiree' ? Array.isArray(d.enregistrements) : Array.isArray(d.ventes)); }
-/* Deux Bilans séparés : « main » (Caisse Bar, Caisse Soirée) et « sapin » (Gestion sapin › Bilan).
+/* Trois Bilans séparés : « bar » (Bar › Bilan), « soiree » (Chlorophylle Night › Bilan), « sapin » (Gestion sapin › Bilan).
    Chacun garde ses fichiers, ses filtres et son panneau du dépôt ; render() active le bon (bilUse). */
-var BIL_CUR = 'main', BIL_ST = {};
-function bilAllowed(c) { return (c || BIL_CUR) === 'sapin' ? ['sapin'] : ['bar', 'soiree']; }
+var BIL_CUR = 'bar', BIL_ST = {};
+var CTX_LABEL = { bar: 'Bar', soiree: 'Chlorophylle Night', sapin: 'Gestion sapin' };
+function bilAllowed(c) { return [c || BIL_CUR]; }
 function bilFresh() { return { FILES: [], F: { soiree: null, bar: 'all', caisse: null }, BGH: { open: false, loading: false, files: null, sel: {}, err: null, busy: false, tab: null }, DISMISSED: {} }; }
 function bilUse(c) {
   if (c === BIL_CUR) return;
@@ -488,7 +489,7 @@ function bilUse(c) {
 }
 /* Exécute fn dans le contexte c (réponse arrivée après un changement de module), puis revient. */
 function bilWith(c, fn) { var back = BIL_CUR; bilUse(c); try { fn(); } finally { bilUse(back); } }
-function bilWrongNote(c) { return c === 'sapin' ? 'Ce fichier vient de la Caisse Sapins : ouvrez-le dans Gestion sapin › Bilan.' : 'Ce fichier vient de la ' + CAISSE_LABEL[c] + ' : ouvrez-le dans le menu Bilan.'; }
+function bilWrongNote(c) { return 'Ce fichier vient de la ' + (CAISSE_LABEL[c] || 'caisse ' + c) + ' : ouvrez-le dans ' + (CTX_LABEL[c] || '?') + ' › Bilan.'; }
 var ERR_FORMAT = 'Ce fichier n\u2019est pas un export de ventes d\u2019une caisse (Caisse Bar, Caisse Sapins ou Caisse Soirée).';
 function caisses() { var o = {}; FILES.forEach(function (f) { if (f.status === 'ok' && f.caisse) o[f.caisse] = 1; }); return bilAllowed().filter(function (c) { return o[c]; }); }
 function defSoiree() { var ss = soirees(); return ss.length > 1 ? 'all' : ss[0] || null; }
@@ -648,13 +649,14 @@ function toast(t) { toastMsg = t; clearTimeout(toastT); toastT = setTimeout(func
 function isDark() { var a = document.documentElement.getAttribute('data-theme'); return a ? a === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches; }
 
 function vBand(S) {
-  var top = '<div class="band-top"><h1>' + (BIL_CUR === 'sapin' ? 'Bilan des sapins' : 'Bilan des ventes') + '</h1></div>';
+  var top = '<div class="band-top"><h1>' + (BIL_CUR === 'sapin' ? 'Bilan des sapins' : BIL_CUR === 'soiree' ? 'Bilan Chlorophylle Night' : 'Bilan du bar') + '</h1></div>';
   if (!S) {
     return '<div class="band">' + top + '<div class="drop" id="drop"><h2>Déposez les exports des caisses</h2>' +
       (BIL_CUR === 'sapin' ? '<p>Glissez ici les fichiers <strong>ventes_….json</strong> téléchargés depuis la Caisse Sapins, de tous les points de vente et de tous les jours. Ils restent sur cet appareil : rien n\u2019est envoyé sur internet.</p>'
-        : '<p>Glissez ici tous les fichiers <strong>ventes_….json</strong> téléchargés depuis la Caisse Bar, ou les fichiers <strong>chlorophylle_….json</strong> de la Caisse Soirée, de tous les appareils et de tous les jours. Les ventes des sapins se trouvent dans Gestion sapin › Bilan. Les fichiers restent sur cet appareil : rien n\u2019est envoyé sur internet.</p>') +
+        : BIL_CUR === 'soiree' ? '<p>Glissez ici les fichiers <strong>chlorophylle_….json</strong> de la Caisse Soirée, de tous les appareils. Ils restent sur cet appareil : rien n\u2019est envoyé sur internet.</p>'
+        : '<p>Glissez ici les fichiers <strong>ventes_….json</strong> téléchargés depuis la Caisse Bar, de tous les bars et de tous les jours. Ils restent sur cet appareil : rien n\u2019est envoyé sur internet.</p>') +
       '<div class="acts"><label class="pick">Choisir des fichiers<input type="file" accept=".json,application/json" multiple data-files></label>' +
-      '<button class="demo" data-g="open">Charger depuis le dépôt</button>' + (BIL_CUR === 'sapin' ? '' : '<button class="demo" data-a="demo">Essayer avec des exemples</button>') + '</div></div></div>';
+      '<button class="demo" data-g="open">Charger depuis le dépôt</button>' + (BIL_CUR === 'bar' ? '<button class="demo" data-a="demo">Essayer avec des exemples</button>' : '') + '</div></div></div>';
   }
   var title = (caisses().length > 1 ? CAISSE_LABEL[F.caisse] + ' · ' : '') + (F.soiree === 'all' ? T().toutes : T().du + ' ' + longDate(F.soiree));
   if (F.bar !== 'all') { var b = bars().filter(function (x) { return x.id === F.bar; })[0]; if (b) title += ', ' + b.nom; }
@@ -1176,34 +1178,46 @@ var ICONS = {
   pdv: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-6.2-7-12a7 7 0 0 1 14 0c0 5.8-7 12-7 12z"/><circle cx="12" cy="9" r="2.5"/></svg>',
   stock: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8l-9-5-9 5 9 5z"/><path d="M3 8v8l9 5 9-5V8"/><path d="M12 13v8"/></svg>',
   parametres: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>',
+  bar: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4h14l-7 8z"/><path d="M12 12v7"/><path d="M8 20h8"/></svg>',
+  chloro: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/><path d="M17 3v3M15.5 4.5h3"/></svg>',
   sapin: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l-5 7h3l-4 6h4l-4 5h12l-4-5h4l-4-6h3z"/><path d="M12 20v2"/></svg>',
   cloture: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18"/><path d="M8 3v3M16 3v3"/><path d="M8 15h3"/></svg>'
 };
-/* Ajouter un module = ajouter une entrée ici (ready:true + render) */
+/* Ajouter un module = ajouter une entrée ici (ready:true + render). ctx = contexte du Bilan et du Catalogue. */
 var MODULES = [
-  { id: 'bilan', nom: 'Bilan des ventes', court: 'Bilan', ready: true, render: renderBilan,
-    desc: 'Totaux par bar, heure par heure et par article (Caisse Bar), entrées, tickets et boissons (Caisse Soirée).' },
-  { id: 'catalogue', nom: 'Catalogue', court: 'Catalogue', ready: true, render: function () { renderCatalogue(); },
-    desc: 'Produits et prix de la Caisse Bar et de la Caisse Soirée, publiés directement sur GitHub.' },
-  { id: 'stock', nom: 'Gestion de stock', court: 'Stock', ready: true, render: function () { renderStock(); },
-    desc: 'Stock par événement : départ, comptage du restant chaque jour, consommation jour par jour à la clôture.' },
-  { id: 'sapin', nom: 'Gestion sapin', court: 'Gestion sapin', ready: true, render: function () { renderSapin(); },
-    desc: 'Vente des sapins : catalogue (produits, prix, points de vente), stock et bilan des ventes de la Caisse Sapins.' },
+  { id: 'bar', nom: 'Bar', court: 'Bar', ready: true, ctx: 'bar', render: function () { renderSub(); },
+    desc: 'Caisse Bar : bilan des ventes (par bar, heure par heure, par article) et catalogue publié sur GitHub.' },
+  { id: 'chloro', nom: 'Chlorophylle Night', court: 'Chlorophylle Night', ready: true, ctx: 'soiree', render: function () { renderSub(); },
+    desc: 'Caisse Soirée : catalogue (entrées, tickets, boissons), stock de l’événement et bilan de la soirée.' },
+  { id: 'sapin', nom: 'Gestion sapin', court: 'Gestion sapin', ready: true, ctx: 'sapin', render: function () { renderSub(); },
+    desc: 'Vente des sapins : catalogue, stock, caisse, bilan et historique des ventes de la Caisse Sapins.' },
   { id: 'parametres', nom: 'Paramètres', court: 'Paramètres', ready: true, render: function () { renderParametres(); },
     desc: 'Déverrouiller la publication sur GitHub et préparer la clé chiffrée.' }
 ];
 var MOD = 'accueil';
-var SAP_SUBS = [{ id: 'catalogue', nom: 'Catalogue' }, { id: 'stock', nom: 'Stock' }, { id: 'caisse', nom: 'Caisse' }, { id: 'bilan', nom: 'Bilan' }, { id: 'hist', nom: 'Historique de vente' }];
-var SAP_SUB = 'catalogue';
-function hashPart(h) { var p = (h || '').replace('#', '').split('/'); if (p[0] === 'sapin' && SAP_SUBS.some(function (x) { return x.id === p[1]; })) SAP_SUB = p[1]; return p[0]; }
-(function () { var h = hashPart(location.hash); if (h && MODULES.some(function (m) { return m.id === h; })) MOD = h; })();
+var SUBS = {
+  bar: [{ id: 'bilan', nom: 'Bilan', render: function () { renderBilan(); } }, { id: 'catalogue', nom: 'Catalogue', render: function () { renderCatalogue(); } }],
+  chloro: [{ id: 'catalogue', nom: 'Catalogue', render: function () { renderCatalogue(); } }, { id: 'stock', nom: 'Stock', render: function () { renderStock(); } }, { id: 'bilan', nom: 'Bilan', render: function () { renderBilan(); } }],
+  sapin: [{ id: 'catalogue', nom: 'Catalogue', render: function () { renderCatalogue(); } }, { id: 'stock', nom: 'Stock', render: function () { renderSapStock(); } }, { id: 'caisse', nom: 'Caisse', render: function () { renderSapCaisse(); } }, { id: 'bilan', nom: 'Bilan', render: function () { renderBilan(); } }, { id: 'hist', nom: 'Historique de vente', render: function () { renderSapHist(); } }]
+};
+var SUB = { bar: 'bilan', chloro: 'catalogue', sapin: 'catalogue' };
+/* Anciennes adresses (#bilan, #catalogue, #stock) : renvoyées vers le nouveau menu */
+var OLD_HASH = { bilan: ['bar', 'bilan'], catalogue: ['bar', 'catalogue'], stock: ['chloro', 'stock'] };
+function hashPart(h) {
+  var p = (h || '').replace('#', '').split('/');
+  if (OLD_HASH[p[0]]) p = OLD_HASH[p[0]].slice();
+  if (SUBS[p[0]] && SUBS[p[0]].some(function (x) { return x.id === p[1]; })) SUB[p[0]] = p[1];
+  return p[0];
+}
+function curSub() { return SUBS[MOD] ? SUB[MOD] : null; }
+(function () { var h = hashPart(location.hash); if (h && MODULES.some(function (m) { return m.id === h; })) { MOD = h; try { history.replaceState(null, '', '#' + h + (SUBS[h] ? '/' + SUB[h] : '')); } catch (e) {} } })();
 function modById(id) { return MODULES.filter(function (m) { return m.id === id; })[0]; }
 function go(id) {
   MOD = id;
-  try { history.replaceState(null, '', '#' + id + (id === 'sapin' ? '/' + SAP_SUB : '')); } catch (e) {}
+  try { history.replaceState(null, '', '#' + id + (SUBS[id] ? '/' + SUB[id] : '')); } catch (e) {}
   render(); window.scrollTo(0, 0);
 }
-window.addEventListener('hashchange', function () { var s0 = SAP_SUB, h = hashPart(location.hash); if ((h === 'accueil' || modById(h)) && (h !== MOD || s0 !== SAP_SUB)) { MOD = h; render(); } });
+window.addEventListener('hashchange', function () { var s0 = JSON.stringify(SUB), h = hashPart(location.hash); if ((h === 'accueil' || modById(h)) && (h !== MOD || s0 !== JSON.stringify(SUB))) { MOD = h; render(); } });
 
 function vShell() {
   var tabs = [{ id: 'accueil', court: 'Accueil', ready: true, ic: 'home' }].concat(MODULES.map(function (m) { return { id: m.id, court: m.court, ready: m.ready, ic: m.id }; }));
@@ -1211,7 +1225,7 @@ function vShell() {
     '<button class="ghost" data-a="theme" aria-label="Changer de thème">' + (isDark() ? '☀︎ <span class="lbl">Clair</span>' : '☾ <span class="lbl">Sombre</span>') + '</button></div>' +
     '<nav class="nav" aria-label="Modules">' + tabs.map(function (t) {
       return '<button class="' + (MOD === t.id ? 'on' : '') + '" data-a="go" data-v="' + t.id + '"' + (MOD === t.id ? ' aria-current="page"' : '') + '>' + ICONS[t.ic] + esc(t.court) + (t.ready ? '' : '<span class="soon">bientôt</span>') + '</button>';
-    }).join('') + '</nav>' + (MOD === 'sapin' ? vSapSub() : '') + '</div></header>';
+    }).join('') + '</nav>' + (SUBS[MOD] ? vSubNav() : '') + '</div></header>';
 }
 function bilanStatus() {
   var act = activeFiles();
@@ -1226,7 +1240,7 @@ function renderHome() {
     '<div class="band"><div class="home-hero"><h2>Administration des caisses</h2><p>Choisissez un module. Les fichiers chargés restent sur cet appareil et sont conservés quand vous passez d’un module à l’autre.</p></div></div>' +
     '<div class="mods">' + MODULES.map(function (m) {
       return '<button class="mod' + (m.ready ? '' : ' off') + '" data-a="go" data-v="' + m.id + '"><span class="ic">' + ICONS[m.id] + '</span><h3>' + esc(m.nom) + '</h3><p>' + esc(m.desc) + '</p>' +
-        '<span class="st num">' + (m.ready ? (m.id === 'bilan' ? esc(bilanStatus()) : m.id === 'catalogue' ? esc(catHomeStatus()) : m.id === 'stock' ? esc(stkHomeStatus()) : m.id === 'sapin' ? esc(sapHomeStatus()) : m.id === 'parametres' ? (getToken() ? 'Publication déverrouillée' : 'Publication verrouillée') : 'Disponible') : 'Bientôt disponible') + '</span></button>';
+        '<span class="st num">' + (m.ready ? (m.id === 'bar' ? esc(ctxHomeStatus('bar', 'Bilan et catalogue de la Caisse Bar')) : m.id === 'chloro' ? esc(stkHomeStatus()) : m.id === 'sapin' ? esc(sapHomeStatus()) : m.id === 'parametres' ? (getToken() ? 'Publication déverrouillée' : 'Publication verrouillée') : 'Disponible') : 'Bientôt disponible') + '</span></button>';
     }).join('') + '</div>' + vApps() + vToast();
 }
 /* Liens vers les applications des caisses (même site GitHub Pages) */
@@ -1240,19 +1254,15 @@ function vApps() {
     return '<a class="app-link" href="' + a.url + '" target="_blank" rel="noopener"><span class="ic">' + ICONS.pdv + '</span><span class="t"><b>' + esc(a.nom) + '</b><small>' + esc(a.desc) + '</small></span><span class="go" aria-hidden="true">↗</span></a>';
   }).join('') + '</div></div>';
 }
-/* ---------- Gestion sapin : sous-menu Catalogue · Stock · Bilan ---------- */
-function vSapSub() {
-  return '<nav class="subnav" aria-label="Gestion sapin">' + SAP_SUBS.map(function (x) {
-    return '<button class="rchip' + (SAP_SUB === x.id ? ' on' : '') + '" data-a="sapsub" data-v="' + x.id + '"' + (SAP_SUB === x.id ? ' aria-current="page"' : '') + '>' + esc(x.nom) + '</button>';
+/* ---------- Sous-menus des modules (Bar, Chlorophylle Night, Gestion sapin) ---------- */
+function vSubNav() {
+  var m = modById(MOD);
+  return '<nav class="subnav" aria-label="' + esc(m ? m.nom : '') + '">' + SUBS[MOD].map(function (x) {
+    var on = SUB[MOD] === x.id;
+    return '<button class="rchip' + (on ? ' on' : '') + '" data-a="sub" data-v="' + MOD + '/' + x.id + '"' + (on ? ' aria-current="page"' : '') + '>' + esc(x.nom) + '</button>';
   }).join('') + '</nav>';
 }
-function renderSapin() {
-  if (SAP_SUB === 'catalogue') renderCatalogue();
-  else if (SAP_SUB === 'bilan') renderBilan();
-  else if (SAP_SUB === 'hist') renderSapHist();
-  else if (SAP_SUB === 'caisse') renderSapCaisse();
-  else renderSapStock();
-}
+function renderSub() { var s = SUBS[MOD].filter(function (x) { return x.id === SUB[MOD]; })[0] || SUBS[MOD][0]; SUB[MOD] = s.id; s.render(); }
 /* ================= Gestion sapin › Stock ================= */
 /* Un fichier par saison dans le dépôt privé des ventes : sapin/stock/<id>.json (format agri-garden-caisse/stock).
    Les mouvements sont rangés par identifiant (pas de liste) et chaque appareil rejoue ses modifications sur la
@@ -2069,8 +2079,14 @@ function vCxForm(S) {
       '<button type="button" class="btn sm" data-cx="laisse0">Tout retirer (0 €)</button><button type="button" class="btn sm" data-cx="laisseAll">Tout laisser</button></div>' +
       '<p class="hint" id="cxRet">' + cxRetTxt(a, parsePrice(f.laisse)) + '</p>';
   }
-  h += '<div class="cbtns"><button class="pick" type="submit">Enregistrer</button><button class="btn" type="button" data-cx="cancelForm">Annuler</button></div></form></section>';
+  h += '<div class="cbtns"><button class="pick" type="submit" id="cxSave"' + (cxCanSave(f) ? '' : ' disabled') + '>Enregistrer</button><button class="btn" type="button" data-cx="cancelForm">Annuler</button></div></form></section>';
   return h;
+}
+/* Décompte final : Enregistrer reste grisé tant que le laissé pour demain n'est pas rempli (et valide) */
+function cxCanSave(f) {
+  if (!f || f.kind !== 'comptage') return true;
+  var a = cxAmount(f), l = String(f.laisse || '').trim() === '' ? NaN : parsePrice(f.laisse);
+  return !isNaN(a) && a >= 0 && !isNaN(l) && l >= 0 && l <= a + 0.004;
 }
 function cxLive(a, att) { if (isNaN(a)) return 'Attendu en caisse : <strong>' + money(att) + '</strong>'; var e = cxR2(a - att); return 'Compté <strong>' + money(a) + '</strong> · attendu ' + money(att) + ' · écart ' + cEcart(e); }
 function cxRetTxt(a, l) { if (isNaN(a) || isNaN(l)) return 'Retiré (recette) = compté − laissé.'; if (l > a + 0.004) return '<span class="bad">Le laissé dépasse le compté.</span>'; return 'Retiré (recette) : <strong>' + money(a - l) + '</strong>, noté comme « Recette de fin de journée ».'; }
@@ -2112,6 +2128,7 @@ function cxRefreshLive() {
   var f = CX.form; if (!f || f.kind !== 'comptage') return;
   var a = cxAmount(f), S = cxSummary(cxDoc(), CX.sales ? CX.sales.v : 0), e1 = document.getElementById('cxLive'), e2 = document.getElementById('cxRet');
   if (e1) e1.innerHTML = cxLive(a, S.attendu); if (e2) e2.innerHTML = cxRetTxt(a, parsePrice(f.laisse));
+  var sb = document.getElementById('cxSave'); if (sb) sb.disabled = !cxCanSave(f);
 }
 document.addEventListener('click', function (e) {
   var b = e.target.closest('[data-cx]'); if (!b || b.disabled || b.tagName === 'INPUT') return;
@@ -2154,6 +2171,11 @@ function cxForBilan(day, pdv, salesData) {
   if (!c || !c.doc) return null;
   return cxSummary(c.doc, cxSalesCash(salesData).v);
 }
+function ctxHomeStatus(c, def) {
+  var st = BIL_CUR === c ? { FILES: FILES } : BIL_ST[c];
+  var n = st ? st.FILES.filter(function (f) { return f.status === 'ok'; }).length : 0;
+  return n ? n + ' fichier' + (n > 1 ? 's' : '') + ' de ventes chargé' + (n > 1 ? 's' : '') : def;
+}
 function sapHomeStatus() {
   var st = BIL_CUR === 'sapin' ? { FILES: FILES } : BIL_ST.sapin;
   var n = st ? st.FILES.filter(function (f) { return f.status === 'ok'; }).length : 0;
@@ -2167,7 +2189,7 @@ function renderSoon(m) {
     '<p style="margin:18px 0 0"><button class="btn" data-a="go" data-v="accueil">← Retour à l’accueil</button></p></section></main>' + vToast();
 }
 function render() {
-  var ctx = MOD === 'sapin' ? 'sapin' : 'main';
+  var mm = modById(MOD), ctx = mm && mm.ctx ? mm.ctx : BIL_CUR;
   bilUse(ctx); catUse(ctx);
   document.getElementById('app').innerHTML = vShell() + '<div id="mod"></div>';
   var nv = document.querySelector('.nav'), on = nv && nv.querySelector('button.on');
@@ -2331,12 +2353,13 @@ function comparable(d) { if (!d) return ''; var c = finalizeCat(d, 0); delete c.
 
 /* Catalogue : « main » (Bar, Soirée) et « sapin » (Gestion sapin › Catalogue), chacun avec son état. */
 var SAPIN_REPO = 'scraper147/sapin';
-var CAT_CUR = 'main', CAT_ST = {};
-function catRepos() { return REPOS.filter(function (r) { return CAT_CUR === 'sapin' ? r.id === SAPIN_REPO : r.id !== SAPIN_REPO; }); }
+var CAT_CUR = 'bar', CAT_ST = {};
+var CTX_REPO = { bar: 'scraper147/bar', soiree: 'scraper147/soiree', sapin: SAPIN_REPO };
+function catRepos() { return REPOS.filter(function (r) { return r.id === CTX_REPO[CAT_CUR]; }); }
 function catUse(c) {
   if (c === CAT_CUR) return;
   CAT_ST[CAT_CUR] = CAT;
-  CAT = CAT_ST[c] || { repo: c === 'sapin' ? SAPIN_REPO : REPOS[0].id, data: null, base: null, sha: null, source: null, loading: false, msg: null, confirm: null, busy: false };
+  CAT = CAT_ST[c] || { repo: CTX_REPO[c] || REPOS[0].id, data: null, base: null, sha: null, source: null, loading: false, msg: null, confirm: null, busy: false };
   if (CAT.loading && !CAT.data) CAT.loading = false; // chargement interrompu : relancé à l'affichage
   CAT_CUR = c;
 }
@@ -2451,7 +2474,7 @@ function renderCatalogue() {
   if (!CAT.data && !CAT.loading) { loadCatFor(CAT.repo); return; }
   var errs = catErrors(CAT.data), canPub = CAT.data && !errs.length && (dirty() || !CAT.base) && !CAT.busy, unlocked = !!getToken();
   var reps = catRepos();
-  var band = '<div class="band"><div class="band-top"><h1>' + (CAT_CUR === 'sapin' ? 'Catalogue des sapins' : 'Catalogue') + '</h1></div>' +
+  var band = '<div class="band"><div class="band-top"><h1>' + (CAT_CUR === 'sapin' ? 'Catalogue des sapins' : CAT_CUR === 'soiree' ? 'Catalogue Chlorophylle Night' : 'Catalogue du bar') + '</h1></div>' +
     '<div class="cat-bar">' + (reps.length > 1 ? '<div class="rsel" role="group" aria-label="Caisse">' : '<div class="rsel" hidden>') + reps.map(function (r) { return '<button class="rchip' + (CAT.repo === r.id ? ' on' : '') + '" data-c="repo" data-v="' + r.id + '">' + esc(r.nom) + '</button>'; }).join('') + '</div>' +
     '<p class="cat-status num" id="catStatus">' + catStatusLine() + '</p>' +
     '<div class="cat-acts"><button class="ghost" data-c="reload"' + (CAT.loading ? ' disabled' : '') + '>Recharger depuis GitHub</button>' +
@@ -3213,8 +3236,8 @@ function vGhPanel() {
   if (!getToken()) return h + '<p class="lead">Déverrouillez l’appareil dans Paramètres pour accéder au dépôt privé.</p><button class="btn" data-a="go" data-v="parametres">Aller dans Paramètres</button></section>';
   if (BGH.err) h += '<div class="alert err">' + BGH.err + '</div>';
   if (BGH.loading) return h + '<p class="empty">Chargement de la liste…</p></section>';
-  if (!BGH.files || !BGH.files.length || !bghTabs().length) return h + (BGH.err ? '' : '<p class="empty">Aucun fichier de ventes ' + (BIL_CUR === 'sapin' ? 'de la Caisse Sapins ' : '') + 'dans le dépôt pour l’instant.</p>') + '</section>';
-  var tabs = bghTabs(); if (BGH.tab === null || tabs.indexOf(BGH.tab) < 0) BGH.tab = tabs.indexOf('bar') >= 0 ? 'bar' : tabs[0];
+  if (!BGH.files || !BGH.files.length || !bghTabs().length) return h + (BGH.err ? '' : '<p class="empty">Aucun fichier de ventes de la ' + CAISSE_LABEL[BIL_CUR] + ' dans le dépôt pour l’instant.</p>') + '</section>';
+  var tabs = bghTabs(); if (BGH.tab === null || tabs.indexOf(BGH.tab) < 0) BGH.tab = tabs.indexOf(BIL_CUR) >= 0 ? BIL_CUR : tabs[0];
   var days = {}, loaded = {}; BGH.files.forEach(function (f) { if (f.top !== BGH.tab) return; var k = f.date || 'sans-date'; (days[k] = days[k] || []).push(f); }); FILES.forEach(function (f) { loaded[f.name] = f.sha || true; });
   var stale = BGH.files.filter(function (f) { var g = loaded[fileKey(f.path)]; return g && g !== true && f.sha && g !== f.sha; });
   var n = Object.keys(BGH.sel).filter(function (k) { return BGH.sel[k]; }).length;
@@ -3234,7 +3257,7 @@ function vGhPanel() {
 }
 function bghSoireePaths(d) { var nx = BGH.tab === 'bar' ? addDays(d, 1) : d; return (BGH.files || []).filter(function (f) { return f.top === BGH.tab && (f.date === d || f.date === nx); }).map(function (f) { return f.path; }); }
 /* Onglets = dossier parent (1er niveau) des fichiers : bar, sapin… ; fichiers à la racine -> « Autres » */
-function bghTabs() { var o = {}; (BGH.files || []).forEach(function (f) { if (BIL_CUR === 'sapin' ? f.top === 'sapin' : f.top !== 'sapin' && f.top !== 'stock') o[f.top] = 1; }); var order = ['bar', 'sapin', 'soiree']; return Object.keys(o).sort(function (a, b) { var ia = order.indexOf(a), ib = order.indexOf(b); return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib) || (a === '' ? 1 : b === '' ? -1 : a.localeCompare(b)); }); }
+function bghTabs() { var o = {}; (BGH.files || []).forEach(function (f) { if (BIL_CUR === 'bar' ? (f.top === 'bar' || f.top === '') : f.top === BIL_CUR) o[f.top] = 1; }); var order = ['bar', 'sapin', 'soiree']; return Object.keys(o).sort(function (a, b) { var ia = order.indexOf(a), ib = order.indexOf(b); return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib) || (a === '' ? 1 : b === '' ? -1 : a.localeCompare(b)); }); }
 function bghTabName(t) { if (t === 'soiree') return 'Soirée'; return t === '' ? 'Autres' : t.charAt(0).toUpperCase() + t.slice(1).replace(/[_-]+/g, ' '); }
 document.addEventListener('click', function (e) {
   var b = e.target.closest('[data-g]'); if (!b || b.disabled) return;
@@ -3362,7 +3385,7 @@ document.addEventListener('click', function (e) {
   var el = e.target.closest('[data-a]'); if (!el) return;
   var a = el.getAttribute('data-a'), v = el.getAttribute('data-v');
   if (a === 'go') { go(v); return; }
-  if (a === 'sapsub') { SAP_SUB = v; go('sapin'); return; }
+  if (a === 'sub') { var sp = v.split('/'); SUB[sp[0]] = sp[1]; go(sp[0]); return; }
   if (a === 'demo') { FILES = demoFiles().map(function (f) { return { name: f.name, data: f.data, status: 'ok', note: '', caisse: 'bar' }; }); F.caisse = 'bar'; dedupe(); F.soiree = defSoiree(); F.bar = 'all'; toast('Exemples chargés : 2 bars, 1 soirée'); return; }
   if (a === 'cdet') { CAISSE_OPEN[v] = !CAISSE_OPEN[v]; render(); return; }
   if (a === 'caisse') { F.caisse = v; F.bar = 'all'; F.soiree = defSoiree(); render(); return; }
@@ -3387,7 +3410,7 @@ function bindDrop() {
 }
 /* Glisser des fichiers n'importe où sur la page */
 window.addEventListener('dragover', function (e) { e.preventDefault(); });
-window.addEventListener('drop', function (e) { e.preventDefault(); if ((MOD === 'bilan' || (MOD === 'sapin' && SAP_SUB === 'bilan')) && !e.target.closest('#drop') && e.dataTransfer && e.dataTransfer.files.length) addFiles(e.dataTransfer.files); });
+window.addEventListener('drop', function (e) { e.preventDefault(); if (curSub() === 'bilan' && !e.target.closest('#drop') && e.dataTransfer && e.dataTransfer.files.length) addFiles(e.dataTransfer.files); });
 render();
 </script>
 

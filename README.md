@@ -1,6 +1,13 @@
 # Admin Agri-Garden
 
-Application d'administration des caisses : **Bilan des ventes** de la Caisse Bar et de la Caisse Soirée (fichiers déposés ou lus dans le dépôt privé `ventes`), **Catalogue** des caisses Bar et Soirée (publié directement sur GitHub), **Stock** (comptage quotidien par événement), **Gestion sapin** (catalogue, stock et bilan de la Caisse Sapins) et **Paramètres**.
+Application d'administration des caisses. Le menu principal a un module par activité, chacun avec ses onglets :
+
+- **Bar** : Bilan, Catalogue (Caisse Bar).
+- **Chlorophylle Night** : Catalogue, Stock (comptage par événement), Bilan (Caisse Soirée).
+- **Gestion sapin** : Catalogue, Stock, Caisse, Bilan, Historique de vente (Caisse Sapins).
+- **Paramètres**.
+
+Chaque Bilan et chaque Catalogue ne montre que sa caisse : un fichier d'une autre caisse est refusé avec un message qui indique où l'ouvrir.
 
 L'accueil propose aussi des liens vers les applications des caisses (Bar, Soirée, Sapins).
 
@@ -41,7 +48,7 @@ Ni le jeton ni la phrase ne sont dans le code : seule la version chiffrée y est
 
 ### Sur chaque appareil
 
-**Paramètres → Phrase de passe admin → Déverrouiller.** Ensuite, **Catalogue → Publier la version N**.
+**Paramètres → Phrase de passe admin → Déverrouiller.** Ensuite, dans l'onglet **Catalogue** du module (Bar, Chlorophylle Night ou Gestion sapin) : **Publier la version N**.
 **Verrouiller cet appareil** efface le jeton de l'appareil.
 
 ### Ajouter un deuxième jeton
@@ -59,10 +66,10 @@ Supprimez le jeton sur GitHub (Settings → Developer settings → Personal acce
 Les caisses envoient leurs exports dans le dépôt privé `ventes`. Le Bilan peut les lire directement :
 
 1. Ajoutez le dépôt `ventes` au jeton de l'app Admin (**Settings → Developer settings → Fine-grained tokens** → votre jeton → **Edit** → Repository access → ajoutez `ventes` → **Update**). La clé chiffrée reste valable.
-2. **Bilan → Charger depuis le dépôt** (ou **+ Depuis le dépôt**) : un onglet par dossier du dépôt (Bar, Sapin, Soirée…), puis les fichiers rangés par jour (date lue dans le nom du fichier). Cochez ceux voulus, ou **Charger les ventes** (Caisse Bar : le jour et le lendemain, pour les ventes après minuit). Si des ventes Bar et Soirée sont chargées, un choix **Caisse** apparaît dans les filtres : les totaux ne mélangent jamais les caisses. Les ventes des sapins se chargent dans **Gestion sapin → Bilan**.
-3. **Caisse Soirée** (dossier `soiree`) : un fichier par appareil et par soirée ; « Charger les ventes » charge tous les appareils de la soirée. Le bilan montre la recette (entrées et tickets, cash et Bancontact), les entrées (payantes, préventes, VIP), les cases vendues et barrées avec l'écart, les boissons par catégorie, l'activité heure par heure, le détail par appareil (avec les tables VIP) et les enregistrements annulés. Par défaut, toutes les dates chargées sont sélectionnées ; « Retirer les fichiers » vide le Bilan. Un enregistrement présent dans deux fichiers n'est compté qu'une fois ; un export plus ancien du même appareil est ignoré.
+2. **Bar → Bilan** (dossier `bar`), **Chlorophylle Night → Bilan** (dossier `soiree`) ou **Gestion sapin → Bilan** (dossier `sapin`) → **Charger depuis le dépôt** (ou **+ Depuis le dépôt**) : les fichiers de cette caisse rangés par jour (date lue dans le nom du fichier). Cochez ceux voulus, ou **Charger les ventes** (Caisse Bar : le jour et le lendemain, pour les ventes après minuit).
+3. **Chlorophylle Night → Bilan** (dossier `soiree`) : un fichier par appareil et par soirée ; « Charger les ventes » charge tous les appareils de la soirée. Le bilan montre la recette (entrées et tickets, cash et Bancontact), les entrées (payantes, préventes, VIP), les cases vendues et barrées avec l'écart, les boissons par catégorie, l'activité heure par heure, le détail par appareil (avec les tables VIP) et les enregistrements annulés. Par défaut, toutes les dates chargées sont sélectionnées ; « Retirer les fichiers » vide le Bilan. Un enregistrement présent dans deux fichiers n'est compté qu'une fois ; un export plus ancien du même appareil est ignoré.
 
-## Stock (comptage par événement)
+## Chlorophylle Night → Stock (comptage par événement)
 
 ### Une seule fois : le dépôt privé des données
 
@@ -74,7 +81,7 @@ Le stock est enregistré dans un dépôt **privé** `admin-donnees` (un fichier 
 
 ### Pendant l'événement
 
-1. **Stock → Nouvel événement** : nom et premier jour (vous pouvez reprendre les articles et le stock restant d'un événement précédent).
+1. **Chlorophylle Night → Stock → Nouvel événement** : nom et premier jour (vous pouvez reprendre les articles et le stock restant d'un événement précédent).
 2. **Articles et stock de départ** : la liste des articles, leur unité et la quantité avant le premier jour.
 3. Chaque jour, **Comptage du jour** : notez les **livraisons** et comptez le **restant** en fin de journée. Consommé = début + livré − restant. Stock réparti à plusieurs endroits : notez le premier comptage, puis le bouton **+** à côté du champ ajoute les suivants (7, puis + 8 = 15).
 4. Les modifications sont gardées sur la tablette et envoyées sur GitHub quelques secondes après (ou dès le retour d'internet). Deux tablettes peuvent compter en même temps.
@@ -97,7 +104,7 @@ Tout ce qui concerne la vente des sapins est regroupé dans le menu **Gestion sa
   - Un article retiré du catalogue reste visible dans le stock (« Plus dans le catalogue ») tant qu'il y en a.
   - Sans internet, la livraison est gardée sur l'appareil et envoyée au retour du réseau.
   - **Le jeton doit avoir l'écriture (Contents : Read and write) sur `ventes`** (Paramètres → Tester l'accès aux dépôts).
-- **Caisse** : choisissez le jour et le point de vente, puis saisissez le **fond de caisse**, les **retraits** (dépôt au coffre, remboursement, dépense, autre), les **ajouts** (monnaie, autre) et le **décompte final** (montant total ou par billets et pièces, laissé pour demain obligatoire ; l'app calcule l'écart et la recette retirée). Les ventes cash viennent du fichier de ventes envoyé par la tablette. Chaque saisie est datée de l'heure de son enregistrement (non modifiable). Le journal montre toutes les saisies (Admin et tablette) et permet d'en supprimer. Tout est enregistré dans le dépôt `ventes`, fichier `sapin/caisse/<jour>_<point de vente>.json`, partagé avec la Caisse Sapins (qui doit être mise à jour pour le lire) ; le Bilan l'utilise en priorité. Sans internet, les saisies attendent sur l'appareil.
+- **Caisse** : choisissez le jour et le point de vente, puis saisissez le **fond de caisse**, les **retraits** (dépôt au coffre, remboursement, dépense, autre), les **ajouts** (monnaie, autre) et le **décompte final** (montant total ou par billets et pièces, laissé pour demain obligatoire, Enregistrer reste grisé tant qu'il n'est pas rempli ; l'app calcule l'écart et la recette retirée). Les ventes cash viennent du fichier de ventes envoyé par la tablette. Chaque saisie est datée de l'heure de son enregistrement (non modifiable). Le journal montre toutes les saisies (Admin et tablette) et permet d'en supprimer. Tout est enregistré dans le dépôt `ventes`, fichier `sapin/caisse/<jour>_<point de vente>.json`, partagé avec la Caisse Sapins (qui doit être mise à jour pour le lire) ; le Bilan l'utilise en priorité. Sans internet, les saisies attendent sur l'appareil.
 - **Bilan** : ventes de la Caisse Sapins, fichiers déposés ou **Charger depuis le dépôt** (dossier `sapin` du dépôt `ventes`).
   - **Caisse** : par stand et par jour, fond, ventes cash, apports, retraits (avec leurs motifs), attendu, compté, écart (vert si nul, rouge sinon), laissé pour demain, et les badges « Non comptée », « À recompter », « Comptée le lendemain », « Fond non saisi ». Toucher un jour montre les mouvements, les comptages successifs et les billets. En dessous, les totaux de la période par stand (écarts, jours non comptés ou à recompter, recettes retirées, dépôts au coffre, autres retraits et apports).
   - **Livraisons** : nombre de livraisons par stand et par jour (le bandeau indique le chiffre « Sapins et accessoires » et le nombre de livraisons).
