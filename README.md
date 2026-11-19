@@ -1,4 +1,4 @@
-# Admin Chlorophylle Night
+# Admin Agri-Garden
 
 Application d'administration des caisses : **Bilan des ventes** de la Caisse Bar et de la Caisse Soirée (fichiers déposés ou lus dans le dépôt privé `ventes`), **Catalogue** des caisses Bar et Soirée (publié directement sur GitHub), **Stock** (comptage quotidien par événement), **Gestion sapin** (catalogue, stock et bilan de la Caisse Sapins) et **Paramètres**.
 
@@ -83,7 +83,7 @@ Dans le comptage : champ **Rechercher un article**, filtres **À compter seuleme
 
 ## Gestion sapin
 
-Tout ce qui concerne la vente des sapins est regroupé dans le menu **Gestion sapin**, avec trois onglets :
+Tout ce qui concerne la vente des sapins est regroupé dans le menu **Gestion sapin**, avec quatre onglets :
 
 - **Catalogue** : produits, prix et points de vente de la Caisse Sapins, publiés sur GitHub (dépôt `sapin`), comme dans le menu Catalogue.
 - **Stock** : stock de la saison (un par année, par exemple « Sapins 2026 »), enregistré dans le dépôt privé `ventes`, fichier `sapin/stock/<saison>.json`.
@@ -106,6 +106,8 @@ Tout ce qui concerne la vente des sapins est regroupé dans le menu **Gestion sa
   - **Exporter pour Excel** donne un troisième fichier `bilan-caisse_….csv` (une ligne par stand et par jour : caisse, livraisons, tiroir).
   - Un fichier peut être renvoyé par la tablette après coup (livraison ajoutée, caisse comptée le lendemain) : en rouvrant **+ Depuis le dépôt**, l'app signale les fichiers modifiés et propose de les recharger.
   - Les anciens fichiers (sans caisse ni tiroir) s'affichent sans ces sections. Ce Bilan est séparé de celui du menu Bilan : chacun garde ses propres fichiers. Un fichier de la Caisse Bar ou Soirée déposé ici est refusé avec un message (et inversement).
+
+- **Historique de vente** : choisissez un fichier de ventes (liste du dossier `sapin` du dépôt `ventes`, ou **Ouvrir un fichier de l'appareil**). Les ventes s'affichent comme dans l'Historique de la Caisse Sapins, mais de la première à la dernière de la journée : heure, numéro de vente, articles (remises, articles libres), remise ticket, livraison ajoutée ou payée à part, annulation et motif, paiement, total. En tête : nombre de ventes, total, cash et Bancontact.
 
 ## Mettre à jour l'app
 
