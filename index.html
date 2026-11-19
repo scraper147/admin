@@ -136,6 +136,9 @@ tr.tot td{font-weight:800;border-top:2px solid var(--line);border-bottom:none}
 .nav button:hover{color:var(--band-ink)}
 .nav button.on{color:var(--band-ink);border-bottom-color:var(--gold)}
 .nav button svg{width:18px;height:18px;flex:none}
+.subnav{display:flex;gap:8px;overflow-x:auto;scrollbar-width:none;padding:6px 0 14px}
+.subnav::-webkit-scrollbar{display:none}
+.subnav .rchip{flex:none;height:36px;padding:0 16px;font-size:14px}
 .nav .soon{font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--band-muted);border:1px solid var(--band-line);border-radius:6px;padding:0 5px;line-height:17px}
 .band{padding-top:6px}
 .band-top h1{font-size:26px}
@@ -361,8 +364,22 @@ var CAISSES_BILAN = { 'caisse-bar/ventes': 'bar', 'agri-garden-caisse/ventes': '
 var CAISSE_LABEL = { bar: 'Caisse Bar', sapin: 'Caisse Sapins', soiree: 'Caisse Soirée' };
 function caisseOf(fmt) { return CAISSES_BILAN[fmt] || null; }
 function okVentes(d) { var c = d && caisseOf(d.format); return !!c && (c === 'soiree' ? Array.isArray(d.enregistrements) : Array.isArray(d.ventes)); }
+/* Deux Bilans séparés : « main » (Caisse Bar, Caisse Soirée) et « sapin » (Gestion sapin › Bilan).
+   Chacun garde ses fichiers, ses filtres et son panneau du dépôt ; render() active le bon (bilUse). */
+var BIL_CUR = 'main', BIL_ST = {};
+function bilAllowed(c) { return (c || BIL_CUR) === 'sapin' ? ['sapin'] : ['bar', 'soiree']; }
+function bilFresh() { return { FILES: [], F: { soiree: null, bar: 'all', caisse: null }, BGH: { open: false, loading: false, files: null, sel: {}, err: null, busy: false, tab: null }, DISMISSED: {} }; }
+function bilUse(c) {
+  if (c === BIL_CUR) return;
+  BIL_ST[BIL_CUR] = { FILES: FILES, F: F, BGH: BGH, DISMISSED: DISMISSED };
+  var st = BIL_ST[c] || bilFresh();
+  FILES = st.FILES; F = st.F; BGH = st.BGH; DISMISSED = st.DISMISSED; BIL_CUR = c;
+}
+/* Exécute fn dans le contexte c (réponse arrivée après un changement de module), puis revient. */
+function bilWith(c, fn) { var back = BIL_CUR; bilUse(c); try { fn(); } finally { bilUse(back); } }
+function bilWrongNote(c) { return c === 'sapin' ? 'Ce fichier vient de la Caisse Sapins : ouvrez-le dans Gestion sapin › Bilan.' : 'Ce fichier vient de la ' + CAISSE_LABEL[c] + ' : ouvrez-le dans le menu Bilan.'; }
 var ERR_FORMAT = 'Ce fichier n\u2019est pas un export de ventes d\u2019une caisse (Caisse Bar, Caisse Sapins ou Caisse Soirée).';
-function caisses() { var o = {}; FILES.forEach(function (f) { if (f.status === 'ok' && f.caisse) o[f.caisse] = 1; }); return ['bar', 'sapin', 'soiree'].filter(function (c) { return o[c]; }); }
+function caisses() { var o = {}; FILES.forEach(function (f) { if (f.status === 'ok' && f.caisse) o[f.caisse] = 1; }); return bilAllowed().filter(function (c) { return o[c]; }); }
 function defSoiree() { var ss = soirees(); return ss.length > 1 ? 'all' : ss[0] || null; }
 function fixCaisse() { var cs = caisses(); if (!F.caisse || cs.indexOf(F.caisse) < 0) F.caisse = cs[0] || null; }
 /* Vocabulaire : soirée et bar pour la Caisse Bar, journée et point de vente pour la Caisse Sapins */
@@ -393,6 +410,7 @@ function slot(iso) { var h = hh(iso); return (h - slot0() + 24) % 24; } // Caiss
 function addFiles(list) {
   list = Array.prototype.slice.call(list || []);
   var pending = list.length; if (!pending) return;
+  var ctx = BIL_CUR;
   Array.prototype.forEach.call(list, function (file) {
     var rd = new FileReader();
     rd.onload = function () {
@@ -400,10 +418,11 @@ function addFiles(list) {
       try {
         var d = JSON.parse(rd.result);
         if (!okVentes(d)) entry.note = ERR_FORMAT;
+        else if (bilAllowed(ctx).indexOf(caisseOf(d.format)) < 0) entry.note = bilWrongNote(caisseOf(d.format));
         else { entry.data = d; entry.status = 'ok'; entry.caisse = caisseOf(d.format); }
       } catch (e) { entry.note = 'Fichier illisible (JSON invalide).'; }
-      FILES.push(entry);
-      if (--pending === 0) { dedupe(); var lastOk = FILES.filter(function (f) { return f.status === 'ok'; }).pop(); if (lastOk && entry.status === 'ok') F.caisse = entry.caisse; fixCaisse(); F.soiree = defSoiree(); F.bar = 'all'; render(); toast(list.length + ' fichier' + (list.length > 1 ? 's' : '') + ' chargé' + (list.length > 1 ? 's' : '')); }
+      bilWith(ctx, function () { FILES.push(entry); });
+      if (--pending === 0) { bilWith(ctx, function () { dedupe(); var lastOk = FILES.filter(function (f) { return f.status === 'ok'; }).pop(); if (lastOk && entry.status === 'ok') F.caisse = entry.caisse; fixCaisse(); F.soiree = defSoiree(); F.bar = 'all'; }); render(); toast(list.length + ' fichier' + (list.length > 1 ? 's' : '') + ' chargé' + (list.length > 1 ? 's' : '')); }
     };
     rd.readAsText(file);
   });
@@ -508,12 +527,13 @@ function toast(t) { toastMsg = t; clearTimeout(toastT); toastT = setTimeout(func
 function isDark() { var a = document.documentElement.getAttribute('data-theme'); return a ? a === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches; }
 
 function vBand(S) {
-  var top = '<div class="band-top"><h1>Bilan des ventes</h1></div>';
+  var top = '<div class="band-top"><h1>' + (BIL_CUR === 'sapin' ? 'Bilan des sapins' : 'Bilan des ventes') + '</h1></div>';
   if (!S) {
     return '<div class="band">' + top + '<div class="drop" id="drop"><h2>Déposez les exports des caisses</h2>' +
-      '<p>Glissez ici tous les fichiers <strong>ventes_….json</strong> téléchargés depuis la Caisse Bar ou la Caisse Sapins, ou les fichiers <strong>chlorophylle_….json</strong> de la Caisse Soirée, de tous les appareils et de tous les jours. Ils restent sur cet appareil : rien n\u2019est envoyé sur internet.</p>' +
+      (BIL_CUR === 'sapin' ? '<p>Glissez ici les fichiers <strong>ventes_….json</strong> téléchargés depuis la Caisse Sapins, de tous les points de vente et de tous les jours. Ils restent sur cet appareil : rien n\u2019est envoyé sur internet.</p>'
+        : '<p>Glissez ici tous les fichiers <strong>ventes_….json</strong> téléchargés depuis la Caisse Bar, ou les fichiers <strong>chlorophylle_….json</strong> de la Caisse Soirée, de tous les appareils et de tous les jours. Les ventes des sapins se trouvent dans Gestion sapin › Bilan. Les fichiers restent sur cet appareil : rien n\u2019est envoyé sur internet.</p>') +
       '<div class="acts"><label class="pick">Choisir des fichiers<input type="file" accept=".json,application/json" multiple data-files></label>' +
-      '<button class="demo" data-g="open">Charger depuis le dépôt</button><button class="demo" data-a="demo">Essayer avec des exemples</button></div></div></div>';
+      '<button class="demo" data-g="open">Charger depuis le dépôt</button>' + (BIL_CUR === 'sapin' ? '' : '<button class="demo" data-a="demo">Essayer avec des exemples</button>') + '</div></div></div>';
   }
   var title = (caisses().length > 1 ? CAISSE_LABEL[F.caisse] + ' · ' : '') + (F.soiree === 'all' ? T().toutes : T().du + ' ' + longDate(F.soiree));
   if (F.bar !== 'all') { var b = bars().filter(function (x) { return x.id === F.bar; })[0]; if (b) title += ', ' + b.nom; }
@@ -884,28 +904,34 @@ var ICONS = {
   pdv: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-6.2-7-12a7 7 0 0 1 14 0c0 5.8-7 12-7 12z"/><circle cx="12" cy="9" r="2.5"/></svg>',
   stock: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8l-9-5-9 5 9 5z"/><path d="M3 8v8l9 5 9-5V8"/><path d="M12 13v8"/></svg>',
   parametres: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>',
+  sapin: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l-5 7h3l-4 6h4l-4 5h12l-4-5h4l-4-6h3z"/><path d="M12 20v2"/></svg>',
   cloture: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18"/><path d="M8 3v3M16 3v3"/><path d="M8 15h3"/></svg>'
 };
 /* Ajouter un module = ajouter une entrée ici (ready:true + render) */
 var MODULES = [
   { id: 'bilan', nom: 'Bilan des ventes', court: 'Bilan', ready: true, render: renderBilan,
-    desc: 'Totaux par bar, heure par heure et par article (Caisse Bar, Caisse Sapins), entrées, tickets et boissons (Caisse Soirée).' },
+    desc: 'Totaux par bar, heure par heure et par article (Caisse Bar), entrées, tickets et boissons (Caisse Soirée).' },
   { id: 'catalogue', nom: 'Catalogue', court: 'Catalogue', ready: true, render: function () { renderCatalogue(); },
-    desc: 'Produits, prix et points de vente des caisses, publiés directement sur GitHub.' },
+    desc: 'Produits et prix de la Caisse Bar et de la Caisse Soirée, publiés directement sur GitHub.' },
   { id: 'stock', nom: 'Gestion de stock', court: 'Stock', ready: true, render: function () { renderStock(); },
     desc: 'Stock par événement : départ, comptage du restant chaque jour, consommation jour par jour à la clôture.' },
+  { id: 'sapin', nom: 'Gestion sapin', court: 'Gestion sapin', ready: true, render: function () { renderSapin(); },
+    desc: 'Vente des sapins : catalogue (produits, prix, points de vente), stock et bilan des ventes de la Caisse Sapins.' },
   { id: 'parametres', nom: 'Paramètres', court: 'Paramètres', ready: true, render: function () { renderParametres(); },
     desc: 'Déverrouiller la publication sur GitHub et préparer la clé chiffrée.' }
 ];
 var MOD = 'accueil';
-(function () { var h = (location.hash || '').replace('#', ''); if (h && MODULES.some(function (m) { return m.id === h; })) MOD = h; })();
+var SAP_SUBS = [{ id: 'catalogue', nom: 'Catalogue' }, { id: 'stock', nom: 'Stock' }, { id: 'bilan', nom: 'Bilan' }];
+var SAP_SUB = 'catalogue';
+function hashPart(h) { var p = (h || '').replace('#', '').split('/'); if (p[0] === 'sapin' && SAP_SUBS.some(function (x) { return x.id === p[1]; })) SAP_SUB = p[1]; return p[0]; }
+(function () { var h = hashPart(location.hash); if (h && MODULES.some(function (m) { return m.id === h; })) MOD = h; })();
 function modById(id) { return MODULES.filter(function (m) { return m.id === id; })[0]; }
 function go(id) {
   MOD = id;
-  try { history.replaceState(null, '', '#' + id); } catch (e) {}
+  try { history.replaceState(null, '', '#' + id + (id === 'sapin' ? '/' + SAP_SUB : '')); } catch (e) {}
   render(); window.scrollTo(0, 0);
 }
-window.addEventListener('hashchange', function () { var h = location.hash.replace('#', ''); if ((h === 'accueil' || modById(h)) && h !== MOD) { MOD = h; render(); } });
+window.addEventListener('hashchange', function () { var s0 = SAP_SUB, h = hashPart(location.hash); if ((h === 'accueil' || modById(h)) && (h !== MOD || s0 !== SAP_SUB)) { MOD = h; render(); } });
 
 function vShell() {
   var tabs = [{ id: 'accueil', court: 'Accueil', ready: true, ic: 'home' }].concat(MODULES.map(function (m) { return { id: m.id, court: m.court, ready: m.ready, ic: m.id }; }));
@@ -913,7 +939,7 @@ function vShell() {
     '<button class="ghost" data-a="theme" aria-label="Changer de thème">' + (isDark() ? '☀︎ <span class="lbl">Clair</span>' : '☾ <span class="lbl">Sombre</span>') + '</button></div>' +
     '<nav class="nav" aria-label="Modules">' + tabs.map(function (t) {
       return '<button class="' + (MOD === t.id ? 'on' : '') + '" data-a="go" data-v="' + t.id + '"' + (MOD === t.id ? ' aria-current="page"' : '') + '>' + ICONS[t.ic] + esc(t.court) + (t.ready ? '' : '<span class="soon">bientôt</span>') + '</button>';
-    }).join('') + '</nav></div></header>';
+    }).join('') + '</nav>' + (MOD === 'sapin' ? vSapSub() : '') + '</div></header>';
 }
 function bilanStatus() {
   var act = activeFiles();
@@ -928,7 +954,7 @@ function renderHome() {
     '<div class="band"><div class="home-hero"><h2>Administration des caisses</h2><p>Choisissez un module. Les fichiers chargés restent sur cet appareil et sont conservés quand vous passez d’un module à l’autre.</p></div></div>' +
     '<div class="mods">' + MODULES.map(function (m) {
       return '<button class="mod' + (m.ready ? '' : ' off') + '" data-a="go" data-v="' + m.id + '"><span class="ic">' + ICONS[m.id] + '</span><h3>' + esc(m.nom) + '</h3><p>' + esc(m.desc) + '</p>' +
-        '<span class="st num">' + (m.ready ? (m.id === 'bilan' ? esc(bilanStatus()) : m.id === 'catalogue' ? esc(catHomeStatus()) : m.id === 'stock' ? esc(stkHomeStatus()) : m.id === 'parametres' ? (getToken() ? 'Publication déverrouillée' : 'Publication verrouillée') : 'Disponible') : 'Bientôt disponible') + '</span></button>';
+        '<span class="st num">' + (m.ready ? (m.id === 'bilan' ? esc(bilanStatus()) : m.id === 'catalogue' ? esc(catHomeStatus()) : m.id === 'stock' ? esc(stkHomeStatus()) : m.id === 'sapin' ? esc(sapHomeStatus()) : m.id === 'parametres' ? (getToken() ? 'Publication déverrouillée' : 'Publication verrouillée') : 'Disponible') : 'Bientôt disponible') + '</span></button>';
     }).join('') + '</div>' + vApps() + vToast();
 }
 /* Liens vers les applications des caisses (même site GitHub Pages) */
@@ -942,6 +968,27 @@ function vApps() {
     return '<a class="app-link" href="' + a.url + '" target="_blank" rel="noopener"><span class="ic">' + ICONS.pdv + '</span><span class="t"><b>' + esc(a.nom) + '</b><small>' + esc(a.desc) + '</small></span><span class="go" aria-hidden="true">↗</span></a>';
   }).join('') + '</div></div>';
 }
+/* ---------- Gestion sapin : sous-menu Catalogue · Stock · Bilan ---------- */
+function vSapSub() {
+  return '<nav class="subnav" aria-label="Gestion sapin">' + SAP_SUBS.map(function (x) {
+    return '<button class="rchip' + (SAP_SUB === x.id ? ' on' : '') + '" data-a="sapsub" data-v="' + x.id + '"' + (SAP_SUB === x.id ? ' aria-current="page"' : '') + '>' + esc(x.nom) + '</button>';
+  }).join('') + '</nav>';
+}
+function renderSapin() {
+  if (SAP_SUB === 'catalogue') renderCatalogue();
+  else if (SAP_SUB === 'bilan') renderBilan();
+  else renderSapStock();
+}
+function renderSapStock() {
+  document.getElementById('mod').innerHTML =
+    '<div class="band"><div class="band-top"><h1>Stock des sapins<span class="pill">Bientôt</span></h1></div><p class="soon-lead">La gestion du stock de la vente des sapins sera construite dans une prochaine étape.</p></div>' +
+    '<main><section><h3>À venir</h3><p class="lead">Le fonctionnement du stock des sapins (stock de base, départs vers les stands, lien avec la Caisse Sapins) reste à définir.</p></section></main>' + vToast();
+}
+function sapHomeStatus() {
+  var st = BIL_CUR === 'sapin' ? { FILES: FILES } : BIL_ST.sapin;
+  var n = st ? st.FILES.filter(function (f) { return f.status === 'ok'; }).length : 0;
+  return n ? n + ' fichier' + (n > 1 ? 's' : '') + ' de ventes chargé' + (n > 1 ? 's' : '') : 'Catalogue et bilan de la Caisse Sapins';
+}
 function renderSoon(m) {
   document.getElementById('mod').innerHTML =
     '<div class="band"><div class="band-top"><h1>' + esc(m.nom) + '<span class="pill">Bientôt</span></h1></div><p class="soon-lead">' + esc(m.desc) + '</p></div>' +
@@ -950,7 +997,11 @@ function renderSoon(m) {
     '<p style="margin:18px 0 0"><button class="btn" data-a="go" data-v="accueil">← Retour à l’accueil</button></p></section></main>' + vToast();
 }
 function render() {
+  var ctx = MOD === 'sapin' ? 'sapin' : 'main';
+  bilUse(ctx); catUse(ctx);
   document.getElementById('app').innerHTML = vShell() + '<div id="mod"></div>';
+  var nv = document.querySelector('.nav'), on = nv && nv.querySelector('button.on');
+  if (on && on.offsetLeft + on.offsetWidth > nv.clientWidth) nv.scrollLeft = on.offsetLeft - 8; // onglet actif visible sur téléphone
   var m = modById(MOD);
   if (!m) renderHome();
   else if (m.ready) m.render();
@@ -1106,27 +1157,39 @@ function finalizeCat(d, version) {
 }
 function comparable(d) { if (!d) return ''; var c = finalizeCat(d, 0); delete c.date; return JSON.stringify(c); }
 
+/* Catalogue : « main » (Bar, Soirée) et « sapin » (Gestion sapin › Catalogue), chacun avec son état. */
+var SAPIN_REPO = 'scraper147/sapin';
+var CAT_CUR = 'main', CAT_ST = {};
+function catRepos() { return REPOS.filter(function (r) { return CAT_CUR === 'sapin' ? r.id === SAPIN_REPO : r.id !== SAPIN_REPO; }); }
+function catUse(c) {
+  if (c === CAT_CUR) return;
+  CAT_ST[CAT_CUR] = CAT;
+  CAT = CAT_ST[c] || { repo: c === 'sapin' ? SAPIN_REPO : REPOS[0].id, data: null, base: null, sha: null, source: null, loading: false, msg: null, confirm: null, busy: false };
+  if (CAT.loading && !CAT.data) CAT.loading = false; // chargement interrompu : relancé à l'affichage
+  CAT_CUR = c;
+}
 var CAT = { repo: REPOS[0].id, data: null, base: null, sha: null, source: null, loading: false, msg: null, confirm: null, busy: false };
 function draftKey() { return 'admin-cat-draft:' + CAT.repo; }
 function saveDraft() { if (CAT.data) lsSet(draftKey(), JSON.stringify({ data: CAT.data, base: CAT.base, sha: CAT.sha, source: CAT.source })); }
 function dirty() { return CAT.data && comparable(CAT.data) !== comparable(CAT.base); }
 function loadCatFor(repoId, forceGithub) {
-  CAT.repo = repoId; CAT.msg = null; CAT.confirm = null;
+  var C = CAT;
+  C.repo = repoId; C.msg = null; C.confirm = null;
   var dr = !forceGithub && lsGet(draftKey());
-  if (dr) { try { var o = JSON.parse(dr); if (o.data && o.data.format === repoById(repoId).format) { CAT.data = o.data; CAT.base = o.base; CAT.sha = o.sha; CAT.source = o.source; render(); return; } lsSet(draftKey(), null); } catch (e) {} }
-  CAT.loading = true; CAT.data = null; render();
+  if (dr) { try { var o = JSON.parse(dr); if (o.data && o.data.format === repoById(repoId).format) { C.data = o.data; C.base = o.base; C.sha = o.sha; C.source = o.source; render(); return; } lsSet(draftKey(), null); } catch (e) {} }
+  C.loading = true; C.data = null; render();
   ghGetCatalogue(repoId, getToken()).then(function (r) {
-    if (CAT.repo !== repoId) return; // une autre caisse a été choisie entre-temps
-    CAT.loading = false;
-    if (r.json && r.json.format !== repoById(repoId).format) { CAT.data = exampleCatalogue(repoById(repoId)); CAT.base = null; CAT.sha = null; CAT.source = 'exemple'; CAT.msg = { err: true, t: 'Le catalogue.json du dépôt ' + esc(repoId) + ' n\u2019a pas le format attendu (' + esc(r.json.format || '?') + ' au lieu de ' + esc(repoById(repoId).format) + '). Un catalogue d\u2019exemple est affiché ; vérifiez le dépôt avant de publier.' }; render(); return; }
-    if (!r.json) { CAT.data = exampleCatalogue(repoById(repoId)); CAT.base = null; CAT.sha = null; CAT.source = 'exemple'; CAT.msg = { t: 'Ce dépôt n’a pas encore de catalogue.json. Un catalogue d’exemple est chargé : publiez-le pour créer le fichier.' }; }
-    else { CAT.base = normalizeCat(r.json); CAT.data = clone(CAT.base); CAT.sha = r.sha; CAT.source = 'github'; lsSet(draftKey(), null); toast('Catalogue version ' + CAT.base.version + ' chargé depuis GitHub'); return; }
+    if (C.repo !== repoId) return; // une autre caisse a été choisie entre-temps
+    C.loading = false;
+    if (r.json && r.json.format !== repoById(repoId).format) { C.data = exampleCatalogue(repoById(repoId)); C.base = null; C.sha = null; C.source = 'exemple'; C.msg = { err: true, t: 'Le catalogue.json du dépôt ' + esc(repoId) + ' n\u2019a pas le format attendu (' + esc(r.json.format || '?') + ' au lieu de ' + esc(repoById(repoId).format) + '). Un catalogue d\u2019exemple est affiché ; vérifiez le dépôt avant de publier.' }; render(); return; }
+    if (!r.json) { C.data = exampleCatalogue(repoById(repoId)); C.base = null; C.sha = null; C.source = 'exemple'; C.msg = { t: 'Ce dépôt n’a pas encore de catalogue.json. Un catalogue d’exemple est chargé : publiez-le pour créer le fichier.' }; }
+    else { C.base = normalizeCat(r.json); C.data = clone(C.base); C.sha = r.sha; C.source = 'github'; lsSet(draftKey(), null); toast('Catalogue version ' + C.base.version + ' chargé depuis GitHub'); return; }
     render();
   }, function (e) {
-    if (CAT.repo !== repoId) return;
-    CAT.loading = false;
-    if (!CAT.data) { CAT.data = exampleCatalogue(repoById(repoId)); CAT.base = null; CAT.sha = null; CAT.source = 'exemple'; }
-    CAT.msg = { err: true, t: ghErrText(e, 'de lire') + (CAT.source === 'exemple' ? ' Un catalogue d’exemple est affiché en attendant.' : '') };
+    if (C.repo !== repoId) return;
+    C.loading = false;
+    if (!C.data) { C.data = exampleCatalogue(repoById(repoId)); C.base = null; C.sha = null; C.source = 'exemple'; }
+    C.msg = { err: true, t: ghErrText(e, 'de lire') + (C.source === 'exemple' ? ' Un catalogue d’exemple est affiché en attendant.' : '') };
     render();
   });
 }
@@ -1215,8 +1278,9 @@ function renderCatalogue() {
   var el = document.getElementById('mod');
   if (!CAT.data && !CAT.loading) { loadCatFor(CAT.repo); return; }
   var errs = catErrors(CAT.data), canPub = CAT.data && !errs.length && (dirty() || !CAT.base) && !CAT.busy, unlocked = !!getToken();
-  var band = '<div class="band"><div class="band-top"><h1>Catalogue</h1></div>' +
-    '<div class="cat-bar"><div class="rsel" role="group" aria-label="Caisse">' + REPOS.map(function (r) { return '<button class="rchip' + (CAT.repo === r.id ? ' on' : '') + '" data-c="repo" data-v="' + r.id + '">' + esc(r.nom) + '</button>'; }).join('') + '</div>' +
+  var reps = catRepos();
+  var band = '<div class="band"><div class="band-top"><h1>' + (CAT_CUR === 'sapin' ? 'Catalogue des sapins' : 'Catalogue') + '</h1></div>' +
+    '<div class="cat-bar">' + (reps.length > 1 ? '<div class="rsel" role="group" aria-label="Caisse">' : '<div class="rsel" hidden>') + reps.map(function (r) { return '<button class="rchip' + (CAT.repo === r.id ? ' on' : '') + '" data-c="repo" data-v="' + r.id + '">' + esc(r.nom) + '</button>'; }).join('') + '</div>' +
     '<p class="cat-status num" id="catStatus">' + catStatusLine() + '</p>' +
     '<div class="cat-acts"><button class="ghost" data-c="reload"' + (CAT.loading ? ' disabled' : '') + '>Recharger depuis GitHub</button>' +
     '<label class="ghost lab">Importer un fichier<input type="file" accept=".json,application/json" data-catfile></label>' +
@@ -1301,25 +1365,26 @@ function catSoftRefresh() {
   if (b) { b.disabled = !(!errs.length && (dirty() || !CAT.base) && !CAT.busy); b.textContent = 'Publier la version ' + nextVersion(); }
 }
 function publishCat() {
+  var C = CAT;
   var token = getToken(); if (!token) { go('parametres'); return; }
-  var r = repoById(CAT.repo);
-  if (!CAT.data || CAT.data.format !== r.format) { CAT.confirm = null; CAT.msg = { err: true, t: 'Publication bloquée : le catalogue affiché n\u2019est pas celui de la ' + esc(r.nom) + '. Rechargez-le depuis GitHub.' }; render(); return; }
-  CAT.busy = true; CAT.msg = null; render();
+  var r = repoById(C.repo);
+  if (!C.data || C.data.format !== r.format) { C.confirm = null; C.msg = { err: true, t: 'Publication bloquée : le catalogue affiché n\u2019est pas celui de la ' + esc(r.nom) + '. Rechargez-le depuis GitHub.' }; render(); return; }
+  C.busy = true; C.msg = null; render();
   ghGetCatalogue(r.id, token).then(function (cur) {
     if (cur.json && cur.json.format !== r.format) throw { status: -1 };
-    if (CAT.source === 'github' && CAT.sha && cur.sha !== CAT.sha) throw new GhError(409, 'conflict');
-    var v = Math.max(cur.json ? cur.json.version || 0 : 0, CAT.base ? CAT.base.version : 0, CAT.data.version || 0) + 1;
-    var out = finalizeCat(CAT.data, v), body = { message: 'Catalogue v' + v + ' (Admin)', content: utf8b64(JSON.stringify(out, null, 2) + '\n') };
+    if (C.source === 'github' && C.sha && cur.sha !== C.sha) throw new GhError(409, 'conflict');
+    var v = Math.max(cur.json ? cur.json.version || 0 : 0, C.base ? C.base.version : 0, C.data.version || 0) + 1;
+    var out = finalizeCat(C.data, v), body = { message: 'Catalogue v' + v + ' (Admin)', content: utf8b64(JSON.stringify(out, null, 2) + '\n') };
     if (cur.sha) body.sha = cur.sha;
     return ghFetch('/repos/' + r.id + '/contents/catalogue.json', { method: 'PUT', body: JSON.stringify(body) }, token).then(function (res) {
-      CAT.base = normalizeCat(out); CAT.data = clone(CAT.base); CAT.sha = res.content && res.content.sha; CAT.source = 'github'; CAT.busy = false; CAT.confirm = null;
+      C.base = normalizeCat(out); C.data = clone(C.base); C.sha = res.content && res.content.sha; C.source = 'github'; C.busy = false; C.confirm = null;
       lsSet(draftKey(), null);
-      CAT.msg = { ok: true, t: 'Version ' + v + ' publiée sur ' + esc(r.nom) + '. Les caisses la proposeront dans 1 à 2 minutes.' };
+      C.msg = { ok: true, t: 'Version ' + v + ' publiée sur ' + esc(r.nom) + '. Les caisses la proposeront dans 1 à 2 minutes.' };
       toast('Catalogue version ' + v + ' publié');
     });
   }).catch(function (e) {
-    CAT.busy = false; CAT.confirm = null;
-    CAT.msg = { err: true, t: e && e.status === -1 ? 'Publication bloquée : le catalogue en ligne de ' + esc(r.nom) + ' n\u2019a pas le format attendu.' : ghErrText(e) + (e && e.status === 409 ? ' Vos modifications sont gardées ici en attendant.' : '') };
+    C.busy = false; C.confirm = null;
+    C.msg = { err: true, t: e && e.status === -1 ? 'Publication bloquée : le catalogue en ligne de ' + esc(r.nom) + ' n\u2019a pas le format attendu.' : ghErrText(e) + (e && e.status === 409 ? ' Vos modifications sont gardées ici en attendant.' : '') };
     render();
   });
 }
@@ -1933,12 +1998,13 @@ function bghParse(path) {
 function bghOpen() {
   BGH.open = true; BGH.err = null;
   var token = getToken(); if (!token) { render(); return; }
-  BGH.loading = true; render();
+  var B = BGH;
+  B.loading = true; render();
   ghFetch('/repos/' + SALES_REPO + '/git/trees/HEAD?recursive=1', {}, token).then(function (t) {
     return (t.tree || []).filter(function (x) { return x.type === 'blob' && /\.json$/i.test(x.path); }).map(function (x) { return bghParse(x.path); });
   }, function (e) { if (e.status === 409) return []; throw e; }).then(function (l) {
-    BGH.loading = false; BGH.files = l.sort(function (a, b) { return (a.date || '') < (b.date || '') ? 1 : (a.date || '') > (b.date || '') ? -1 : a.label.localeCompare(b.label); }); render();
-  }, function (e) { BGH.loading = false; BGH.err = bghErr(e); BGH.files = []; render(); });
+    B.loading = false; B.files = l.sort(function (a, b) { return (a.date || '') < (b.date || '') ? 1 : (a.date || '') > (b.date || '') ? -1 : a.label.localeCompare(b.label); }); render();
+  }, function (e) { B.loading = false; B.err = bghErr(e); B.files = []; render(); });
 }
 function bghRaw(path, token) {
   token = tokenFor(SALES_REPO) || token;
@@ -1948,22 +2014,24 @@ function bghRaw(path, token) {
 function fileKey(p) { return p.replace(/\//g, ' › '); }
 function bghLoad(paths, soiree, quiet) {
   var token = getToken(); if (!token || !paths.length) return;
+  var ctx = BIL_CUR;
   BGH.busy = true; render();
   var have = {}; FILES.forEach(function (f) { have[f.name] = 1; });
   var todo = paths.filter(function (p) { return !have[fileKey(p)]; });
   var skipped = 0, lastC = null;
-  Promise.all(todo.map(function (p) { return bghRaw(p, token).then(function (txt) { return { p: p, txt: txt }; }); })).then(function (res) {
+  Promise.all(todo.map(function (p) { return bghRaw(p, token).then(function (txt) { return { p: p, txt: txt }; }); })).then(function (res) { var msg; bilWith(ctx, function () {
     res.forEach(function (r) {
       var entry = { name: fileKey(r.p), data: null, status: 'err', note: '' };
-      try { var d = JSON.parse(r.txt); if (okVentes(d)) { entry.data = d; entry.status = 'ok'; entry.caisse = caisseOf(d.format); lastC = entry.caisse; } else entry.note = ERR_FORMAT; } catch (e) { entry.note = 'Fichier illisible (JSON invalide).'; }
+      try { var d = JSON.parse(r.txt); if (okVentes(d) && bilAllowed(ctx).indexOf(caisseOf(d.format)) < 0) entry.note = bilWrongNote(caisseOf(d.format)); else if (okVentes(d)) { entry.data = d; entry.status = 'ok'; entry.caisse = caisseOf(d.format); lastC = entry.caisse; } else entry.note = ERR_FORMAT; } catch (e) { entry.note = 'Fichier illisible (JSON invalide).'; }
       if (entry.status === 'ok' || !quiet) FILES.push(entry); else skipped++;
     });
     if (lastC) F.caisse = lastC;
     dedupe(); fixCaisse(); BGH.busy = false; BGH.open = false; BGH.sel = {};
     F.soiree = defSoiree(); F.bar = 'all';
     var nb = res.length - skipped;
-    toast(nb ? nb + ' fichier' + (nb > 1 ? 's' : '') + ' chargé' + (nb > 1 ? 's' : '') + ' depuis le dépôt' : res.length ? 'Aucun fichier de ventes lisible pour ce jour' : 'Ces fichiers sont déjà chargés');
-  }, function (e) { BGH.busy = false; BGH.err = bghErr(e); render(); });
+    msg = (nb ? nb + ' fichier' + (nb > 1 ? 's' : '') + ' chargé' + (nb > 1 ? 's' : '') + ' depuis le dépôt' : res.length ? 'Aucun fichier de ventes lisible pour ce jour' : 'Ces fichiers sont déjà chargés'); });
+    toast(msg);
+  }, function (e) { bilWith(ctx, function () { BGH.busy = false; BGH.err = bghErr(e); }); render(); });
 }
 function vGhPanel() {
   if (!BGH.open) return '';
@@ -1971,7 +2039,7 @@ function vGhPanel() {
   if (!getToken()) return h + '<p class="lead">Déverrouillez l’appareil dans Paramètres pour accéder au dépôt privé.</p><button class="btn" data-a="go" data-v="parametres">Aller dans Paramètres</button></section>';
   if (BGH.err) h += '<div class="alert err">' + BGH.err + '</div>';
   if (BGH.loading) return h + '<p class="empty">Chargement de la liste…</p></section>';
-  if (!BGH.files || !BGH.files.length) return h + (BGH.err ? '' : '<p class="empty">Aucun fichier de ventes dans le dépôt pour l’instant.</p>') + '</section>';
+  if (!BGH.files || !BGH.files.length || !bghTabs().length) return h + (BGH.err ? '' : '<p class="empty">Aucun fichier de ventes ' + (BIL_CUR === 'sapin' ? 'de la Caisse Sapins ' : '') + 'dans le dépôt pour l’instant.</p>') + '</section>';
   var tabs = bghTabs(); if (BGH.tab === null || tabs.indexOf(BGH.tab) < 0) BGH.tab = tabs.indexOf('bar') >= 0 ? 'bar' : tabs[0];
   var days = {}, loaded = {}; BGH.files.forEach(function (f) { if (f.top !== BGH.tab) return; var k = f.date || 'sans-date'; (days[k] = days[k] || []).push(f); }); FILES.forEach(function (f) { loaded[f.name] = 1; });
   var n = Object.keys(BGH.sel).filter(function (k) { return BGH.sel[k]; }).length;
@@ -1990,7 +2058,7 @@ function vGhPanel() {
 }
 function bghSoireePaths(d) { var nx = BGH.tab === 'bar' ? addDays(d, 1) : d; return (BGH.files || []).filter(function (f) { return f.top === BGH.tab && (f.date === d || f.date === nx); }).map(function (f) { return f.path; }); }
 /* Onglets = dossier parent (1er niveau) des fichiers : bar, sapin… ; fichiers à la racine -> « Autres » */
-function bghTabs() { var o = {}; (BGH.files || []).forEach(function (f) { o[f.top] = 1; }); var order = ['bar', 'sapin', 'soiree']; return Object.keys(o).sort(function (a, b) { var ia = order.indexOf(a), ib = order.indexOf(b); return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib) || (a === '' ? 1 : b === '' ? -1 : a.localeCompare(b)); }); }
+function bghTabs() { var o = {}; (BGH.files || []).forEach(function (f) { if (BIL_CUR === 'sapin' ? f.top === 'sapin' : f.top !== 'sapin' && f.top !== 'stock') o[f.top] = 1; }); var order = ['bar', 'sapin', 'soiree']; return Object.keys(o).sort(function (a, b) { var ia = order.indexOf(a), ib = order.indexOf(b); return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib) || (a === '' ? 1 : b === '' ? -1 : a.localeCompare(b)); }); }
 function bghTabName(t) { if (t === 'soiree') return 'Soirée'; return t === '' ? 'Autres' : t.charAt(0).toUpperCase() + t.slice(1).replace(/[_-]+/g, ' '); }
 document.addEventListener('click', function (e) {
   var b = e.target.closest('[data-g]'); if (!b || b.disabled) return;
@@ -2117,13 +2185,14 @@ document.addEventListener('click', function (e) {
   var el = e.target.closest('[data-a]'); if (!el) return;
   var a = el.getAttribute('data-a'), v = el.getAttribute('data-v');
   if (a === 'go') { go(v); return; }
+  if (a === 'sapsub') { SAP_SUB = v; go('sapin'); return; }
   if (a === 'demo') { FILES = demoFiles().map(function (f) { return { name: f.name, data: f.data, status: 'ok', note: '', caisse: 'bar' }; }); F.caisse = 'bar'; dedupe(); F.soiree = defSoiree(); F.bar = 'all'; toast('Exemples chargés : 2 bars, 1 soirée'); return; }
   if (a === 'caisse') { F.caisse = v; F.bar = 'all'; F.soiree = defSoiree(); render(); return; }
   if (a === 'soiree') F.soiree = v;
   else if (a === 'bar') F.bar = v;
   else if (a === 'artview') ART_VIEW = v;
   else if (a === 'rm') { FILES.splice(+v, 1); dedupe(); if ((soirees().indexOf(F.soiree) < 0 && F.soiree !== 'all') || (F.soiree === 'all' && soirees().length < 2)) F.soiree = defSoiree(); if (F.bar !== 'all' && !bars().some(function (b) { return b.id === F.bar; })) F.bar = 'all'; }
-  else if (a === 'clear') { FILES = []; F = { soiree: null, bar: 'all' }; DISMISSED = {}; }
+  else if (a === 'clear') { FILES = []; F = { soiree: null, bar: 'all', caisse: null }; DISMISSED = {}; }
   else if (a === 'dismiss') { var sw = shownWarnings()[+v]; if (sw) DISMISSED[sw.t] = 1; }
   else if (a === 'dismissAll') { shownWarnings().forEach(function (x) { DISMISSED[x.t] = 1; }); }
   else if (a === 'print') { window.print(); return; }
@@ -2140,7 +2209,7 @@ function bindDrop() {
 }
 /* Glisser des fichiers n'importe où sur la page */
 window.addEventListener('dragover', function (e) { e.preventDefault(); });
-window.addEventListener('drop', function (e) { e.preventDefault(); if (MOD === 'bilan' && !e.target.closest('#drop') && e.dataTransfer && e.dataTransfer.files.length) addFiles(e.dataTransfer.files); });
+window.addEventListener('drop', function (e) { e.preventDefault(); if ((MOD === 'bilan' || (MOD === 'sapin' && SAP_SUB === 'bilan')) && !e.target.closest('#drop') && e.dataTransfer && e.dataTransfer.files.length) addFiles(e.dataTransfer.files); });
 render();
 </script>
 

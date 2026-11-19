@@ -1,6 +1,6 @@
 # Admin Chlorophylle Night
 
-Application d'administration des caisses : **Bilan des ventes** de la Caisse Bar, de la Caisse Sapins et de la Caisse Soirée (fichiers déposés ou lus dans le dépôt privé `ventes`), **Catalogue** des caisses Bar, Sapins et Soirée (publié directement sur GitHub), **Stock** (comptage quotidien par événement) et **Paramètres**.
+Application d'administration des caisses : **Bilan des ventes** de la Caisse Bar et de la Caisse Soirée (fichiers déposés ou lus dans le dépôt privé `ventes`), **Catalogue** des caisses Bar et Soirée (publié directement sur GitHub), **Stock** (comptage quotidien par événement), **Gestion sapin** (catalogue, stock et bilan de la Caisse Sapins) et **Paramètres**.
 
 L'accueil propose aussi des liens vers les applications des caisses (Bar, Soirée, Sapins).
 
@@ -59,7 +59,7 @@ Supprimez le jeton sur GitHub (Settings → Developer settings → Personal acce
 Les caisses envoient leurs exports dans le dépôt privé `ventes`. Le Bilan peut les lire directement :
 
 1. Ajoutez le dépôt `ventes` au jeton de l'app Admin (**Settings → Developer settings → Fine-grained tokens** → votre jeton → **Edit** → Repository access → ajoutez `ventes` → **Update**). La clé chiffrée reste valable.
-2. **Bilan → Charger depuis le dépôt** (ou **+ Depuis le dépôt**) : un onglet par dossier du dépôt (Bar, Sapin, Soirée…), puis les fichiers rangés par jour (date lue dans le nom du fichier). Cochez ceux voulus, ou **Charger les ventes** (Caisse Bar : le jour et le lendemain, pour les ventes après minuit). Si des ventes Bar et Sapins sont chargées, un choix **Caisse** apparaît dans les filtres : les totaux ne mélangent jamais les caisses.
+2. **Bilan → Charger depuis le dépôt** (ou **+ Depuis le dépôt**) : un onglet par dossier du dépôt (Bar, Sapin, Soirée…), puis les fichiers rangés par jour (date lue dans le nom du fichier). Cochez ceux voulus, ou **Charger les ventes** (Caisse Bar : le jour et le lendemain, pour les ventes après minuit). Si des ventes Bar et Soirée sont chargées, un choix **Caisse** apparaît dans les filtres : les totaux ne mélangent jamais les caisses. Les ventes des sapins se chargent dans **Gestion sapin → Bilan**.
 3. **Caisse Soirée** (dossier `soiree`) : un fichier par appareil et par soirée ; « Charger les ventes » charge tous les appareils de la soirée. Le bilan montre la recette (entrées et tickets, cash et Bancontact), les entrées (payantes, préventes, VIP), les cases vendues et barrées avec l'écart, les boissons par catégorie, l'activité heure par heure, le détail par appareil (avec les tables VIP) et les enregistrements annulés. Par défaut, toutes les dates chargées sont sélectionnées ; « Retirer les fichiers » vide le Bilan. Un enregistrement présent dans deux fichiers n'est compté qu'une fois ; un export plus ancien du même appareil est ignoré.
 
 ## Stock (comptage par événement)
@@ -80,6 +80,14 @@ Le stock est enregistré dans un dépôt **privé** `admin-donnees` (un fichier 
 4. Les modifications sont gardées sur la tablette et envoyées sur GitHub quelques secondes après (ou dès le retour d'internet). Deux tablettes peuvent compter en même temps.
 Dans le comptage : champ **Rechercher un article**, filtres **À compter seulement** et **Stock bas seulement**. Un article passe en **stock bas** (pastille rouge) quand ce qui a été consommé dans la journée dépasse le restant compté le même jour : pensez à réapprovisionner. Cochez **Dernier jour de l'événement** pour ne pas avoir ces alertes le dernier jour ; l'app ne propose alors plus d'ajouter un jour après celui-ci.
 5. En fin d'événement : **Bilan et clôture → Clôturer l'événement**. Le bilan jour par jour s'exporte pour Excel.
+
+## Gestion sapin
+
+Tout ce qui concerne la vente des sapins est regroupé dans le menu **Gestion sapin**, avec trois onglets :
+
+- **Catalogue** : produits, prix et points de vente de la Caisse Sapins, publiés sur GitHub (dépôt `sapin`), comme dans le menu Catalogue.
+- **Stock** : à venir.
+- **Bilan** : ventes de la Caisse Sapins, fichiers déposés ou **Charger depuis le dépôt** (dossier `sapin` du dépôt `ventes`). Ce Bilan est séparé de celui du menu Bilan : chacun garde ses propres fichiers. Un fichier de la Caisse Bar ou Soirée déposé ici est refusé avec un message (et inversement).
 
 ## Mettre à jour l'app
 
