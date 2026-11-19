@@ -1902,7 +1902,7 @@ document.addEventListener('change', function (e) {
    ajoutent ou retirent seulement leurs saisies, puis réécrivent avec le sha (jamais d'écrasement).
    Les ventes cash viennent du fichier de ventes de la tablette (champ caisse.ventesCash, sinon calculées). */
 var CX_FMT = 'agri-garden-caisse/caisse', CX_DIR = 'sapin/caisse';
-var CX_COINS = ['500', '200', '100', '50', '20', '10', '5', '2', '1', '0.5', '0.2', '0.1', '0.05', '0.02', '0.01'];
+var CX_COINS = ['500', '200', '100', '50', '20', '10', '5', '2', '1', '0.5', '0.2', '0.1', '0.05']; // pas de pièces de 1 et 2 cents (arrondi aux 5 cents en Belgique)
 var CX_RETRAITS = ['Dépôt au coffre', 'Remboursement client', 'Dépense', 'Autre'];
 var CX_APPORTS = ['Ajout de monnaie', 'Autre'];
 var CX = { date: null, pdv: null, cat: null, catErr: null, catLoading: false, path: null, doc: null, sha: null, ops: [], loading: false, saving: false, err: null, sales: null, salesLoading: false, form: null, confirm: null };
