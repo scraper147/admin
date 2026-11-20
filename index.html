@@ -2192,7 +2192,18 @@ function renderSoon(m) {
     m.plan.map(function (p) { return '<li>' + esc(p) + '</li>'; }).join('') + '</ul>' +
     '<p style="margin:18px 0 0"><button class="btn" data-a="go" data-v="accueil">← Retour à l’accueil</button></p></section></main>' + vToast();
 }
+/* La page entière est redessinée à chaque action : on garde la position de défilement (verticale et
+   celle des tableaux qui défilent en largeur), sinon la page, vidée un instant, remonte tout en haut.
+   go() remet volontairement en haut quand on change de module. */
 function render() {
+  var y = window.scrollY || 0, sl = Array.prototype.map.call(document.querySelectorAll('#mod .scroll'), function (e) { return e.scrollLeft; });
+  var app = document.getElementById('app'); if (app.offsetHeight) app.style.minHeight = app.offsetHeight + 'px'; // évite l'écrasement de la hauteur pendant le redessin
+  _render();
+  app.style.minHeight = '';
+  var sc = document.querySelectorAll('#mod .scroll'); if (sc.length === sl.length) Array.prototype.forEach.call(sc, function (e, i) { if (sl[i]) e.scrollLeft = sl[i]; });
+  if (Math.abs((window.scrollY || 0) - y) > 1) window.scrollTo(0, y);
+}
+function _render() {
   var mm = modById(MOD), ctx = mm && mm.ctx ? mm.ctx : BIL_CUR;
   bilUse(ctx); catUse(ctx);
   document.getElementById('app').innerHTML = vShell() + '<div id="mod"></div>';
