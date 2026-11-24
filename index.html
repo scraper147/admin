@@ -232,6 +232,19 @@ td>.sub{display:block;font-size:12px;color:var(--muted);font-weight:400}
 .pick.sm2{height:38px;padding:0 14px;font-size:14px}
 .cogrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;margin:0 0 10px}.cogrid>div{min-width:0}.cogrid input,.cogrid select{width:100%}
 .cogrid .wide{grid-column:1/-1}.coform .rsel{margin:4px 0 10px}.cototal{font-size:18px;margin:10px 0}
+.facard{border:1px solid var(--line);border-left:5px solid var(--green);border-radius:12px;padding:12px 14px;margin:0 0 10px;background:var(--surface)}
+.facard.st-np{border-left-color:#C9785F}.facard p{margin:6px 0 0}.facard .row-between{gap:8px;flex-wrap:wrap}
+.fastat{font-size:13px;font-weight:700;padding:3px 10px;border-radius:12px;background:var(--green);color:#fff}.fastat.st-np{background:#C9785F}
+.fainfo{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:4px 16px;margin-top:8px}.fainfo>div{min-width:0;overflow-wrap:anywhere}.facard a{color:inherit}
+.fasuivi{display:flex;flex-wrap:wrap;gap:8px 16px;align-items:center;margin-top:10px;padding-top:10px;border-top:1px solid var(--soft)}
+.fasuivi .chk{display:inline-flex;gap:6px;align-items:center;font-weight:600;cursor:pointer}.fasuivi .chk input{width:20px;height:20px}.fanum{max-width:200px}
+.fagrp{margin:0 0 8px}.fagrp .rsel{margin-top:4px}.fadates{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:4px}.fasum{margin:10px 0 12px}
+.livtab td{vertical-align:top;overflow-wrap:anywhere}.livtab a{color:inherit}.hsfac{display:block;color:var(--muted);font-size:13px}
+.lvcard{border:1px solid var(--line);border-left:5px solid var(--gold);border-radius:12px;padding:12px 14px;margin:0 0 10px;background:var(--surface)}
+.lvcard.done{border-left-color:var(--green)}.lvcard p{margin:6px 0 0;overflow-wrap:anywhere}.lvcard .row-between{gap:8px;flex-wrap:wrap}.lvcard a{color:inherit}
+.lvstat{font-size:13px;font-weight:700;padding:3px 10px;border-radius:12px;background:var(--gold);color:#1A1408}.lvstat.done{background:var(--green);color:#fff}
+.lvnote{flex:1 1 200px;max-width:420px}
+@media print{body.printliv .lvcard{break-inside:avoid;border-color:#999}body.printliv .lvnote:placeholder-shown{display:none}}
 .cbadges{display:flex;flex-wrap:wrap;gap:4px;margin-top:4px}
 .cbadge{display:inline-block;font-size:11px;font-weight:700;padding:1px 7px;border-radius:6px;background:var(--soft);color:var(--muted);white-space:nowrap}
 .cbadge.warn{background:var(--gold-soft);color:var(--ink)}
@@ -467,6 +480,8 @@ form.stkform .cbtns{margin-top:10px}
   body{background:#fff;color:#000}.band{background:#fff;color:#000;padding:0 0 10px}
   .big,.drop h2,.hero h2,.facts strong{color:#000}.facts{color:#333}
   section{break-inside:avoid;border-color:#ccc}main{display:block}section{margin-bottom:14px}
+  body.printliv .band,body.printliv .subnav,body.printliv main>*:not(.livlist){display:none!important}
+  body.printliv .livlist{break-inside:auto}body.printliv .livtab tr{break-inside:avoid}
 }
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
@@ -486,6 +501,8 @@ var CAISSES_BILAN = { 'caisse-bar/ventes': 'bar', 'agri-garden-caisse/ventes': '
 var CAISSE_LABEL = { bar: 'Caisse Bar', sapin: 'Caisse Sapins', soiree: 'Caisse Soirée' };
 /* Article « Livraison » (ou « Frais de livraison ») : service, jamais déduit du stock, montré à part du chiffre d'affaires */
 var LIV_RE = /(^|\s)(frais de )?livraison$/i;
+/* Vente « à facturer » non payée (Caisse Sapins v36) : reste dû = total − cash − Bancontact ; 0 pour tout autre cas (anciens fichiers, mode inconnu) */
+function vNonPaye(v) { if (!v) return 0; var p = v.paiement || {}, f = v.facture; if (!((f && typeof f === 'object' && f.payee === false) || p.mode === 'a-facturer')) return 0; var r = (+v.total || 0) - (+p.cash || 0) - (+p.bancontact || 0); return r > 0.004 ? Math.round(r * 100) / 100 : 0; }
 function isLivLine(l) { return !!l && LIV_RE.test(String(l.libelle || '').trim()); }
 function isLivProduct(p) { return !!p && /^(frais de )?livraison$/i.test(String(p.libelle || '').trim()); }
 var CAISSE_OPEN = {};
@@ -598,13 +615,17 @@ function filtered() {
 /* ---------- Calculs ---------- */
 function stats(list) {
   var ok = list.filter(function (s) { return !s.v.annulation; }), ann = list.filter(function (s) { return s.v.annulation; });
-  var S = { remRows: {}, liv: { n: 0, m: 0, na: 0, ma: 0, rows: {} }, n: ok.length, total: 0, cash: 0, bc: 0, mixte: 0, ann: ann, art: {}, cats: {}, hours: {}, perBar: {}, remLig: 0, nRemLig: 0, remTic: 0, nRemTic: 0, lignes: 0 };
+  var S = { np: 0, vir: 0, nFact: 0, pay: {}, remRows: {}, liv: { n: 0, m: 0, na: 0, ma: 0, rows: {} }, n: ok.length, total: 0, cash: 0, bc: 0, mixte: 0, ann: ann, art: {}, cats: {}, hours: {}, perBar: {}, remLig: 0, nRemLig: 0, remTic: 0, nRemTic: 0, lignes: 0 };
   ok.forEach(function (s) {
     var v = s.v, p = v.paiement || { cash: 0, bancontact: 0 };
     var vt = +v.total || 0;
     S.total += vt; S.cash += p.cash || 0; S.bc += p.bancontact || 0; if (p.mode === 'mixte') S.mixte++;
     var b = S.perBar[s.barId] || (S.perBar[s.barId] = { nom: s.bar, n: 0, total: 0, cash: 0, bc: 0 });
     b.n++; b.total += vt; b.cash += p.cash || 0; b.bc += p.bancontact || 0;
+    var np = vNonPaye(v), vir = 0; if (np && fsGet(v.id, s.soiree).virement) { vir = np; np = 0; }
+    S.np += np; S.vir += vir; b.np = (b.np || 0) + np; b.vir = (b.vir || 0) + vir; if (v.facture && typeof v.facture === 'object') S.nFact++;
+    var pk = s.soiree + '|' + s.barId, pr = S.pay[pk] || (S.pay[pk] = { day: s.soiree, bar: s.bar, cash: 0, bc: 0, np: 0, vir: 0, total: 0, nFact: 0 });
+    pr.cash += +p.cash || 0; pr.bc += +p.bancontact || 0; pr.np += np; pr.vir += vir; pr.total += vt; if (v.facture && typeof v.facture === 'object') pr.nFact++;
     var h = slot(v.horodatage), hb = S.hours[h] || (S.hours[h] = {});
     hb[s.barId] = (hb[s.barId] || 0) + vt;
     var rk = s.soiree + '|' + s.barId, rr = function () { return S.remRows[rk] || (S.remRows[rk] = { day: s.soiree, barId: s.barId, bar: s.bar, lig: 0, nLig: 0, tic: 0, nTic: 0 }); };
@@ -655,9 +676,10 @@ function renderBilanInner() {
   var app = document.getElementById('mod');
   if (!activeFiles().length) { app.innerHTML = vBand(null) + (FILES.length || BGH.open ? '<main>' + vGhPanel() + vAlerts() + '</main>' : '') + vToast(); bindDrop(); return; }
   if (F.caisse === 'soiree') { var R = soirStats(soirFiltered()); app.innerHTML = vSoirBand(R) + vFilters() + '<main>' + vGhPanel() + vAlerts() + vSoirRecette(R) + vSoirEntrees(R) + vSoirCases(R) + vSoirBoissons(R) + vSoirHours(R) + vSoirApp(R) + vSoirAnn(R) + vFiles() + '</main>' + vToast(); bindDrop(); return; }
+  if (F.caisse === 'sapin') { var yrs = {}; activeFiles().forEach(function (f) { if (f.data.date) yrs[f.data.date.slice(0, 4)] = 1; }); Object.keys(yrs).forEach(fsEnsure); }
   var list = filtered(), S = stats(list);
   var CR = caisseRows();
-  app.innerHTML = vBand(S) + vFilters() + '<main>' + vGhPanel() + vAlerts() + vBars(S) + vHours(S) + vCaisse(CR) + vLivraisons(S) + vTiroir(CR) + vArticles(S) + vAdjust(S) + vFiles() + '</main>' + vToast();
+  app.innerHTML = vBand(S) + vFilters() + '<main>' + vGhPanel() + vAlerts() + vBars(S) + vHours(S) + vPaiements(S) + vCaisse(CR) + vLivraisons(S) + vTiroir(CR) + vArticles(S) + vAdjust(S) + vFiles() + '</main>' + vToast();
   bindDrop();
 }
 function vToast() { return toastMsg ? '<div class="toast" role="status">' + esc(toastMsg) + '</div>' : ''; }
@@ -676,14 +698,15 @@ function vBand(S) {
   }
   var title = (caisses().length > 1 ? CAISSE_LABEL[F.caisse] + ' · ' : '') + (F.soiree === 'all' ? T().toutes : T().du + ' ' + longDate(F.soiree));
   if (F.bar !== 'all') { var b = bars().filter(function (x) { return x.id === F.bar; })[0]; if (b) title += ', ' + b.nom; }
-  var tot = S.total || 0, pc = tot ? S.cash / tot * 100 : 0;
+  var tot = S.total || 0, pc = tot ? S.cash / tot * 100 : 0, pn = tot ? (S.np + S.vir) / tot * 100 : 0, pb = Math.max(0, 100 - pc - pn);
   return '<div class="band">' + top + '<div class="hero"><h2>' + esc(title) + '</h2>' +
     '<div class="big num">' + money(tot).replace(/\u00a0€$/, '') + '<small>€</small></div>' +
-    '<div class="split" role="img" aria-label="Cash ' + Math.round(pc) + ' %, Bancontact ' + Math.round(100 - pc) + ' %"><i style="width:' + pc + '%;background:var(--gold)"></i><i style="width:' + (tot ? 100 - pc : 0) + '%;background:#5E8F4E"></i></div>' +
+    '<div class="split" role="img" aria-label="Cash ' + Math.round(pc) + ' %, Bancontact ' + Math.round(100 - pc) + ' %"><i style="width:' + pc + '%;background:var(--gold)"></i><i style="width:' + (tot ? pb : 0) + '%;background:#5E8F4E"></i>' + (pn ? '<i style="width:' + pn + '%;background:#C9785F"></i>' : '') + '</div>' +
     '<div class="split-legend num"><span><span class="dot" style="background:var(--gold)"></span>Cash <b>' + money(S.cash) + '</b> (' + Math.round(pc) + ' %)</span>' +
-    '<span><span class="dot" style="background:#5E8F4E"></span>Bancontact <b>' + money(S.bc) + '</b> (' + Math.round(tot ? 100 - pc : 0) + ' %)</span></div>' +
+    '<span><span class="dot" style="background:#5E8F4E"></span>Bancontact <b>' + money(S.bc) + '</b> (' + Math.round(tot ? pb : 0) + ' %)</span>' +
+      (S.np ? '<span><span class="dot" style="background:#C9785F"></span>À facturer (non payé) <b>' + money(S.np) + '</b></span>' : '') + (S.vir ? '<span><span class="dot" style="background:#C9785F"></span>Payé par virement <b>' + money(S.vir) + '</b></span>' : '') + '</div>' +
     '<div class="facts num"><strong>' + S.n + '</strong> vente' + (S.n > 1 ? 's' : '') + ', panier moyen <strong>' + money(S.n ? S.total / S.n : 0) + '</strong>' +
-    (S.mixte ? ', dont ' + S.mixte + ' en paiement mixte (réparti ci-dessus)' : '') +
+    (S.mixte ? ', dont ' + S.mixte + ' en paiement mixte (réparti ci-dessus)' : '') + (S.nFact ? ', <strong>' + S.nFact + '</strong> facture' + (S.nFact > 1 ? 's' : '') + ' demandée' + (S.nFact > 1 ? 's' : '') : '') +
     (S.ann.length ? '. ' + S.ann.length + ' vente' + (S.ann.length > 1 ? 's' : '') + ' annulée' + (S.ann.length > 1 ? 's' : '') + ', non comptée' + (S.ann.length > 1 ? 's' : '') : '') + '.</div>' +
     (S.liv.m ? '<div class="facts num">' + (F.caisse === 'sapin' ? 'Sapins et accessoires' : 'Articles') + ' <strong>' + money(tot - S.liv.m) + '</strong> · <strong>' + S.liv.n + '</strong> livraison' + (S.liv.n > 1 ? 's' : '') + '</div>' : '') + '</div></div>';
 }
@@ -709,10 +732,11 @@ function vAlerts() {
 function vBars(S) {
   var ids = Object.keys(S.perBar).sort(function (a, b) { return S.perBar[b].total - S.perBar[a].total; });
   var max = Math.max.apply(null, ids.map(function (i) { return S.perBar[i].total; }).concat([1]));
+  var npc = S.np > 0 || S.vir > 0;
   var rows = ids.map(function (i) { var b = S.perBar[i];
-    return '<tr><td class="bname"><strong>' + esc(b.nom) + '</strong><span class="sub num">' + b.n + ' vente' + (b.n > 1 ? 's' : '') + (S.total ? ', ' + Math.round(b.total / S.total * 100) + ' %' : '') + '</span><span class="share" style="width:' + Math.max(6, b.total / max * 100) + '%"></span></td><td class="r num">' + money(b.cash) + '</td><td class="r num">' + money(b.bc) + '</td><td class="r num"><strong>' + money(b.total) + '</strong></td></tr>'; }).join('');
-  return '<section class="half"><h3>' + T().par + '</h3><p class="lead">Le paiement mixte est réparti entre cash et Bancontact.</p><div class="scroll"><table><thead><tr><th>' + T().pdv + '</th><th class="r">Cash</th><th class="r">Bancontact</th><th class="r">Total</th></tr></thead><tbody>' + rows +
-    (ids.length > 1 ? '<tr class="tot"><td>Total</td><td class="r num">' + money(S.cash) + '</td><td class="r num">' + money(S.bc) + '</td><td class="r num">' + money(S.total) + '</td></tr>' : '') + '</tbody></table></div></section>';
+    return '<tr><td class="bname"><strong>' + esc(b.nom) + '</strong><span class="sub num">' + b.n + ' vente' + (b.n > 1 ? 's' : '') + (S.total ? ', ' + Math.round(b.total / S.total * 100) + ' %' : '') + '</span><span class="share" style="width:' + Math.max(6, b.total / max * 100) + '%"></span></td><td class="r num">' + money(b.cash) + '</td><td class="r num">' + money(b.bc) + '</td>' + (npc ? '<td class="r num">' + money((b.np || 0) + (b.vir || 0)) + '</td>' : '') + '<td class="r num"><strong>' + money(b.total) + '</strong></td></tr>'; }).join('');
+  return '<section class="half"><h3>' + T().par + '</h3><p class="lead">Le paiement mixte est réparti entre cash et Bancontact.</p><div class="scroll"><table><thead><tr><th>' + T().pdv + '</th><th class="r">Cash</th><th class="r">Bancontact</th>' + (npc ? '<th class="r">À facturer</th>' : '') + '<th class="r">Total</th></tr></thead><tbody>' + rows +
+    (ids.length > 1 ? '<tr class="tot"><td>Total</td><td class="r num">' + money(S.cash) + '</td><td class="r num">' + money(S.bc) + '</td>' + (npc ? '<td class="r num">' + money(S.np + S.vir) + '</td>' : '') + '<td class="r num">' + money(S.total) + '</td></tr>' : '') + '</tbody></table></div></section>';
 }
 function vHours(S) {
   var slots = Object.keys(S.hours).map(Number); if (!slots.length) return '<section class="half"><h3>Heure par heure</h3><p class="empty">Aucune vente.</p></section>';
@@ -1122,6 +1146,10 @@ function exportCsv() {
     var lm = (v.lignes || []).reduce(function (a, l) { return a + (isLivLine(l) ? +l.total || 0 : 0); }, 0);
     vs.push([s.soiree, s.bar, v.horodatage.slice(0, 16).replace('T', ' '), v.id, (v.lignes || []).map(function (l) { return l.quantite + ' x ' + l.libelle; }).join(', '), v.total, p.cash, p.bancontact, p.mode, v.annulation ? 'oui' : '', v.annulation ? v.annulation.motif : '', lm || '', lm && (v.livraisonAjoutee || v.venteLiee) ? 'oui' : '']); });
   vs[0].push('Livraison (€)', 'Livraison après paiement');
+  if (F.caisse === 'sapin') { vs[0].push('livraison_nom', 'livraison_adresse', 'livraison_telephone', 'facture_societe', 'facture_tva', 'facture_email', 'facture_payee', 'reste_du', 'facture_suivi');
+    list.forEach(function (s, i) { var v = s.v, c = v.livraison || {}, f = v.facture && typeof v.facture === 'object' ? v.facture : null, np = vNonPaye(v), sv = f ? fsGet(v.id, s.soiree) : {};
+      var row = vs[i + 1]; while (row.length < 13) row.push('');
+      row.push(c.nom || '', c.adresse || '', c.telephone || '', f ? f.societe || '' : '', f ? f.tva || '' : '', f ? f.email || '' : '', f ? (f.payee === false ? 'non' : 'oui') : '', np && !sv.virement ? np : '', f ? [sv.etablie ? 'établie' + (sv.numero ? ' ' + sv.numero : '') : 'à établir', sv.virement ? 'payée par virement' : ''].filter(Boolean).join(', ') : ''); }); }
   setTimeout(function () { download('bilan-ventes_' + tag + '.csv', vs); }, 400);
   var CR = caisseRows();
   if (CR.length) {
@@ -1214,7 +1242,7 @@ var MOD = 'accueil';
 var SUBS = {
   bar: [{ id: 'catalogue', nom: 'Catalogue', render: function () { renderCatalogue(); } }, { id: 'bilan', nom: 'Bilan', render: function () { renderBilan(); } }],
   chloro: [{ id: 'catalogue', nom: 'Catalogue', render: function () { renderCatalogue(); } }, { id: 'stock', nom: 'Stock', render: function () { renderStock(); } }, { id: 'bilan', nom: 'Bilan', render: function () { renderBilan(); } }],
-  sapin: [{ id: 'catalogue', nom: 'Catalogue', render: function () { renderCatalogue(); } }, { id: 'stock', nom: 'Stock', render: function () { renderSapStock(); } }, { id: 'caisse', nom: 'Caisse', render: function () { renderSapCaisse(); } }, { id: 'commandes', nom: 'Commandes', render: function () { renderSapCommandes(); } }, { id: 'bilan', nom: 'Bilan', render: function () { renderBilan(); } }, { id: 'hist', nom: 'Historique de vente', render: function () { renderSapHist(); } }]
+  sapin: [{ id: 'catalogue', nom: 'Catalogue', render: function () { renderCatalogue(); } }, { id: 'stock', nom: 'Stock', render: function () { renderSapStock(); } }, { id: 'caisse', nom: 'Caisse', render: function () { renderSapCaisse(); } }, { id: 'commandes', nom: 'Commandes', render: function () { renderSapCommandes(); } }, { id: 'factures', nom: 'Factures', render: function () { renderSapFactures(); } }, { id: 'livraisons', nom: 'Livraisons', render: function () { renderSapLivraisons(); } }, { id: 'bilan', nom: 'Bilan', render: function () { renderBilan(); } }, { id: 'hist', nom: 'Historique de vente', render: function () { renderSapHist(); } }]
 };
 var SUB = { bar: 'catalogue', chloro: 'catalogue', sapin: 'catalogue' };
 /* Anciennes adresses (#bilan, #catalogue, #stock) : renvoyées vers le nouveau menu */
@@ -1461,7 +1489,7 @@ function svLoad() {
   var tok = getToken(); if (!tok || SV.loading) return;
   SV.loading = true; SV.err = null; render();
   ghFetch('/repos/' + SALES_REPO + '/git/trees/HEAD?recursive=1', {}, tok).then(function (t) {
-    var files = (t.tree || []).filter(function (x) { return x.type === 'blob' && /^sapin\//.test(x.path) && !/^sapin\/(stock|caisse|commandes)\//.test(x.path) && /\.json$/i.test(x.path); });
+    var files = (t.tree || []).filter(function (x) { return x.type === 'blob' && /^sapin\//.test(x.path) && !/^sapin\/(stock|caisse|commandes|factures|livraisons)\//.test(x.path) && /\.json$/i.test(x.path); });
     var cache = svCache(), todo = files.filter(function (f) { return !cache[f.sha]; });
     return Promise.all(todo.map(function (f) { return bghRaw(f.path, tok).then(function (txt) { var s; try { s = svSummary(JSON.parse(txt)); } catch (e) { s = { ok: false }; } cache[f.sha] = s; }); })).then(function () {
       var keep = {}; files.forEach(function (f) { keep[f.sha] = cache[f.sha]; }); SV.cache = keep;
@@ -1833,7 +1861,7 @@ function hsList() {
   var tok = getToken(); if (!tok || HS.loading) return;
   HS.loading = true; HS.err = null; render();
   ghFetch('/repos/' + SALES_REPO + '/git/trees/HEAD?recursive=1', {}, tok).then(function (t) {
-    HS.files = (t.tree || []).filter(function (x) { return x.type === 'blob' && /^sapin\//.test(x.path) && !/^sapin\/(stock|caisse|commandes)\//.test(x.path) && /\.json$/i.test(x.path); })
+    HS.files = (t.tree || []).filter(function (x) { return x.type === 'blob' && /^sapin\//.test(x.path) && !/^sapin\/(stock|caisse|commandes|factures|livraisons)\//.test(x.path) && /\.json$/i.test(x.path); })
       .map(function (x) { return hsParse(x); }).sort(function (a, b) { return (b.date || '') < (a.date || '') ? -1 : (b.date || '') > (a.date || '') ? 1 : a.stand.localeCompare(b.stand); });
     HS.loading = false;
     if (!HS.sel && !HS.data && HS.files.length) hsOpen(HS.files[0].path); else render();
@@ -1863,7 +1891,7 @@ function hsLocal(file) {
 }
 function hsDisc(r) { if (!r) return ''; return r.type === 'pourcentage' ? '−' + String(r.valeur).replace('.', ',') + ' %' : '−' + money(+r.valeur || 0); }
 function hsNum(id) { var m = /-(\d+)$/.exec(id || ''); return m ? String(+m[1]) : (id || '?'); }
-function hsPay(p) { p = p || {}; return p.mode === 'cash' ? 'Cash' : p.mode === 'bancontact' ? 'Bancontact' : p.mode === 'mixte' ? 'Mixte · cash ' + money(+p.cash || 0) + ' + Bancontact ' + money(+p.bancontact || 0) : esc(p.mode || ''); }
+function hsPay(p) { p = p || {}; return p.mode === 'a-facturer' ? 'À facturer' : p.mode === 'cash' ? 'Cash' : p.mode === 'bancontact' ? 'Bancontact' : p.mode === 'mixte' ? 'Mixte · cash ' + money(+p.cash || 0) + ' + Bancontact ' + money(+p.bancontact || 0) : esc(p.mode || ''); }
 function hsDm(iso) { return iso ? iso.slice(8, 10) + '/' + iso.slice(5, 7) : ''; }
 function renderSapHist() {
   var el = document.getElementById('mod');
@@ -1894,6 +1922,7 @@ function vSapHist(d) {
   var ok = all.filter(function (v) { return !v.annulation; }), nAnn = all.length - ok.length, tot = ok.reduce(function (s, v) { return s + (+v.total || 0); }, 0);
   var cash = ok.reduce(function (s, v) { return s + (+(v.paiement || {}).cash || 0); }, 0), bc = ok.reduce(function (s, v) { return s + (+(v.paiement || {}).bancontact || 0); }, 0);
   var day = d.date || (all[0] && all[0].horodatage.slice(0, 10)) || '', pv = d.pointDeVente || {};
+  if (day) fsEnsure(day.slice(0, 4));
   var h = '<section class="hsec"><div class="row-between"><h3>Ventes du ' + esc(day ? dmy(day) : '?') + (pv.nom ? ' · ' + esc(pv.nom) : '') + '</h3>' +
     (d.miseAJour ? '<span class="faint">Fichier mis à jour le ' + esc(hsDm(d.miseAJour)) + ' à ' + esc(String(d.miseAJour).slice(11, 16)) + '</span>' : '') + '</div>' +
     '<div class="hsum2"><strong>' + ok.length + ' vente' + (ok.length > 1 ? 's' : '') + ' · ' + money(tot) + '</strong><span class="faint">Cash ' + money(cash) + ' · Bancontact ' + money(bc) + '</span>' +
@@ -1907,6 +1936,8 @@ function vSapHist(d) {
     if (la) notes.push('<span class="hsliv">Livraison ajoutée le ' + esc(hsDm(la.horodatage)) + ' à ' + esc(String(la.horodatage || '').slice(11, 16)) + ' · ' + money(+la.montant || 0) + (la.paiement ? ' (' + hsPay(la.paiement) + ')' : '') + '</span>');
     if (v.venteLiee) notes.push('<span class="hsliv">Livraison de la vente n° ' + esc(hsNum(v.venteLiee)) + (ids[v.venteLiee] ? ' (' + esc(ids[v.venteLiee].horodatage.slice(11, 16)) + ')' : '') + '</span>');
     all.forEach(function (o) { if (o.venteLiee === v.id && !o.annulation) notes.push('<span class="hsliv">Livraison payée à part : vente n° ' + esc(hsNum(o.id)) + ' (' + esc(o.horodatage.slice(11, 16)) + ')</span>'); });
+    if (v.livraison && typeof v.livraison === 'object') notes.push('<span class="hsliv">Livrer à ' + esc([v.livraison.nom, v.livraison.adresse, v.livraison.telephone].filter(Boolean).join(' · ')) + '</span>');
+    if (v.facture && typeof v.facture === 'object') { var fst = faStatus(v, day); notes.push('<span class="hsfac">Facture : ' + esc([v.facture.societe, v.facture.tva].filter(Boolean).join(' · ') || 'données incomplètes') + ' · ' + esc(fst.t) + (v.facture.modifieeLe ? ' · corrigée le ' + esc(hsDm(v.facture.modifieeLe)) : '') + '</span>'); }
     if (an) notes.push('<span class="hsann">Annulée à ' + esc(String(an.horodatage || '').slice(11, 16)) + (an.horodatage && an.horodatage.slice(0, 10) !== day ? ' le ' + esc(hsDm(an.horodatage)) : '') + (an.motif ? ' · ' + esc(an.motif) : '') + '</span>');
     return '<div class="hsale' + (an ? ' cancelled' : '') + '"><span class="hh"><b>' + esc(v.horodatage.slice(11, 16)) + '</b><small>n° ' + esc(hsNum(v.id)) + '</small></span>' +
       '<div class="hl">' + lines.join('') + notes.join('') + '</div><span class="hpm">' + hsPay(v.paiement) + '</span><span class="htt">' + money(+v.total || 0) + '</span></div>';
@@ -2430,6 +2461,310 @@ document.addEventListener('keydown', function (e) {
   var t = e.target; if (e.key !== 'Enter' || !t.hasAttribute || !t.hasAttribute('data-coq')) return;
   e.preventDefault(); var all = Array.prototype.slice.call(document.querySelectorAll('[data-coq]')), i = all.indexOf(t); if (all[i + 1]) all[i + 1].focus(); else t.blur();
 });
+
+/* ================= Factures (Caisse Sapins v36) et suivi par le patron =================
+   Les données de facturation viennent des fichiers de ventes (vente.facture) ; le suivi (facture établie, payée par virement)
+   est gardé à part dans sapin/factures/<AAAA>.json, jamais dans les fichiers de ventes (la tablette les réécrit en entier). */
+/* ================= Suivis tenus par l'Admin (factures, livraisons) =================
+   Un fichier par année dans le dépôt ventes, indexé par id de vente, jamais dans les fichiers de ventes (la tablette les réécrit).
+   Opérations champ par champ fusionnées sur la dernière version (relecture + PUT avec sha, 3 réessais), file d'attente hors ligne. */
+function mkSuivi(dir, fmt, label, lsPrefix) {
+  var M = { years: {} };
+  function path(y) { return dir + '/' + y + '.json'; }
+  function key(y) { return lsPrefix + path(y); }
+  function norm(d) { d = d && typeof d === 'object' ? d : {}; if (!d.suivi || typeof d.suivi !== 'object' || Array.isArray(d.suivi)) d.suivi = {}; return d; }
+  function apply(doc, op) { doc.suivi[op.id] = Object.assign({}, doc.suivi[op.id] || {}, op.champs, { modifieLe: op.le }); return doc; }
+  M.state = function (y) {
+    y = String(y); if (M.years[y]) return M.years[y];
+    var st = M.years[y] = { doc: null, ops: [], loading: false, saving: false, err: null, loaded: false }, loc = null;
+    try { loc = JSON.parse(lsGet(key(y)) || 'null'); } catch (e) {}
+    if (loc) { st.doc = loc.doc || null; st.ops = Array.isArray(loc.ops) ? loc.ops : []; }
+    return st;
+  };
+  function persist(y) { var st = M.state(y); lsSet(key(y), st.ops.length ? JSON.stringify({ doc: st.doc, ops: st.ops }) : null); }
+  M.ensure = function (y) {
+    var st = M.state(y); if (st.loaded || st.loading || !getToken()) return st;
+    st.loading = true;
+    ssGet(path(y)).then(function (r) { st.loading = false; st.loaded = true; st.doc = r ? norm(r.json) : st.doc; render(); if (st.ops.length) M.save(y); },
+      function (e) { st.loading = false; st.loaded = true; st.err = ssErrText(e); render(); });
+    return st;
+  };
+  M.doc = function (y) { var st = M.state(y), d = norm(clone(st.doc || {})); st.ops.forEach(function (o) { apply(d, o); }); return d; };
+  M.get = function (id, day) { if (!id || !day) return {}; return M.doc(String(day).slice(0, 4)).suivi[id] || {}; };
+  M.save = function (y, tries) {
+    var st = M.state(y); if (st.saving || !st.ops.length) return;
+    if (!getToken()) { st.err = 'Appareil verrouillé : le suivi est gardé sur cet appareil. Déverrouillez-le dans Paramètres pour l’enregistrer sur GitHub.'; persist(y); render(); return; }
+    var ops = st.ops.slice(); st.saving = true; st.err = null; render();
+    ssGet(path(y)).then(function (r) {
+      var base = r ? norm(r.json) : norm({ format: fmt, formatVersion: 1, annee: +y, creeLe: new Date().toISOString() });
+      ops.forEach(function (o) { apply(base, o); });
+      base.majLe = new Date().toISOString(); base.majPar = 'admin';
+      return ssPut(path(y), base, r && r.sha, label + ' ' + y + ' (Admin)').then(function () { return base; });
+    }).then(function (doc) {
+      st.saving = false; st.doc = doc; st.loaded = true; st.ops = st.ops.slice(ops.length); persist(y); render(); if (st.ops.length) M.save(y);
+    }, function (e) {
+      st.saving = false;
+      if ((e.status === 409 || e.status === 422) && (tries || 0) < 3) { M.save(y, (tries || 0) + 1); return; }
+      st.err = ssErrText(e); persist(y); render();
+    });
+  };
+  M.op = function (id, day, champs) { var y = String(day).slice(0, 4), st = M.state(y); st.ops.push({ id: id, champs: champs, le: new Date().toISOString() }); persist(y); M.save(y); };
+  window.addEventListener('online', function () { Object.keys(M.years).forEach(function (y) { if (M.years[y].ops.length) M.save(y); }); });
+  return M;
+}
+var FSUIVI = mkSuivi('sapin/factures', 'agri-garden-caisse/factures-suivi', 'Suivi des factures', 'admin-factsuivi:');
+var LSUIVI = mkSuivi('sapin/livraisons', 'agri-garden-caisse/livraisons-suivi', 'Suivi des livraisons', 'admin-livsuivi:');
+function fsState(y) { return FSUIVI.state(y); }
+function fsEnsure(y) { return FSUIVI.ensure(y); }
+function fsGet(id, day) { return FSUIVI.get(id, day); }
+function fsSave(y) { FSUIVI.save(y); }
+function fsOp(id, day, champs) { FSUIVI.op(id, day, champs); }
+function faStatus(v, day) {
+  var f = v.facture || {}, np = vNonPaye(v), sv = fsGet(v.id, day);
+  if (np > 0 && sv.virement) return { k: 'vir', t: 'Payée (virement)', np: 0, vir: np };
+  if (np > 0) return { k: 'np', t: 'Non payée · reste ' + money(np), np: np };
+  if (f.paiement) return { k: 'later', t: 'Payée au stand le ' + hsDm(f.paiement.horodatage) + (f.paiement.mode ? ' (' + hsPayTxt(f.paiement) + ')' : ''), np: 0 };
+  return { k: 'ok', t: 'Payée au stand', np: 0 };
+}
+function hsPayTxt(p) { p = p || {}; return p.mode === 'cash' ? 'cash' : p.mode === 'bancontact' ? 'Bancontact' : p.mode === 'mixte' ? 'cash ' + money(+p.cash || 0) + ' + Bancontact ' + money(+p.bancontact || 0) : p.mode === 'a-facturer' ? 'à facturer' : String(p.mode || ''); }
+
+/* ---------- Gestion sapin › Factures ---------- */
+var FA = { year: null, files: null, data: {}, loading: false, err: null, at: null, f: { stand: 'all', pay: 'all', est: 'all', from: '', to: '' }, open: null };
+function faExtract(d) {
+  if (!d || d.format !== 'agri-garden-caisse/ventes' || !Array.isArray(d.ventes)) return { ok: false };
+  var fp = d.pointDeVente || {}, out = { ok: true, key: (fp.id || '?') + '|' + (d.date || ''), maj: d.miseAJour || '', ventes: [] };
+  d.ventes.forEach(function (v) { if (v && !v.annulation && typeof v.horodatage === 'string' && ((v.facture && typeof v.facture === 'object') || (v.lignes || []).some(isLivLine))) out.ventes.push({ v: v, pv: v.pointDeVente || fp }); });
+  return out; // en mémoire seulement : noms, adresses et e-mails ne sont pas gardés dans le navigateur
+}
+function faLoad() {
+  var tok = getToken(); if (!tok || FA.loading) return;
+  FA.loading = true; FA.err = null; render();
+  ghFetch('/repos/' + SALES_REPO + '/git/trees/HEAD?recursive=1', {}, tok).then(function (t) { return t; }, function (e) { if (e.status === 409) return { tree: [] }; throw e; }).then(function (t) {
+    var files = (t.tree || []).filter(function (x) { return x.type === 'blob' && /^sapin\//.test(x.path) && !/^sapin\/(stock|caisse|commandes|factures|livraisons)\//.test(x.path) && /\.json$/i.test(x.path); });
+    var todo = files.filter(function (f) { return !FA.data[f.sha]; }), i = 0;
+    function next() {
+      if (i >= todo.length) return Promise.resolve();
+      var f = todo[i++];
+      return bghRaw(f.path, tok).then(function (txt) { var s; try { s = faExtract(JSON.parse(txt)); } catch (e) { s = { ok: false }; } FA.data[f.sha] = s; }, function () {}).then(next);
+    }
+    return Promise.all([next(), next(), next(), next(), next(), next()]).then(function () { FA.files = files; FA.loading = false; FA.at = new Date(); render(); });
+  }).catch(function (e) { FA.loading = false; FA.files = FA.files || []; FA.err = bghErr(e); render(); });
+}
+function faAll() {
+  var best = {};
+  (FA.files || []).forEach(function (f) { var s = FA.data[f.sha]; if (!s || !s.ok) return; if (!best[s.key] || s.maj > best[s.key].maj) best[s.key] = s; });
+  var seen = {}, out = [];
+  Object.keys(best).forEach(function (k) { best[k].ventes.forEach(function (x) { if (!x.v.facture || typeof x.v.facture !== 'object' || seen[x.v.id]) return; seen[x.v.id] = 1; out.push({ v: x.v, day: x.v.horodatage.slice(0, 10), pvId: x.pv.id || '?', pvNom: x.pv.nom || x.pv.id || '?' }); }); });
+  return out.sort(function (a, b) { return a.v.horodatage < b.v.horodatage ? -1 : a.v.horodatage > b.v.horodatage ? 1 : 0; });
+}
+function faLines(v) { return (v.lignes || []).map(function (l) { return (+l.quantite || 0) + ' × ' + (l.libelle || ''); }); }
+function faCopyText(x) {
+  var v = x.v, f = v.facture || {}, st = faStatus(v, x.day), sv = fsGet(v.id, x.day);
+  var t = ['Société : ' + (f.societe || ''), 'Adresse : ' + (f.adresse || ''), 'TVA : ' + (f.tva || ''), 'E-mail : ' + (f.email || ''), '',
+    'Vente du ' + dmy(x.day) + ' à ' + v.horodatage.slice(11, 16) + ' · ' + x.pvNom + ' · n° ' + hsNum(v.id) + ' (' + v.id + ')', 'Articles :'];
+  (v.lignes || []).forEach(function (l) { t.push('  ' + (+l.quantite || 0) + ' × ' + (l.libelle || '') + ' à ' + money(+l.prixUnitaire || 0) + ' = ' + money(+l.total || 0)); });
+  t.push('Total : ' + money(+v.total || 0), 'Paiement : ' + st.t);
+  if (sv.numero) t.push('N° de facture : ' + sv.numero);
+  return t.join('\n').replace(/ /g, ' ');
+}
+function faCopy(txt) {
+  function fb() { var ta = document.createElement('textarea'); ta.value = txt; ta.style.position = 'fixed'; ta.style.opacity = '0'; document.body.appendChild(ta); ta.select(); var ok = false; try { ok = document.execCommand('copy'); } catch (e) {} ta.remove(); toast(ok ? 'Copié : collez-le dans le logiciel de facturation' : 'Copie impossible sur cet appareil'); }
+  if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(txt).then(function () { toast('Copié : collez-le dans le logiciel de facturation'); }, fb); else fb();
+}
+function faFiltered(all) {
+  var f = FA.f;
+  return all.filter(function (x) {
+    if (x.day.slice(0, 4) !== FA.year) return false;
+    if (f.from && x.day < f.from) return false; if (f.to && x.day > f.to) return false;
+    if (f.stand !== 'all' && x.pvId !== f.stand) return false;
+    var st = faStatus(x.v, x.day), sv = fsGet(x.v.id, x.day);
+    if (f.pay === 'np' && st.k !== 'np') return false; if (f.pay === 'ok' && st.k === 'np') return false;
+    if (f.est === 'non' && sv.etablie) return false; if (f.est === 'oui' && !sv.etablie) return false;
+    return true;
+  });
+}
+function renderSapFactures() {
+  var el = document.getElementById('mod');
+  if (FA.files === null && !FA.loading && getToken()) { faLoad(); return; }
+  var all = faAll(), years = {};
+  all.forEach(function (x) { years[x.day.slice(0, 4)] = 1; });
+  var yl = Object.keys(years).sort().reverse(); if (!FA.year) FA.year = yl[0] || String(new Date().getFullYear()); if (yl.indexOf(FA.year) < 0) yl.unshift(FA.year);
+  var st = fsEnsure(FA.year), f = FA.f;
+  var stat = st.saving ? '<span class="sv">Enregistrement du suivi…</span>' : st.ops.length ? '<span class="sv warn">' + st.ops.length + ' modification' + (st.ops.length > 1 ? 's' : '') + ' du suivi pas encore sur GitHub</span>' : '';
+  var band = '<div class="band"><div class="band-top"><h1>Factures à établir</h1></div>' +
+    '<div class="rsel ssbar" role="group" aria-label="Saison">' + yl.map(function (y) { return '<button class="rchip' + (y === FA.year ? ' on' : '') + '" data-fa="year" data-v="' + esc(y) + '">' + esc(y) + '</button>'; }).join('') +
+    '<button class="rchip" data-fa="reload"' + (FA.loading ? ' disabled' : '') + '>' + (FA.loading ? 'Lecture des ventes…' : 'Relire les ventes') + '</button></div>' +
+    '<p class="soon-lead">' + (FA.at ? 'Ventes lues à ' + String(FA.at.getHours()).padStart(2, '0') + ':' + String(FA.at.getMinutes()).padStart(2, '0') + '. ' : '') + stat + '</p></div>';
+  var alerts = [];
+  if (!getToken()) alerts.push('<div class="alert">Appareil verrouillé : les fichiers de ventes ne peuvent pas être lus. <button class="btn sm" data-a="go" data-v="parametres">Déverrouiller</button></div>');
+  if (FA.err) alerts.push('<div class="alert err">' + FA.err + '</div>');
+  if (st.err) alerts.push('<div class="alert err">Suivi des factures : ' + st.err + ' <button class="btn sm" data-fa="retry">Réessayer</button></div>');
+  var main = alerts.length ? '<div class="alerts">' + alerts.join('') + '</div>' : '';
+  if (FA.loading && !FA.files) { el.innerHTML = band + '<main>' + main + '<section><p class="empty">Lecture des fichiers de ventes de la Caisse Sapins…</p></section></main>' + vToast(); return; }
+  var ofYear = all.filter(function (x) { return x.day.slice(0, 4) === FA.year; }), stands = {};
+  ofYear.forEach(function (x) { stands[x.pvId] = x.pvNom; });
+  var list = faFiltered(all), np = 0, nEt = 0;
+  list.forEach(function (x) { np += faStatus(x.v, x.day).np; if (!fsGet(x.v.id, x.day).etablie) nEt++; });
+  function chips(key, opts) { return opts.map(function (o) { return '<button class="chip' + (f[key] === o[0] ? ' on' : '') + '" data-fa="f" data-k="' + key + '" data-v="' + esc(o[0]) + '">' + esc(o[1]) + '</button>'; }).join(''); }
+  var sk = Object.keys(stands).sort(function (a, b) { return String(a).localeCompare(String(b), undefined, { numeric: true }); });
+  var h = '<section><div class="row-between"><h3>Factures demandées ' + esc(FA.year) + '</h3><div class="cbtns"><button class="btn" data-fa="csv"' + (list.length ? '' : ' disabled') + '>Exporter pour Excel</button></div></div>' +
+    '<div class="fagrp"><span class="fl">Période</span><div class="fadates"><input type="date" data-fa-d="from" value="' + esc(f.from) + '" aria-label="Du"><span>au</span><input type="date" data-fa-d="to" value="' + esc(f.to) + '" aria-label="Au">' + (f.from || f.to ? '<button class="btn sm" data-fa="nodates">Toute la saison</button>' : '') + '</div></div>' +
+    (sk.length > 1 ? '<div class="fagrp"><span class="fl">Stand</span><div class="rsel">' + chips('stand', [['all', 'Tous']].concat(sk.map(function (k) { return [k, stands[k]]; }))) + '</div></div>' : '') +
+    '<div class="fagrp"><span class="fl">Paiement</span><div class="rsel">' + chips('pay', [['all', 'Toutes'], ['np', 'Non payées'], ['ok', 'Payées']]) + '</div></div>' +
+    '<div class="fagrp"><span class="fl">Facture</span><div class="rsel">' + chips('est', [['all', 'Toutes'], ['non', 'Pas encore établies'], ['oui', 'Établies']]) + '</div></div>' +
+    '<p class="num fasum"><strong>' + list.length + '</strong> facture' + (list.length > 1 ? 's' : '') + ' · <strong>' + nEt + '</strong> à établir · non payé <strong>' + money(np) + '</strong></p>';
+  if (!list.length) h += '<p class="empty">' + (ofYear.length ? 'Aucune facture ne correspond aux filtres.' : 'Aucune facture demandée en ' + esc(FA.year) + ' dans les fichiers de la Caisse Sapins.') + '</p>';
+  h += list.map(vFaCard).join('');
+  el.innerHTML = band + '<main>' + main + h + '</section></main>' + vToast();
+}
+function vFaCard(x) {
+  var v = x.v, f = v.facture || {}, st = faStatus(v, x.day), sv = fsGet(v.id, x.day), id = esc(v.id);
+  return '<div class="facard st-' + st.k + '"><div class="row-between"><span><strong>' + esc(shortDate(x.day)) + ' ' + esc(v.horodatage.slice(11, 16)) + '</strong> · ' + esc(x.pvNom) + ' · vente n° ' + esc(hsNum(v.id)) + '</span><span class="fastat st-' + st.k + '">' + esc(st.t) + '</span></div>' +
+    '<div class="fainfo"><div><strong>' + esc(f.societe || '(société non indiquée)') + '</strong>' + (f.adresse ? '<br>' + esc(f.adresse) : '') + '</div><div>' + (f.tva ? 'TVA ' + esc(f.tva) : '<span class="faint">TVA non indiquée</span>') + (f.email ? '<br><a href="mailto:' + esc(f.email) + '">' + esc(f.email) + '</a>' : '') + '</div></div>' +
+    '<p class="coart">' + faLines(v).map(esc).join(' · ') + '</p>' +
+    '<p class="num"><strong>' + money(+v.total || 0) + '</strong>' + (f.horodatage ? ' <span class="faint">· données encodées le ' + esc(hsDm(f.horodatage)) + ' à ' + esc(String(f.horodatage).slice(11, 16)) + (f.modifieeLe ? ', corrigées le ' + esc(hsDm(f.modifieeLe)) + ' à ' + esc(String(f.modifieeLe).slice(11, 16)) : '') + '</span>' : '') + '</p>' +
+    '<div class="fasuivi"><label class="chk"><input type="checkbox" data-fa-c="etablie" data-id="' + id + '" data-day="' + esc(x.day) + '"' + (sv.etablie ? ' checked' : '') + '> Facture établie</label>' +
+    (sv.etablie ? '<input type="text" class="fanum" placeholder="N° de facture (facultatif)" data-fa-n="1" data-id="' + id + '" data-day="' + esc(x.day) + '" value="' + esc(sv.numero || '') + '" autocomplete="off" aria-label="N° de facture">' : '') +
+    (vNonPaye(v) > 0 ? '<label class="chk"><input type="checkbox" data-fa-c="virement" data-id="' + id + '" data-day="' + esc(x.day) + '"' + (sv.virement ? ' checked' : '') + '> Payée par virement</label>' : '') +
+    '<button class="btn sm" data-fa="copy" data-id="' + id + '">Copier</button></div></div>';
+}
+function faCsv() {
+  var rows = [['Date', 'Heure', 'Stand', 'N° vente', 'ID vente', 'Société', 'Adresse', 'TVA', 'E-mail', 'Articles', 'Total (€)', 'Payée au stand', 'Reste dû (€)', 'Statut', 'Facture établie', 'N° de facture', 'Payée par virement', 'Encodée le', 'Corrigée le']];
+  faFiltered(faAll()).forEach(function (x) {
+    var v = x.v, f = v.facture || {}, st = faStatus(v, x.day), sv = fsGet(v.id, x.day);
+    rows.push([x.day, v.horodatage.slice(11, 16), x.pvNom, hsNum(v.id), v.id, f.societe || '', f.adresse || '', f.tva || '', f.email || '', faLines(v).join(', '), +v.total || 0, f.payee === false ? 'non' : 'oui', vNonPaye(v), st.t.replace(/ /g, ' '), sv.etablie ? 'oui' : '', sv.numero || '', sv.virement ? 'oui' : '', f.horodatage || '', f.modifieeLe || '']);
+  });
+  download('factures-sapins_' + FA.year + (FA.f.from || FA.f.to ? '_' + (FA.f.from || 'debut') + '_' + (FA.f.to || 'fin') : '') + '.csv', rows); toast('Fichier pour Excel téléchargé');
+}
+document.addEventListener('click', function (e) {
+  var b = e.target.closest('[data-fa]'); if (!b || b.disabled) return;
+  var a = b.getAttribute('data-fa');
+  if (a === 'year') { FA.year = b.getAttribute('data-v'); FA.f.stand = 'all'; render(); }
+  else if (a === 'reload') { FA.files === null ? faLoad() : (FA.loading || faLoad()); }
+  else if (a === 'retry') fsSave(FA.year);
+  else if (a === 'f') { FA.f[b.getAttribute('data-k')] = b.getAttribute('data-v'); render(); }
+  else if (a === 'nodates') { FA.f.from = ''; FA.f.to = ''; render(); }
+  else if (a === 'csv') faCsv();
+  else if (a === 'copy') { var x = faAll().filter(function (y) { return y.v.id === b.getAttribute('data-id'); })[0]; if (x) faCopy(faCopyText(x)); }
+});
+document.addEventListener('change', function (e) {
+  var t = e.target; if (!t.getAttribute) return;
+  if (t.hasAttribute('data-fa-d')) { FA.f[t.getAttribute('data-fa-d')] = t.value; render(); }
+  else if (t.hasAttribute('data-fa-c')) {
+    var k = t.getAttribute('data-fa-c'), ch = {}; ch[k] = t.checked; ch[k + 'Le'] = t.checked ? new Date().toISOString() : null;
+    fsOp(t.getAttribute('data-id'), t.getAttribute('data-day'), ch); toast(k === 'etablie' ? (t.checked ? 'Facture marquée établie' : 'Facture remise « à établir »') : (t.checked ? 'Marquée payée par virement' : 'Virement retiré'));
+  }
+  else if (t.hasAttribute('data-fa-n')) { var cur = fsGet(t.getAttribute('data-id'), t.getAttribute('data-day')); if ((cur.numero || '') !== t.value.trim()) { fsOp(t.getAttribute('data-id'), t.getAttribute('data-day'), { numero: t.value.trim() }); toast('N° de facture enregistré'); } }
+});
+document.addEventListener('keydown', function (e) { if (e.key === 'Enter' && e.target.hasAttribute && e.target.hasAttribute('data-fa-n')) e.target.blur(); });
+
+/* Bilan des sapins : paiements par stand et par jour (cash, Bancontact, à facturer) */
+function vPaiements(S) {
+  if (F.caisse !== 'sapin' || !(S.nFact || S.np || S.vir)) return '';
+  var rows = Object.keys(S.pay).map(function (k) { return S.pay[k]; }).sort(function (a, b) { return a.day < b.day ? 1 : a.day > b.day ? -1 : a.bar.localeCompare(b.bar); });
+  var vir = S.vir > 0;
+  function tr(r, cls, lab) { return '<tr' + (cls ? ' class="' + cls + '"' : '') + '><td>' + lab + '</td><td class="r num">' + money(r.cash) + '</td><td class="r num">' + money(r.bc) + '</td><td class="r num">' + (r.np ? '<strong class="bad">' + money(r.np) + '</strong>' : money(0)) + '</td>' + (vir ? '<td class="r num">' + money(r.vir) + '</td>' : '') + '<td class="r num"><strong>' + money(r.total) + '</strong></td><td class="r num">' + (r.nFact || '—') + '</td></tr>'; }
+  return '<section><h3>Paiements par stand et par jour</h3><p class="lead">Une vente « à facturer » compte dans le total du jour de la vente, mais ni en cash ni en Bancontact tant qu’elle n’est pas payée. Payée plus tard au stand, son paiement est repris ici au jour de la vente (la caisse du jour du paiement le compte dans ses ventes cash).</p>' +
+    '<div class="scroll"><table class="stab bil"><thead><tr><th>Jour</th><th class="r">Cash</th><th class="r">Bancontact</th><th class="r">À facturer (non payé)</th>' + (vir ? '<th class="r">Virement</th>' : '') + '<th class="r">Total</th><th class="r">Factures</th></tr></thead><tbody>' +
+    rows.map(function (r) { return tr(r, '', esc(shortDate(r.day)) + '<span class="sub">' + esc(r.bar) + '</span>'); }).join('') + (rows.length > 1 ? tr({ cash: S.cash, bc: S.bc, np: S.np, vir: S.vir, total: S.total, nFact: S.nFact }, 'tot', 'Total') : '') + '</tbody></table></div></section>';
+}
+
+/* ---------- Gestion sapin › Livraisons : toutes les livraisons de la saison, avec leur statut ---------- */
+var LV = { year: null, f: { stand: 'all', st: 'all', from: '', to: '', q: '' } };
+function lvAll() {
+  var best = {};
+  (FA.files || []).forEach(function (f) { var s = FA.data[f.sha]; if (!s || !s.ok) return; if (!best[s.key] || s.maj > best[s.key].maj) best[s.key] = s; });
+  var seen = {}, out = [];
+  Object.keys(best).forEach(function (k) { best[k].ventes.forEach(function (x) { if (!(x.v.lignes || []).some(isLivLine) || seen[x.v.id]) return; seen[x.v.id] = 1; out.push({ v: x.v, day: x.v.horodatage.slice(0, 10), pvId: x.pv.id || '?', pvNom: x.pv.nom || x.pv.id || '?' }); }); });
+  return out.sort(function (a, b) { return a.v.horodatage < b.v.horodatage ? -1 : a.v.horodatage > b.v.horodatage ? 1 : 0; });
+}
+function lvArts(v) { return (v.lignes || []).filter(function (l) { return !isLivLine(l); }).map(function (l) { return (+l.quantite || 0) + ' × ' + (l.libelle || ''); }); }
+function lvPay(x) { var np = vNonPaye(x.v); if (!np) return { k: 'ok', t: 'Payée' }; if (x.v.facture && fsGet(x.v.id, x.day).virement) return { k: 'ok', t: 'Payée (virement)' }; return { k: 'np', t: 'Reste à payer ' + money(np) }; }
+function lvFiltered(all) {
+  var f = LV.f, q = (f.q || '').trim().toLowerCase();
+  return all.filter(function (x) {
+    if (x.day.slice(0, 4) !== LV.year) return false;
+    if (f.from && x.day < f.from) return false; if (f.to && x.day > f.to) return false;
+    if (f.stand !== 'all' && x.pvId !== f.stand) return false;
+    var done = !!LSUIVI.get(x.v.id, x.day).livree;
+    if (f.st === 'todo' && done) return false; if (f.st === 'done' && !done) return false;
+    if (q) { var c = x.v.livraison || {}, hay = [c.nom, c.adresse, c.telephone, hsNum(x.v.id), x.pvNom].join(' ').toLowerCase(); if (hay.indexOf(q) < 0) return false; }
+    return true;
+  });
+}
+function renderSapLivraisons() {
+  var el = document.getElementById('mod');
+  if (FA.files === null && !FA.loading && getToken()) { faLoad(); return; }
+  var all = lvAll(), years = {};
+  all.forEach(function (x) { years[x.day.slice(0, 4)] = 1; });
+  var yl = Object.keys(years).sort().reverse(); if (!LV.year) LV.year = yl[0] || String(new Date().getFullYear()); if (yl.indexOf(LV.year) < 0) yl.unshift(LV.year);
+  var st = LSUIVI.ensure(LV.year); fsEnsure(LV.year);
+  var f = LV.f;
+  var stat = st.saving ? '<span class="sv">Enregistrement…</span>' : st.ops.length ? '<span class="sv warn">' + st.ops.length + ' modification' + (st.ops.length > 1 ? 's' : '') + ' pas encore sur GitHub</span>' : '';
+  var band = '<div class="band"><div class="band-top"><h1>Livraisons</h1></div>' +
+    '<div class="rsel ssbar" role="group" aria-label="Saison">' + yl.map(function (y) { return '<button class="rchip' + (y === LV.year ? ' on' : '') + '" data-lv="year" data-v="' + esc(y) + '">' + esc(y) + '</button>'; }).join('') +
+    '<button class="rchip" data-lv="reload"' + (FA.loading ? ' disabled' : '') + '>' + (FA.loading ? 'Lecture des ventes…' : 'Relire les ventes') + '</button></div>' +
+    '<p class="soon-lead">' + (FA.at ? 'Ventes lues à ' + String(FA.at.getHours()).padStart(2, '0') + ':' + String(FA.at.getMinutes()).padStart(2, '0') + '. ' : '') + stat + '</p></div>';
+  var alerts = [];
+  if (!getToken()) alerts.push('<div class="alert">Appareil verrouillé : les fichiers de ventes ne peuvent pas être lus. <button class="btn sm" data-a="go" data-v="parametres">Déverrouiller</button></div>');
+  if (FA.err) alerts.push('<div class="alert err">' + FA.err + '</div>');
+  if (st.err) alerts.push('<div class="alert err">Suivi des livraisons : ' + st.err + ' <button class="btn sm" data-lv="retry">Réessayer</button></div>');
+  var main = alerts.length ? '<div class="alerts">' + alerts.join('') + '</div>' : '';
+  if (FA.loading && !FA.files) { el.innerHTML = band + '<main>' + main + '<section><p class="empty">Lecture des fichiers de ventes de la Caisse Sapins…</p></section></main>' + vToast(); return; }
+  var ofYear = all.filter(function (x) { return x.day.slice(0, 4) === LV.year; }), stands = {}, cnt = { all: 0, todo: 0, done: 0 };
+  ofYear.forEach(function (x) { stands[x.pvId] = x.pvNom; });
+  var f0 = LV.f.st; LV.f.st = 'all'; lvFiltered(all).forEach(function (x) { cnt.all++; LSUIVI.get(x.v.id, x.day).livree ? cnt.done++ : cnt.todo++; }); LV.f.st = f0;
+  var list = lvFiltered(all);
+  function chips(key, opts) { return opts.map(function (o) { return '<button class="chip' + (f[key] === o[0] ? ' on' : '') + '" data-lv="f" data-k="' + key + '" data-v="' + esc(o[0]) + '">' + o[1] + '</button>'; }).join(''); }
+  var sk = Object.keys(stands).sort(function (a, b) { return String(a).localeCompare(String(b), undefined, { numeric: true }); });
+  var h = '<section class="livlist"><div class="row-between"><h3>Livraisons ' + esc(LV.year) + '</h3><div class="cbtns noprint"><button class="btn" data-lv="print"' + (list.length ? '' : ' disabled') + '>Imprimer la liste</button><button class="btn" data-lv="csv"' + (list.length ? '' : ' disabled') + '>Exporter pour le livreur</button></div></div>' +
+    '<div class="noprint"><div class="fagrp"><span class="fl">Période</span><div class="fadates"><input type="date" data-lv-d="from" value="' + esc(f.from) + '" aria-label="Du"><span>au</span><input type="date" data-lv-d="to" value="' + esc(f.to) + '" aria-label="Au">' + (f.from || f.to ? '<button class="btn sm" data-lv="nodates">Toute la saison</button>' : '') + '</div></div>' +
+    (sk.length > 1 ? '<div class="fagrp"><span class="fl">Stand</span><div class="rsel">' + chips('stand', [['all', 'Tous']].concat(sk.map(function (k) { return [k, esc(stands[k])]; }))) + '</div></div>' : '') +
+    '<div class="fagrp"><span class="fl">Statut</span><div class="rsel">' + chips('st', [['all', 'Toutes <span class="num">(' + cnt.all + ')</span>'], ['todo', 'À livrer <span class="num">(' + cnt.todo + ')</span>'], ['done', 'Livrées <span class="num">(' + cnt.done + ')</span>']]) + '</div></div>' +
+    '<input type="text" class="cosearch" data-lv-q placeholder="Rechercher : nom, adresse, téléphone, n° de vente…" value="' + esc(f.q) + '" autocomplete="off"></div>';
+  if (!list.length) h += '<p class="empty">' + (ofYear.length ? 'Aucune livraison ne correspond aux filtres.' : 'Aucune livraison en ' + esc(LV.year) + ' dans les fichiers de la Caisse Sapins.') + '</p>';
+  var last = null;
+  list.forEach(function (x) { if (x.day !== last) { var n = list.filter(function (y) { return y.day === x.day; }).length; h += '<h4 class="codate cap">' + esc(longDate(x.day)) + ' ' + esc(x.day.slice(0, 4)) + ' <span class="faint num">· ' + n + ' livraison' + (n > 1 ? 's' : '') + '</span></h4>'; last = x.day; } h += vLvCard(x); });
+  el.innerHTML = band + '<main>' + main + h + '</section></main>' + vToast();
+}
+function vLvCard(x) {
+  var v = x.v, c = v.livraison && typeof v.livraison === 'object' ? v.livraison : null, sv = LSUIVI.get(v.id, x.day), done = !!sv.livree, pay = lvPay(x), id = esc(v.id), dd = esc(x.day);
+  return '<div class="lvcard' + (done ? ' done' : '') + '"><div class="row-between"><span><strong>' + esc(v.horodatage.slice(11, 16)) + '</strong> · ' + esc(x.pvNom) + ' · vente n° ' + esc(hsNum(v.id)) + '</span>' +
+    '<span class="lvstat' + (done ? ' done' : '') + '">' + (done ? 'Livrée' + (sv.livreeLe ? ' le ' + esc(hsDm(sv.livreeLe)) : '') : 'À livrer') + '</span></div>' +
+    '<p>' + (c ? '<strong>' + esc(c.nom || '(nom non indiqué)') + '</strong>' + (c.adresse ? ' · ' + esc(c.adresse) : '') + (c.telephone ? ' · <a href="tel:' + esc(String(c.telephone).replace(/\s/g, '')) + '">' + esc(c.telephone) + '</a>' : '') : '<span class="faint">Coordonnées non enregistrées (ancienne version de la caisse)</span>') + '</p>' +
+    '<p class="coart">' + (lvArts(v).map(esc).join(' · ') || '—') + '</p>' +
+    '<p class="num"><span class="' + (pay.k === 'np' ? 'bad' : 'good') + '">' + esc(pay.t) + '</span>' + (v.livraisonAjoutee ? ' · <span class="faint">livraison ajoutée le ' + esc(hsDm(v.livraisonAjoutee.horodatage)) + '</span>' : '') + (v.facture ? ' · <span class="faint">facture ' + esc(v.facture.societe || '') + '</span>' : '') + '</p>' +
+    '<div class="fasuivi"><label class="chk"><input type="checkbox" data-lv-c="1" data-id="' + id + '" data-day="' + dd + '"' + (done ? ' checked' : '') + '> Livrée</label>' +
+    '<input type="text" class="lvnote" placeholder="Remarque (facultatif)" data-lv-n="1" data-id="' + id + '" data-day="' + dd + '" value="' + esc(sv.note || '') + '" maxlength="200" autocomplete="off" aria-label="Remarque"></div></div>';
+}
+function lvCsv() {
+  var rows = [['Jour', 'Heure', 'Stand', 'N° vente', 'Nom', 'Adresse', 'Téléphone', 'Articles à livrer', 'Paiement', 'Reste à payer (€)', 'Livraison ajoutée après coup', 'Statut', 'Livrée le', 'Remarque']];
+  lvFiltered(lvAll()).forEach(function (x) { var v = x.v, c = v.livraison || {}, sv = LSUIVI.get(v.id, x.day), pay = lvPay(x);
+    rows.push([x.day, v.horodatage.slice(11, 16), x.pvNom, hsNum(v.id), c.nom || '', c.adresse || '', c.telephone || '', lvArts(v).join(', '), pay.t.replace(/ /g, ' '), pay.k === 'np' ? vNonPaye(v) : '', v.livraisonAjoutee ? 'oui' : '', sv.livree ? 'Livrée' : 'À livrer', sv.livreeLe ? String(sv.livreeLe).slice(0, 10) : '', sv.note || '']); });
+  download('livraisons-sapins_' + LV.year + (LV.f.from || LV.f.to ? '_' + (LV.f.from || 'debut') + '_' + (LV.f.to || 'fin') : '') + '.csv', rows); toast('Liste des livraisons téléchargée');
+}
+document.addEventListener('click', function (e) {
+  var b = e.target.closest('[data-lv]'); if (!b || b.disabled) return;
+  var a = b.getAttribute('data-lv');
+  if (a === 'year') { LV.year = b.getAttribute('data-v'); LV.f.stand = 'all'; render(); }
+  else if (a === 'reload') { if (!FA.loading) faLoad(); }
+  else if (a === 'retry') LSUIVI.save(LV.year);
+  else if (a === 'f') { LV.f[b.getAttribute('data-k')] = b.getAttribute('data-v'); render(); }
+  else if (a === 'nodates') { LV.f.from = ''; LV.f.to = ''; render(); }
+  else if (a === 'csv') lvCsv();
+  else if (a === 'print') { document.body.classList.add('printliv'); window.print(); setTimeout(function () { document.body.classList.remove('printliv'); }, 500); }
+});
+document.addEventListener('change', function (e) {
+  var t = e.target; if (!t.getAttribute) return;
+  if (t.hasAttribute('data-lv-d')) { LV.f[t.getAttribute('data-lv-d')] = t.value; render(); }
+  else if (t.hasAttribute('data-lv-c')) { LSUIVI.op(t.getAttribute('data-id'), t.getAttribute('data-day'), { livree: t.checked, livreeLe: t.checked ? new Date().toISOString() : null }); toast(t.checked ? 'Livraison marquée livrée' : 'Livraison remise « à livrer »'); }
+  else if (t.hasAttribute('data-lv-n')) { var cur = LSUIVI.get(t.getAttribute('data-id'), t.getAttribute('data-day')); if ((cur.note || '') !== t.value.trim()) { LSUIVI.op(t.getAttribute('data-id'), t.getAttribute('data-day'), { note: t.value.trim() }); toast('Remarque enregistrée'); } }
+});
+document.addEventListener('input', function (e) {
+  var t = e.target; if (!t.hasAttribute || !t.hasAttribute('data-lv-q')) return;
+  LV.f.q = t.value; var pos = t.selectionStart; render(); var i = document.querySelector('[data-lv-q]'); if (i) { i.focus(); try { i.setSelectionRange(pos, pos); } catch (er) {} }
+});
+document.addEventListener('keydown', function (e) { if (e.key === 'Enter' && e.target.hasAttribute && e.target.hasAttribute('data-lv-n')) e.target.blur(); });
 
 function sapHomeStatus() {
   var st = BIL_CUR === 'sapin' ? { FILES: FILES } : BIL_ST.sapin;
@@ -3516,7 +3851,7 @@ function bghOpen() {
   B.loading = true; render();
   ghFetch('/repos/' + SALES_REPO + '/git/trees/HEAD?recursive=1', {}, token).then(function (t) {
     BGH.cxFiles = (t.tree || []).filter(function (x) { return x.type === 'blob' && /^sapin\/caisse\/.+\.json$/i.test(x.path); }).map(function (x) { return { path: x.path, sha: x.sha }; });
-    return (t.tree || []).filter(function (x) { return x.type === 'blob' && /\.json$/i.test(x.path) && !/^(sapin\/)?(stock|caisse|commandes)\//.test(x.path); }).map(function (x) { var p = bghParse(x.path); p.sha = x.sha; return p; });
+    return (t.tree || []).filter(function (x) { return x.type === 'blob' && /\.json$/i.test(x.path) && !/^(sapin\/)?(stock|caisse|commandes|factures|livraisons)\//.test(x.path); }).map(function (x) { var p = bghParse(x.path); p.sha = x.sha; return p; });
   }, function (e) { if (e.status === 409) return []; throw e; }).then(function (l) {
     B.loading = false; B.files = l.sort(function (a, b) { return (a.date || '') < (b.date || '') ? 1 : (a.date || '') > (b.date || '') ? -1 : a.label.localeCompare(b.label); }); render();
   }, function (e) { B.loading = false; B.err = bghErr(e); B.files = []; render(); });
