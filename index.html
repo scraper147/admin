@@ -220,6 +220,18 @@ td>.sub{display:block;font-size:12px;color:var(--muted);font-weight:400}
 .kitem{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px 14px;padding:10px 14px;border:1px solid var(--line);border-radius:12px;background:var(--bg)}
 .kitem .kt{display:flex;flex-direction:column;gap:2px;min-width:0;flex:1}
 .kitem input{max-width:320px}
+.cocard{border:1px solid var(--line);border-left:5px solid var(--gold);border-radius:12px;padding:12px 14px;margin:0 0 10px;background:var(--surface)}
+.cocard p{margin:6px 0 0}.cocard .row-between{gap:8px;flex-wrap:wrap}
+.cocard.st-prete{border-left-color:var(--green)}.cocard.st-livree{border-left-color:var(--line);opacity:.8}.cocard.st-annulee{border-left-color:var(--red);opacity:.65}
+.cocard.danger{border-color:var(--red)}.cocard .cbtns{margin-top:10px;align-items:center}
+.cocard .x{border:none;background:none;color:var(--red);font-weight:700;padding:2px 6px;font-size:14px}
+.costat{font-size:13px;font-weight:700;padding:3px 10px;border-radius:12px;background:var(--gold);color:#1A1408;white-space:nowrap}
+.costat.st-prete{background:var(--green);color:#fff}.costat.st-livree{background:var(--line);color:inherit}.costat.st-annulee{background:var(--red);color:#fff}
+.coart{font-size:15px}.codate{margin:16px 0 8px;font-size:15px}.codate.cap::first-letter{text-transform:uppercase}.cocard a{color:inherit}
+.cosearch{width:100%;max-width:520px;margin:0 0 12px}
+.pick.sm2{height:38px;padding:0 14px;font-size:14px}
+.cogrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;margin:0 0 10px}.cogrid>div{min-width:0}.cogrid input,.cogrid select{width:100%}
+.cogrid .wide{grid-column:1/-1}.coform .rsel{margin:4px 0 10px}.cototal{font-size:18px;margin:10px 0}
 .cbadges{display:flex;flex-wrap:wrap;gap:4px;margin-top:4px}
 .cbadge{display:inline-block;font-size:11px;font-weight:700;padding:1px 7px;border-radius:6px;background:var(--soft);color:var(--muted);white-space:nowrap}
 .cbadge.warn{background:var(--gold-soft);color:var(--ink)}
@@ -1202,7 +1214,7 @@ var MOD = 'accueil';
 var SUBS = {
   bar: [{ id: 'catalogue', nom: 'Catalogue', render: function () { renderCatalogue(); } }, { id: 'bilan', nom: 'Bilan', render: function () { renderBilan(); } }],
   chloro: [{ id: 'catalogue', nom: 'Catalogue', render: function () { renderCatalogue(); } }, { id: 'stock', nom: 'Stock', render: function () { renderStock(); } }, { id: 'bilan', nom: 'Bilan', render: function () { renderBilan(); } }],
-  sapin: [{ id: 'catalogue', nom: 'Catalogue', render: function () { renderCatalogue(); } }, { id: 'stock', nom: 'Stock', render: function () { renderSapStock(); } }, { id: 'caisse', nom: 'Caisse', render: function () { renderSapCaisse(); } }, { id: 'bilan', nom: 'Bilan', render: function () { renderBilan(); } }, { id: 'hist', nom: 'Historique de vente', render: function () { renderSapHist(); } }]
+  sapin: [{ id: 'catalogue', nom: 'Catalogue', render: function () { renderCatalogue(); } }, { id: 'stock', nom: 'Stock', render: function () { renderSapStock(); } }, { id: 'caisse', nom: 'Caisse', render: function () { renderSapCaisse(); } }, { id: 'commandes', nom: 'Commandes', render: function () { renderSapCommandes(); } }, { id: 'bilan', nom: 'Bilan', render: function () { renderBilan(); } }, { id: 'hist', nom: 'Historique de vente', render: function () { renderSapHist(); } }]
 };
 var SUB = { bar: 'catalogue', chloro: 'catalogue', sapin: 'catalogue' };
 /* Anciennes adresses (#bilan, #catalogue, #stock) : renvoyées vers le nouveau menu */
@@ -1449,7 +1461,7 @@ function svLoad() {
   var tok = getToken(); if (!tok || SV.loading) return;
   SV.loading = true; SV.err = null; render();
   ghFetch('/repos/' + SALES_REPO + '/git/trees/HEAD?recursive=1', {}, tok).then(function (t) {
-    var files = (t.tree || []).filter(function (x) { return x.type === 'blob' && /^sapin\//.test(x.path) && !/^sapin\/(stock|caisse)\//.test(x.path) && /\.json$/i.test(x.path); });
+    var files = (t.tree || []).filter(function (x) { return x.type === 'blob' && /^sapin\//.test(x.path) && !/^sapin\/(stock|caisse|commandes)\//.test(x.path) && /\.json$/i.test(x.path); });
     var cache = svCache(), todo = files.filter(function (f) { return !cache[f.sha]; });
     return Promise.all(todo.map(function (f) { return bghRaw(f.path, tok).then(function (txt) { var s; try { s = svSummary(JSON.parse(txt)); } catch (e) { s = { ok: false }; } cache[f.sha] = s; }); })).then(function () {
       var keep = {}; files.forEach(function (f) { keep[f.sha] = cache[f.sha]; }); SV.cache = keep;
@@ -1821,7 +1833,7 @@ function hsList() {
   var tok = getToken(); if (!tok || HS.loading) return;
   HS.loading = true; HS.err = null; render();
   ghFetch('/repos/' + SALES_REPO + '/git/trees/HEAD?recursive=1', {}, tok).then(function (t) {
-    HS.files = (t.tree || []).filter(function (x) { return x.type === 'blob' && /^sapin\//.test(x.path) && !/^sapin\/(stock|caisse)\//.test(x.path) && /\.json$/i.test(x.path); })
+    HS.files = (t.tree || []).filter(function (x) { return x.type === 'blob' && /^sapin\//.test(x.path) && !/^sapin\/(stock|caisse|commandes)\//.test(x.path) && /\.json$/i.test(x.path); })
       .map(function (x) { return hsParse(x); }).sort(function (a, b) { return (b.date || '') < (a.date || '') ? -1 : (b.date || '') > (a.date || '') ? 1 : a.stand.localeCompare(b.stand); });
     HS.loading = false;
     if (!HS.sel && !HS.data && HS.files.length) hsOpen(HS.files[0].path); else render();
@@ -2180,6 +2192,245 @@ function ctxHomeStatus(c, def) {
   var n = st ? st.FILES.filter(function (f) { return f.status === 'ok'; }).length : 0;
   return n ? n + ' fichier' + (n > 1 ? 's' : '') + ' de ventes chargé' + (n > 1 ? 's' : '') : def;
 }
+/* ================= Gestion sapin › Commandes (commandes de clients) =================
+   Un fichier par année dans le dépôt privé des ventes : sapin/commandes/<AAAA>.json.
+   Les commandes sont rangées par identifiant (objet « commandes ») ; chaque appareil relit le fichier,
+   applique ses modifications et réécrit avec le sha (comme le stock) : la Caisse Sapins pourra s'y ajouter plus tard. */
+var CO_FMT = 'agri-garden-caisse/commandes', CO_DIR = 'sapin/commandes';
+var CO_STATUTS = [{ id: 'a-preparer', nom: 'À préparer' }, { id: 'prete', nom: 'Prête' }, { id: 'livree', nom: 'Livrée / retirée' }, { id: 'annulee', nom: 'Annulée' }];
+var CO_PAY = [{ id: '', nom: 'Pas encore payé' }, { id: 'cash', nom: 'Cash' }, { id: 'bancontact', nom: 'Bancontact' }, { id: 'virement', nom: 'Virement' }];
+var CO = { year: null, years: null, cat: null, catErr: null, catLoading: false, path: null, doc: null, ops: [], loading: false, saving: false, err: null, filter: 'actives', q: '', form: null, confirm: null };
+function coPath(y) { return CO_DIR + '/' + y + '.json'; }
+function coKey(path) { return 'admin-commandes:' + path; }
+function coNorm(d) { d = d && typeof d === 'object' ? d : {}; if (!d.commandes || typeof d.commandes !== 'object' || Array.isArray(d.commandes)) d.commandes = {}; return d; }
+function coApply(doc, op) { if (op.t === 'set') doc.commandes[op.id] = op.v; else if (op.t === 'del') delete doc.commandes[op.id]; return doc; }
+function coDoc() { var d = coNorm(clone(CO.doc || {})); CO.ops.forEach(function (o) { coApply(d, o); }); return d; }
+function coNextNum(doc) { var m = 0; Object.keys(doc.commandes).forEach(function (k) { var c = doc.commandes[k]; if (c && +c.numero > m) m = +c.numero; }); return m + 1; }
+function coStatut(id) { return (CO_STATUTS.filter(function (s) { return s.id === id; })[0] || CO_STATUTS[0]).nom; }
+function coPersist() { lsSet(coKey(CO.path), CO.ops.length ? JSON.stringify({ doc: CO.doc, ops: CO.ops }) : null); }
+function coLoadCat() {
+  if (CO.catLoading) return; CO.catLoading = true;
+  ghGetCatalogue(SAPIN_REPO, getToken()).then(function (r) { CO.cat = r.json ? normalizeCat(r.json) : null; CO.catErr = r.json ? null : 'Le catalogue de la Caisse Sapins n’est pas encore publié.'; CO.catLoading = false; render(); },
+    function (e) { CO.catLoading = false; CO.catErr = ghErrText(e, 'de lire'); render(); });
+}
+function coYears() {
+  if (!getToken() || CO.years) return;
+  CO.years = [];
+  ghFetch('/repos/' + SALES_REPO + '/contents/' + CO_DIR, {}, getToken()).then(function (l) {
+    CO.years = (Array.isArray(l) ? l : []).map(function (f) { var m = /^(\d{4})\.json$/.exec(f.name); return m ? m[1] : null; }).filter(Boolean); render();
+  }, function () {});
+}
+function coOpen() {
+  var path = coPath(CO.year), loc = null;
+  CO.path = path; CO.doc = null; CO.err = null; CO.form = null; CO.confirm = null;
+  try { loc = JSON.parse(lsGet(coKey(path)) || 'null'); } catch (e) {}
+  CO.ops = loc && Array.isArray(loc.ops) ? loc.ops : [];
+  if (!getToken()) { CO.doc = loc && loc.doc || null; render(); return; }
+  CO.loading = true; render();
+  ssGet(path).then(function (r) {
+    if (CO.path !== path) return;
+    CO.loading = false; CO.doc = r ? coNorm(r.json) : (loc && loc.doc) || null; render();
+    if (CO.ops.length) coSave();
+  }, function (e) { if (CO.path !== path) return; CO.loading = false; CO.doc = loc && loc.doc || null; CO.err = ssErrText(e); render(); });
+}
+function coSave(tries) {
+  if (!CO.path || CO.saving || !CO.ops.length) return;
+  if (!getToken()) { CO.err = 'Appareil verrouillé : les commandes sont gardées sur cet appareil. Déverrouillez-le dans Paramètres pour les enregistrer sur GitHub.'; coPersist(); render(); return; }
+  var path = CO.path, ops = CO.ops.slice(), year = CO.year;
+  CO.saving = true; CO.err = null; render();
+  ssGet(path).then(function (r) {
+    var base = r ? coNorm(r.json) : coNorm({ format: CO_FMT, formatVersion: 1, annee: +year, creeLe: new Date().toISOString() });
+    ops.forEach(function (o) { if (o.t === 'set' && o.v && !o.v.numero) { o.v.numero = coNextNum(base); } coApply(base, o); });
+    base.majLe = new Date().toISOString(); base.majPar = 'admin';
+    return ssPut(path, base, r && r.sha, 'Commandes ' + year + ' (Admin)').then(function () { return base; });
+  }).then(function (doc) {
+    if (CO.path !== path) { CO.saving = false; return; }
+    CO.saving = false; CO.doc = doc; CO.ops = CO.ops.slice(ops.length); coPersist(); render(); if (CO.ops.length) coSave();
+  }, function (e) {
+    CO.saving = false;
+    if ((e.status === 409 || e.status === 422) && (tries || 0) < 2) { coSave((tries || 0) + 1); return; }
+    CO.err = ssErrText(e); coPersist(); render();
+  });
+}
+function coOp(op) { CO.ops.push(op); coPersist(); coSave(); }
+window.addEventListener('online', function () { if (CO.ops.length) coSave(); });
+function coList(doc) {
+  return Object.keys(doc.commandes).map(function (id) { var c = doc.commandes[id]; return c ? Object.assign({ id: id }, c) : null; }).filter(Boolean);
+}
+function coDate(c) { return c.mode === 'retrait' ? (c.retrait && c.retrait.date) || '' : (c.livraison && c.livraison.date) || ''; }
+function coReste(c) { return Math.round(((+c.total || 0) - (c.paye && +c.paye.montant || 0)) * 100) / 100; }
+function coProducts() {
+  var out = []; if (!CO.cat) return out;
+  CO.cat.categories.forEach(function (k) { if (k.actif === false) return; var items = k.produits.filter(function (p) { return p.actif !== false; }).map(function (p) { return { id: p.id, libelle: (k.prefixe === false || isLivProduct(p) ? '' : k.nom + ' ') + p.libelle, prix: +p.prix || 0, cat: k.nom }; }); if (items.length) out.push({ nom: k.nom, items: items }); });
+  return out;
+}
+
+/* ---------- Rendu ---------- */
+function renderSapCommandes() {
+  var el = document.getElementById('mod');
+  if (!CO.year) CO.year = String(new Date().getFullYear());
+  if (!CO.cat && !CO.catErr && getToken()) coLoadCat();
+  coYears();
+  if (CO.path !== coPath(CO.year) && !CO.loading) { coOpen(); return; }
+  var years = (CO.years || []).concat([CO.year, String(new Date().getFullYear())]).filter(function (y, i, a) { return a.indexOf(y) === i; }).sort().reverse();
+  var doc = coDoc(), all = coList(doc);
+  var stat = CO.saving ? '<span class="sv">Enregistrement…</span>' : CO.ops.length ? '<span class="sv warn">' + CO.ops.length + ' modification' + (CO.ops.length > 1 ? 's' : '') + ' pas encore sur GitHub</span>' : doc.majLe ? '<span class="sv ok">Enregistré sur GitHub</span>' : '';
+  var band = '<div class="band"><div class="band-top"><h1>Commandes</h1></div>' +
+    '<div class="rsel ssbar" role="group" aria-label="Année">' + years.map(function (y) { return '<button class="rchip' + (y === CO.year ? ' on' : '') + '" data-co="year" data-v="' + esc(y) + '">' + esc(y) + '</button>'; }).join('') + '<button class="rchip" data-co="reload">Actualiser</button></div>' +
+    (stat ? '<p class="soon-lead">' + stat + '</p>' : '') + '</div>';
+  var alerts = [];
+  if (!getToken()) alerts.push('<div class="alert">Appareil verrouillé : les commandes enregistrées sur GitHub ne peuvent pas être lues. <button class="btn sm" data-a="go" data-v="parametres">Déverrouiller</button></div>');
+  if (CO.catErr) alerts.push('<div class="alert err">' + CO.catErr + '</div>');
+  if (CO.err) alerts.push('<div class="alert err">' + CO.err + ' <button class="btn sm" data-co="retry">Réessayer</button></div>');
+  var main = alerts.length ? '<div class="alerts">' + alerts.join('') + '</div>' : '';
+  if (CO.loading) { el.innerHTML = band + '<main>' + main + '<section><p class="empty">Chargement des commandes…</p></section></main>' + vToast(); return; }
+  if (CO.form) { el.innerHTML = band + '<main>' + main + vCoForm() + '</main>' + vToast(); coAfter(); return; }
+  var cnt = { actives: 0, 'a-preparer': 0, prete: 0, livree: 0, annulee: 0, toutes: all.length };
+  all.forEach(function (c) { cnt[c.statut || 'a-preparer']++; if (c.statut !== 'livree' && c.statut !== 'annulee') cnt.actives++; });
+  var F0 = [['actives', 'À traiter'], ['a-preparer', 'À préparer'], ['prete', 'Prêtes'], ['livree', 'Livrées / retirées'], ['annulee', 'Annulées'], ['toutes', 'Toutes']];
+  var q = (CO.q || '').trim().toLowerCase();
+  var list = all.filter(function (c) {
+    var st = c.statut || 'a-preparer';
+    if (CO.filter === 'actives' && (st === 'livree' || st === 'annulee')) return false;
+    if (CO.filter !== 'actives' && CO.filter !== 'toutes' && st !== CO.filter) return false;
+    if (q) { var hay = [c.numero, c.client && c.client.nom, c.client && c.client.tel, c.client && c.client.email, c.livraison && c.livraison.adresse].join(' ').toLowerCase(); if (hay.indexOf(q) < 0) return false; }
+    return true;
+  }).sort(function (a, b) { var da = coDate(a) || '9999', db = coDate(b) || '9999'; return da < db ? -1 : da > db ? 1 : (a.numero || 0) - (b.numero || 0); });
+  var h = '<section><div class="row-between"><h3>Commandes ' + esc(CO.year) + '</h3><div class="cbtns"><button class="pick" data-co="new">+ Nouvelle commande</button><button class="btn" data-co="csv"' + (all.length ? '' : ' disabled') + '>Exporter pour Excel</button></div></div>' +
+    '<div class="rsel sschips" role="group" aria-label="Statut">' + F0.map(function (f) { return '<button class="chip' + (CO.filter === f[0] ? ' on' : '') + '" data-co="filter" data-v="' + f[0] + '">' + f[1] + ' <span class="num">(' + cnt[f[0]] + ')</span></button>'; }).join('') + '</div>' +
+    '<input type="text" class="cosearch" data-co-q placeholder="Rechercher : nom, téléphone, n°, adresse…" value="' + esc(CO.q) + '" autocomplete="off">';
+  if (!list.length) h += '<p class="empty">' + (all.length ? 'Aucune commande ne correspond.' : 'Aucune commande pour ' + esc(CO.year) + '.') + '</p>';
+  var lastD = null;
+  list.forEach(function (c) {
+    var d = coDate(c) || '';
+    if (d !== lastD) { h += '<h4 class="codate' + (d ? ' cap' : '') + '">' + (d ? esc(longDate(d)) + ' ' + esc(d.slice(0, 4)) : 'Sans date') + '</h4>'; lastD = d; }
+    h += vCoCard(c);
+  });
+  el.innerHTML = band + '<main>' + main + h + '</section></main>' + vToast();
+}
+function vCoCard(c) {
+  var st = c.statut || 'a-preparer', cl = c.client || {}, reste = coReste(c), conf = CO.confirm && CO.confirm.id === c.id ? CO.confirm.kind : null;
+  var where = c.mode === 'retrait' ? 'Retrait à <strong>' + esc((c.retrait && c.retrait.stand && c.retrait.stand.nom) || '?') + '</strong>' : 'Livraison : <strong>' + esc((c.livraison && c.livraison.adresse) || '?') + '</strong>' + (c.livraison && c.livraison.creneau ? ' · ' + esc(c.livraison.creneau) : '');
+  var next = st === 'a-preparer' ? ['prete', 'Marquer prête'] : st === 'prete' ? ['livree', c.mode === 'retrait' ? 'Marquer retirée' : 'Marquer livrée'] : null;
+  return '<div class="cocard st-' + st + (conf ? ' danger' : '') + '"><div class="row-between"><span><strong>n° ' + esc(c.numero || '…') + ' · ' + esc(cl.nom || '?') + '</strong>' + (cl.tel ? ' · <a href="tel:' + esc(cl.tel.replace(/\s/g, '')) + '">' + esc(cl.tel) + '</a>' : '') + (cl.email ? ' · <a href="mailto:' + esc(cl.email) + '">' + esc(cl.email) + '</a>' : '') + '</span>' +
+    '<span class="costat st-' + st + '">' + esc(c.mode === 'retrait' && st === 'livree' ? 'Retirée' : st === 'livree' ? 'Livrée' : coStatut(st)) + '</span></div>' +
+    '<p>' + where + '</p>' +
+    '<p class="coart">' + (c.lignes || []).map(function (l) { return esc(l.quantite + ' × ' + l.libelle); }).join(' · ') + '</p>' +
+    '<p class="num"><strong>' + money(+c.total || 0) + '</strong>' + (c.paye && +c.paye.montant ? ' · payé ' + money(+c.paye.montant) + (c.paye.mode ? ' (' + esc((CO_PAY.filter(function (x) { return x.id === c.paye.mode; })[0] || {}).nom || c.paye.mode) + ')' : '') : '') + (reste > 0.004 ? ' · <span class="bad">reste ' + money(reste) + '</span>' : reste < -0.004 ? ' · <span class="warnt">trop payé ' + money(-reste) + '</span>' : ' · <span class="good">payé</span>') + '</p>' +
+    (c.note ? '<p class="faint">' + esc(c.note) + '</p>' : '') +
+    (conf ? '<div class="cbtns"><span>' + (conf === 'del' ? 'Supprimer définitivement cette commande ?' : 'Annuler cette commande ?') + '</span><button class="btn danger sm" data-co="' + (conf === 'del' ? 'del' : 'cancelOrder') + '" data-v="' + esc(c.id) + '">' + (conf === 'del' ? 'Supprimer' : 'Annuler la commande') + '</button><button class="btn sm" data-co="noconf">Non</button></div>'
+      : '<div class="cbtns">' + (next ? '<button class="pick sm2" data-co="status" data-v="' + esc(c.id) + '" data-s="' + next[0] + '">' + next[1] + '</button>' : '') + '<button class="btn sm" data-co="edit" data-v="' + esc(c.id) + '">Modifier</button>' +
+        (st !== 'annulee' && st !== 'livree' ? '<button class="btn sm" data-co="askCancel" data-v="' + esc(c.id) + '">Annuler</button>' : '<button class="btn sm" data-co="status" data-v="' + esc(c.id) + '" data-s="a-preparer">Remettre à préparer</button>') +
+        '<button class="x" data-co="askDel" data-v="' + esc(c.id) + '">Supprimer</button></div>') + '</div>';
+}
+function coTotal(f) { var t = 0; Object.keys(f.q).forEach(function (pid) { var n = parseQ(f.q[pid]); var p = f.prix[pid]; if (n > 0 && p != null) t += n * p; }); return Math.round(t * 100) / 100; }
+function vCoForm() {
+  var f = CO.form, prods = coProducts(), stands = CO.cat ? CO.cat.pointsDeVente.filter(function (p) { return p.actif !== false; }) : [];
+  var rows = prods.map(function (g) { return '<tr class="ssgrp"><td colspan="3">' + esc(g.nom) + '</td></tr>' + g.items.map(function (it) {
+    f.prix[it.id] = f.prix[it.id] != null ? f.prix[it.id] : it.prix; f.lib[it.id] = f.lib[it.id] || it.libelle;
+    return '<tr><td><label for="coq-' + esc(it.id) + '">' + esc(it.libelle) + '</label></td><td class="r num">' + money(f.prix[it.id]) + '</td><td class="r"><input type="text" inputmode="numeric" class="qty num" id="coq-' + esc(it.id) + '" data-coq="' + esc(it.id) + '" value="' + esc(f.q[it.id] || '') + '" placeholder="0" autocomplete="off"></td></tr>'; }).join(''); }).join('');
+  /* articles d'une commande existante qui ne sont plus dans le catalogue */
+  Object.keys(f.q).forEach(function (pid) { if (!prods.some(function (g) { return g.items.some(function (i) { return i.id === pid; }); })) rows += '<tr><td>' + esc(f.lib[pid] || pid) + ' <span class="faint">(plus au catalogue)</span></td><td class="r num">' + money(f.prix[pid] || 0) + '</td><td class="r"><input type="text" inputmode="numeric" class="qty num" data-coq="' + esc(pid) + '" value="' + esc(f.q[pid] || '') + '"></td></tr>'; });
+  return '<section class="coform"><h3>' + (f.id ? 'Modifier la commande n° ' + esc(f.numero || '') : 'Nouvelle commande') + '</h3><form data-co-form="1">' +
+    '<div class="cogrid"><div><label class="fl" for="coNom">Nom du client</label><input type="text" id="coNom" data-cof="nom" value="' + esc(f.nom) + '" required autocomplete="off"></div>' +
+    '<div><label class="fl" for="coTel">Téléphone</label><input type="text" inputmode="tel" id="coTel" data-cof="tel" value="' + esc(f.tel) + '" autocomplete="off"></div>' +
+    '<div><label class="fl" for="coMail">E-mail</label><input type="text" inputmode="email" id="coMail" data-cof="email" value="' + esc(f.email) + '" autocomplete="off"></div></div>' +
+    '<span class="fl">Remise au client</span><div class="rsel"><button type="button" class="chip' + (f.mode === 'livraison' ? ' on' : '') + '" data-co="mode" data-v="livraison">Livraison</button><button type="button" class="chip' + (f.mode === 'retrait' ? ' on' : '') + '" data-co="mode" data-v="retrait">Retrait sur un stand</button></div>' +
+    (f.mode === 'livraison'
+      ? '<div class="cogrid"><div class="wide"><label class="fl" for="coAdr">Adresse de livraison</label><input type="text" id="coAdr" data-cof="adresse" value="' + esc(f.adresse) + '" autocomplete="off"></div><div><label class="fl" for="coDate">Date de livraison</label><input type="date" id="coDate" data-cof="date" value="' + esc(f.date) + '"></div><div><label class="fl" for="coCren">Créneau</label><input type="text" id="coCren" data-cof="creneau" value="' + esc(f.creneau) + '" placeholder="Ex. 14h–16h" autocomplete="off"></div></div>'
+      : '<div class="cogrid"><div><label class="fl" for="coStand">Stand</label><select id="coStand" data-cof="stand">' + stands.map(function (p) { return '<option value="' + esc(p.id) + '"' + (f.stand === p.id ? ' selected' : '') + '>' + esc(p.nom) + '</option>'; }).join('') + '</select></div><div><label class="fl" for="coDate">Date de retrait</label><input type="date" id="coDate" data-cof="date" value="' + esc(f.date) + '"></div></div>') +
+    '<span class="fl">Articles</span>' + (rows ? '<div class="scroll"><table class="stab bil sstab"><thead><tr><th>Article</th><th class="r">Prix</th><th class="r">Quantité</th></tr></thead><tbody>' + rows + '</tbody></table></div>' : '<p class="empty">Catalogue de la Caisse Sapins indisponible.</p>') +
+    '<p class="num cototal" id="coTot">Total : <strong>' + money(coTotal(f)) + '</strong></p>' +
+    '<div class="cogrid"><div><label class="fl" for="coPaye">Déjà payé (€)</label><input type="text" inputmode="decimal" id="coPaye" data-cof="paye" value="' + esc(f.paye) + '" placeholder="0,00" autocomplete="off"></div>' +
+    '<div><label class="fl" for="coPm">Paiement</label><select id="coPm" data-cof="pmode">' + CO_PAY.map(function (p) { return '<option value="' + p.id + '"' + (f.pmode === p.id ? ' selected' : '') + '>' + esc(p.nom) + '</option>'; }).join('') + '</select></div>' +
+    (f.id ? '<div><label class="fl" for="coSt">Statut</label><select id="coSt" data-cof="statut">' + CO_STATUTS.map(function (s) { return '<option value="' + s.id + '"' + (f.statut === s.id ? ' selected' : '') + '>' + esc(s.nom) + '</option>'; }).join('') + '</select></div>' : '') + '</div>' +
+    '<label class="fl" for="coNote">Remarque</label><input type="text" id="coNote" data-cof="note" value="' + esc(f.note) + '" maxlength="200" autocomplete="off" placeholder="Ex. sapin bien fourni, sonner deux fois">' +
+    '<div class="cbtns"><button class="pick" type="submit">' + (f.id ? 'Enregistrer les modifications' : 'Enregistrer la commande') + '</button><button class="btn" type="button" data-co="cancelForm">Annuler</button></div></form></section>';
+}
+function coAfter() { var f = CO.form; if (f && f.focus) { var i = document.getElementById(f.focus); f.focus = null; if (i) i.focus(); } }
+function coSubmit() {
+  var f = CO.form, nom = (f.nom || '').trim();
+  if (!nom) { toast('Indiquez le nom du client'); return; }
+  var lignes = [], bad = false;
+  Object.keys(f.q).forEach(function (pid) { var n = parseQ(f.q[pid]); if (n == null || n === 0) return; if (isNaN(n) || n < 0 || Math.round(n) !== n) { bad = true; return; } var pu = +f.prix[pid] || 0; lignes.push({ produitId: pid, libelle: f.lib[pid] || pid, prixUnitaire: pu, quantite: n, total: Math.round(pu * n * 100) / 100 }); });
+  if (bad) { toast('Quantités : nombres entiers'); return; }
+  if (!lignes.length) { toast('Ajoutez au moins un article'); return; }
+  if (f.mode === 'livraison' && !(f.adresse || '').trim()) { toast('Indiquez l’adresse de livraison'); return; }
+  var paye = String(f.paye || '').trim() === '' ? 0 : parsePrice(f.paye);
+  if (isNaN(paye) || paye < 0) { toast('Montant payé invalide'); return; }
+  var old = f.id ? coDoc().commandes[f.id] : null, now = new Date().toISOString(), stand = (CO.cat ? CO.cat.pointsDeVente : []).filter(function (p) { return p.id === f.stand; })[0];
+  var st = f.id ? f.statut : 'a-preparer';
+  var v = { numero: old ? old.numero : null, creeLe: old ? old.creeLe : now, source: old ? old.source || 'admin' : 'admin',
+    client: { nom: nom, tel: (f.tel || '').trim(), email: (f.email || '').trim() }, mode: f.mode,
+    livraison: f.mode === 'livraison' ? { adresse: f.adresse.trim(), date: f.date || '', creneau: (f.creneau || '').trim() } : null,
+    retrait: f.mode === 'retrait' ? { stand: stand ? { id: stand.id, nom: stand.nom } : { id: f.stand, nom: f.stand }, date: f.date || '' } : null,
+    lignes: lignes, total: Math.round(lignes.reduce(function (s, l) { return s + l.total; }, 0) * 100) / 100,
+    paye: { montant: Math.round(paye * 100) / 100, mode: paye > 0 ? f.pmode || '' : '' }, statut: st, note: (f.note || '').trim(),
+    historique: (old && old.historique ? old.historique.slice() : []).concat(!old ? [{ statut: st, le: now }] : old.statut !== st ? [{ statut: st, le: now }] : []) };
+  if (old) v.modifieLe = now;
+  var id = f.id || 'cmd-' + now.replace(/\D/g, '').slice(0, 14) + '-' + Math.random().toString(36).slice(2, 6);
+  CO.form = null; coOp({ t: 'set', id: id, v: v });
+  toast(old ? 'Commande modifiée' : 'Commande enregistrée');
+}
+function coSetStatus(id, s) {
+  var c = coDoc().commandes[id]; if (!c) return;
+  var v = clone(c), now = new Date().toISOString(); v.statut = s; v.modifieLe = now; v.historique = (v.historique || []).concat([{ statut: s, le: now }]);
+  coOp({ t: 'set', id: id, v: v });
+}
+function coCsv() {
+  var rows = [['N°', 'Statut', 'Client', 'Téléphone', 'E-mail', 'Mode', 'Adresse / stand', 'Date', 'Créneau', 'Articles', 'Total (€)', 'Payé (€)', 'Paiement', 'Reste (€)', 'Remarque']];
+  coList(coDoc()).sort(function (a, b) { return (a.numero || 0) - (b.numero || 0); }).forEach(function (c) {
+    var cl = c.client || {};
+    rows.push([c.numero || '', coStatut(c.statut), cl.nom || '', cl.tel || '', cl.email || '', c.mode === 'retrait' ? 'Retrait' : 'Livraison', c.mode === 'retrait' ? (c.retrait && c.retrait.stand && c.retrait.stand.nom) || '' : (c.livraison && c.livraison.adresse) || '', coDate(c), c.livraison && c.livraison.creneau || '', (c.lignes || []).map(function (l) { return l.quantite + ' x ' + l.libelle; }).join(', '), +c.total || 0, c.paye && +c.paye.montant || 0, c.paye && c.paye.mode || '', coReste(c), c.note || '']);
+  });
+  download('commandes-sapins_' + CO.year + '.csv', rows); toast('Fichier pour Excel téléchargé');
+}
+function coFormFrom(c) {
+  var f = { id: c ? c.id : null, numero: c ? c.numero : null, nom: '', tel: '', email: '', mode: 'livraison', adresse: '', date: '', creneau: '', stand: '', q: {}, prix: {}, lib: {}, paye: '', pmode: '', statut: 'a-preparer', note: '', focus: 'coNom' };
+  var st = CO.cat ? CO.cat.pointsDeVente.filter(function (p) { return p.actif !== false; }) : [];
+  f.stand = (st.filter(function (p) { return /spy/i.test(p.nom); })[0] || st[0] || {}).id || '';
+  if (c) {
+    var cl = c.client || {}; f.nom = cl.nom || ''; f.tel = cl.tel || ''; f.email = cl.email || ''; f.mode = c.mode || 'livraison';
+    if (c.livraison) { f.adresse = c.livraison.adresse || ''; f.date = c.livraison.date || ''; f.creneau = c.livraison.creneau || ''; }
+    if (c.retrait) { f.stand = c.retrait.stand && c.retrait.stand.id || f.stand; f.date = c.retrait.date || ''; }
+    (c.lignes || []).forEach(function (l) { f.q[l.produitId] = String(l.quantite); f.prix[l.produitId] = +l.prixUnitaire || 0; f.lib[l.produitId] = l.libelle; });
+    f.paye = c.paye && +c.paye.montant ? String(c.paye.montant).replace('.', ',') : ''; f.pmode = c.paye && c.paye.mode || ''; f.statut = c.statut || 'a-preparer'; f.note = c.note || '';
+  }
+  return f;
+}
+document.addEventListener('click', function (e) {
+  var b = e.target.closest('[data-co]'); if (!b || b.disabled || b.tagName === 'INPUT') return;
+  var a = b.getAttribute('data-co'), v = b.getAttribute('data-v');
+  if (a === 'year') { CO.year = v; CO.path = null; render(); }
+  else if (a === 'reload') { CO.years = null; CO.cat = null; CO.catErr = null; CO.path = null; render(); }
+  else if (a === 'retry') coSave();
+  else if (a === 'filter') { CO.filter = v; render(); }
+  else if (a === 'new') { CO.form = coFormFrom(null); render(); window.scrollTo(0, 0); }
+  else if (a === 'edit') { var c = coDoc().commandes[v]; if (c) { CO.form = coFormFrom(Object.assign({ id: v }, c)); render(); window.scrollTo(0, 0); } }
+  else if (a === 'cancelForm') { CO.form = null; render(); }
+  else if (a === 'mode') { CO.form.mode = v; render(); }
+  else if (a === 'status') { coSetStatus(v, b.getAttribute('data-s')); toast(coStatut(b.getAttribute('data-s'))); }
+  else if (a === 'askCancel') { CO.confirm = { id: v, kind: 'cancel' }; render(); }
+  else if (a === 'askDel') { CO.confirm = { id: v, kind: 'del' }; render(); }
+  else if (a === 'noconf') { CO.confirm = null; render(); }
+  else if (a === 'cancelOrder') { CO.confirm = null; coSetStatus(v, 'annulee'); toast('Commande annulée'); }
+  else if (a === 'del') { CO.confirm = null; coOp({ t: 'del', id: v }); toast('Commande supprimée'); }
+  else if (a === 'csv') coCsv();
+});
+document.addEventListener('input', function (e) {
+  var t = e.target;
+  if (t.hasAttribute && t.hasAttribute('data-co-q')) { CO.q = t.value; var pos = t.selectionStart; render(); var i = document.querySelector('[data-co-q]'); if (i) { i.focus(); try { i.setSelectionRange(pos, pos); } catch (er) {} } return; }
+  if (!CO.form) return;
+  if (t.hasAttribute('data-cof')) CO.form[t.getAttribute('data-cof')] = t.value;
+  else if (t.hasAttribute('data-coq')) { CO.form.q[t.getAttribute('data-coq')] = t.value; var el = document.getElementById('coTot'); if (el) el.innerHTML = 'Total : <strong>' + money(coTotal(CO.form)) + '</strong>'; }
+});
+document.addEventListener('change', function (e) { var t = e.target; if (CO.form && t.hasAttribute && t.hasAttribute('data-cof') && t.tagName === 'SELECT') CO.form[t.getAttribute('data-cof')] = t.value; });
+document.addEventListener('submit', function (e) { if (!e.target.closest('[data-co-form]')) return; e.preventDefault(); coSubmit(); });
+document.addEventListener('keydown', function (e) {
+  var t = e.target; if (e.key !== 'Enter' || !t.hasAttribute || !t.hasAttribute('data-coq')) return;
+  e.preventDefault(); var all = Array.prototype.slice.call(document.querySelectorAll('[data-coq]')), i = all.indexOf(t); if (all[i + 1]) all[i + 1].focus(); else t.blur();
+});
+
 function sapHomeStatus() {
   var st = BIL_CUR === 'sapin' ? { FILES: FILES } : BIL_ST.sapin;
   var n = st ? st.FILES.filter(function (f) { return f.status === 'ok'; }).length : 0;
@@ -3265,7 +3516,7 @@ function bghOpen() {
   B.loading = true; render();
   ghFetch('/repos/' + SALES_REPO + '/git/trees/HEAD?recursive=1', {}, token).then(function (t) {
     BGH.cxFiles = (t.tree || []).filter(function (x) { return x.type === 'blob' && /^sapin\/caisse\/.+\.json$/i.test(x.path); }).map(function (x) { return { path: x.path, sha: x.sha }; });
-    return (t.tree || []).filter(function (x) { return x.type === 'blob' && /\.json$/i.test(x.path) && !/^(sapin\/)?(stock|caisse)\//.test(x.path); }).map(function (x) { var p = bghParse(x.path); p.sha = x.sha; return p; });
+    return (t.tree || []).filter(function (x) { return x.type === 'blob' && /\.json$/i.test(x.path) && !/^(sapin\/)?(stock|caisse|commandes)\//.test(x.path); }).map(function (x) { var p = bghParse(x.path); p.sha = x.sha; return p; });
   }, function (e) { if (e.status === 409) return []; throw e; }).then(function (l) {
     B.loading = false; B.files = l.sort(function (a, b) { return (a.date || '') < (b.date || '') ? 1 : (a.date || '') > (b.date || '') ? -1 : a.label.localeCompare(b.label); }); render();
   }, function (e) { B.loading = false; B.err = bghErr(e); B.files = []; render(); });
