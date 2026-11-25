@@ -243,7 +243,8 @@ td>.sub{display:block;font-size:12px;color:var(--muted);font-weight:400}
 .lvcard{border:1px solid var(--line);border-left:5px solid var(--gold);border-radius:12px;padding:12px 14px;margin:0 0 10px;background:var(--surface)}
 .lvcard.done{border-left-color:var(--green)}.lvcard p{margin:6px 0 0;overflow-wrap:anywhere}.lvcard .row-between{gap:8px;flex-wrap:wrap}.lvcard a{color:inherit}
 .lvstat{font-size:13px;font-weight:700;padding:3px 10px;border-radius:12px;background:var(--gold);color:#1A1408}.lvstat.done{background:var(--green);color:#fff}
-.lvnote{flex:1 1 200px;max-width:420px}
+.lvnote{flex:1 1 200px;max-width:420px}.coenc{color:var(--green);font-weight:600}.lvcard.cmd{border-left-style:double;border-left-width:6px}
+.sssub td{font-weight:700;background:var(--soft);border-top:2px solid var(--line)}
 @media print{body.printliv .lvcard{break-inside:avoid;border-color:#999}body.printliv .lvnote:placeholder-shown{display:none}}
 .req{color:var(--red);font-weight:700}.reqnote{margin:8px 0 0;font-size:13px;color:var(--muted)}.coform form>.cbtns{margin-top:18px}
 .cbadges{display:flex;flex-wrap:wrap;gap:4px;margin-top:4px}
@@ -616,13 +617,14 @@ function filtered() {
 /* ---------- Calculs ---------- */
 function stats(list) {
   var ok = list.filter(function (s) { return !s.v.annulation; }), ann = list.filter(function (s) { return s.v.annulation; });
-  var S = { np: 0, vir: 0, nFact: 0, pay: {}, remRows: {}, liv: { n: 0, m: 0, na: 0, ma: 0, rows: {} }, n: ok.length, total: 0, cash: 0, bc: 0, mixte: 0, ann: ann, art: {}, cats: {}, hours: {}, perBar: {}, remLig: 0, nRemLig: 0, remTic: 0, nRemTic: 0, lignes: 0 };
+  var S = { pre: 0, nCmd: 0, np: 0, vir: 0, nFact: 0, pay: {}, remRows: {}, liv: { n: 0, m: 0, na: 0, ma: 0, rows: {} }, n: ok.length, total: 0, cash: 0, bc: 0, mixte: 0, ann: ann, art: {}, cats: {}, hours: {}, perBar: {}, remLig: 0, nRemLig: 0, remTic: 0, nRemTic: 0, lignes: 0 };
   ok.forEach(function (s) {
     var v = s.v, p = v.paiement || { cash: 0, bancontact: 0 };
     var vt = +v.total || 0;
     S.total += vt; S.cash += p.cash || 0; S.bc += p.bancontact || 0; if (p.mode === 'mixte') S.mixte++;
     var b = S.perBar[s.barId] || (S.perBar[s.barId] = { nom: s.bar, n: 0, total: 0, cash: 0, bc: 0 });
     b.n++; b.total += vt; b.cash += p.cash || 0; b.bc += p.bancontact || 0;
+    if (v.commande && typeof v.commande === 'object') { S.nCmd++; S.pre += Math.max(0, +v.commande.dejaPaye || 0); }
     var np = vNonPaye(v), vir = 0; if (np && fsGet(v.id, s.soiree).virement) { vir = np; np = 0; }
     S.np += np; S.vir += vir; b.np = (b.np || 0) + np; b.vir = (b.vir || 0) + vir; if (v.facture && typeof v.facture === 'object') S.nFact++;
     var pk = s.soiree + '|' + s.barId, pr = S.pay[pk] || (S.pay[pk] = { day: s.soiree, bar: s.bar, cash: 0, bc: 0, np: 0, vir: 0, total: 0, nFact: 0 });
@@ -707,7 +709,7 @@ function vBand(S) {
     '<span><span class="dot" style="background:#5E8F4E"></span>Bancontact <b>' + money(S.bc) + '</b> (' + Math.round(tot ? pb : 0) + ' %)</span>' +
       (S.np ? '<span><span class="dot" style="background:#C9785F"></span>À facturer (non payé) <b>' + money(S.np) + '</b></span>' : '') + (S.vir ? '<span><span class="dot" style="background:#C9785F"></span>Payé par virement <b>' + money(S.vir) + '</b></span>' : '') + '</div>' +
     '<div class="facts num"><strong>' + S.n + '</strong> vente' + (S.n > 1 ? 's' : '') + ', panier moyen <strong>' + money(S.n ? S.total / S.n : 0) + '</strong>' +
-    (S.mixte ? ', dont ' + S.mixte + ' en paiement mixte (réparti ci-dessus)' : '') + (S.nFact ? ', <strong>' + S.nFact + '</strong> facture' + (S.nFact > 1 ? 's' : '') + ' demandée' + (S.nFact > 1 ? 's' : '') : '') +
+    (S.mixte ? ', dont ' + S.mixte + ' en paiement mixte (réparti ci-dessus)' : '') + (S.nCmd ? ', <strong>' + S.nCmd + '</strong> commande' + (S.nCmd > 1 ? 's' : '') + ' retirée' + (S.nCmd > 1 ? 's' : '') + (S.pre ? ' (dont ' + money(S.pre) + ' payés à la commande)' : '') : '') + (S.nFact ? ', <strong>' + S.nFact + '</strong> facture' + (S.nFact > 1 ? 's' : '') + ' demandée' + (S.nFact > 1 ? 's' : '') : '') +
     (S.ann.length ? '. ' + S.ann.length + ' vente' + (S.ann.length > 1 ? 's' : '') + ' annulée' + (S.ann.length > 1 ? 's' : '') + ', non comptée' + (S.ann.length > 1 ? 's' : '') : '') + '.</div>' +
     (S.liv.m ? '<div class="facts num">' + (F.caisse === 'sapin' ? 'Sapins et accessoires' : 'Articles') + ' <strong>' + money(tot - S.liv.m) + '</strong> · <strong>' + S.liv.n + '</strong> livraison' + (S.liv.n > 1 ? 's' : '') + '</div>' : '') + '</div></div>';
 }
@@ -1439,7 +1441,7 @@ function ssStandName(doc, id) { var s = ssStands(doc, null).filter(function (x) 
 /* Stock de chaque stand : livré + reçu − envoyé − vendu (ventes lues dans le dépôt, depuis le début de la saison) */
 function ssCompute(doc, skipMid) {
   var q = {}, used = {};
-  function cell(s, a) { var o = q[s] || (q[s] = {}); return o[a] || (o[a] = { liv: 0, inn: 0, out: 0, sold: 0 }); }
+  function cell(s, a) { var o = q[s] || (q[s] = {}); return o[a] || (o[a] = { liv: 0, inn: 0, out: 0, sold: 0, cmd: 0 }); }
   Object.keys(doc.mouvements).forEach(function (m) {
     var v = doc.mouvements[m]; if (!v || m === skipMid) return;
     Object.keys(v.lignes || {}).forEach(function (a) {
@@ -1450,8 +1452,10 @@ function ssCompute(doc, skipMid) {
   });
   var sv = svSold(doc);
   Object.keys(sv.q).forEach(function (s) { used[s] = sv.names[s] || used[s] || 1; Object.keys(sv.q[s]).forEach(function (a) { cell(s, a).sold += sv.q[s][a]; }); });
-  Object.keys(q).forEach(function (s) { Object.keys(q[s]).forEach(function (a) { var c = q[s][a]; c.rest = c.liv + c.inn - c.out - c.sold; }); });
-  return { q: q, used: used, sv: sv, get: function (s, a) { return (q[s] && q[s][a]) || { liv: 0, inn: 0, out: 0, sold: 0, rest: 0 }; } };
+  var cy = (ssStart(doc) || todayIso()).slice(0, 4), cq = coQty(coDocFor(cy), doc.depot.id);
+  Object.keys(cq.q).forEach(function (sid) { used[sid] = used[sid] || cq.names[sid] || 1; Object.keys(cq.q[sid]).forEach(function (a) { cell(sid, a).cmd += cq.q[sid][a]; }); });
+  Object.keys(q).forEach(function (s) { Object.keys(q[s]).forEach(function (a) { var c = q[s][a]; c.rest = c.liv + c.inn - c.out - c.sold - c.cmd; }); });
+  return { q: q, used: used, sv: sv, cmd: { n: cq.n, year: cy, pcs: cq.pcs, per: cq.per }, get: function (s, a) { return (q[s] && q[s][a]) || { liv: 0, inn: 0, out: 0, sold: 0, cmd: 0, rest: 0 }; } };
 }
 function ssStart(doc) {
   if (doc.debut) return doc.debut;
@@ -1462,8 +1466,8 @@ function ssStart(doc) {
 /* ---------- Ventes de la Caisse Sapins (dossier sapin/ du dépôt ventes) ----------
    Chaque fichier est résumé une seule fois (gardé par son sha) : point de vente, jour, quantités par article. */
 var SV = { loaded: false, loading: false, err: null, files: [], cache: null, at: null };
-var SV_KEY = 'admin-sapventes-2';
-try { localStorage.removeItem('admin-sapventes'); } catch (e) {}
+var SV_KEY = 'admin-sapventes-3';
+try { localStorage.removeItem('admin-sapventes'); localStorage.removeItem('admin-sapventes-2'); } catch (e) {}
 function svCache() {
   if (!SV.cache) { try { SV.cache = JSON.parse(lsGet(SV_KEY) || '{}') || {}; } catch (e) { SV.cache = {}; } }
   return SV.cache;
@@ -1474,6 +1478,7 @@ function svSummary(d) {
   if (fp.id) s.names[fp.id] = fp.nom || fp.id;
   d.ventes.forEach(function (v) {
     if (!v || v.annulation || typeof v.horodatage !== 'string') return;
+    if (v.commande && typeof v.commande === 'object' && v.commande.id) { s.cmdSales = (s.cmdSales || 0) + 1; return; } // déjà retirée du stock par la commande
     var pv = v.pointDeVente || fp, sid = pv.id || '?', day = v.horodatage.slice(0, 10);
     if (pv.id && pv.nom) s.names[pv.id] = pv.nom;
     s.ids.push(v.id);
@@ -1600,15 +1605,17 @@ function vSsStands(doc) {
   var chips = '<div class="rsel sschips" role="group" aria-label="Stand"><button class="chip' + (sel === 'all' ? ' on' : '') + '" data-ss="stand" data-v="all">Tous les stands</button>' +
     stands.map(function (s) { return '<button class="chip' + (sel === s.id ? ' on' : '') + '" data-ss="stand" data-v="' + esc(s.id) + '">' + esc(s.nom) + '</button>'; }).join('') + '</div>';
   var head, rows = '', tot = {}, groups = ssGroups(doc), cols;
-  function has(id) { return stands.some(function (s) { var c = C.get(s.id, id); return c.liv || c.inn || c.out || c.sold; }); }
+  function has(id) { return stands.some(function (s) { var c = C.get(s.id, id); return c.liv || c.inn || c.out || c.sold || c.cmd; }); }
+  var subDone = false; function isAcc(g) { return /accessoire/i.test(g.nom || ''); }
   if (sel === 'all') {
     cols = stands.length + 2;
     head = '<tr><th>Article</th>' + stands.map(function (s) { return '<th class="r">' + esc(s.nom) + (s.id === doc.depot.id ? '<span class="sub">stockage</span>' : '') + '</th>'; }).join('') + '<th class="r">Total</th></tr>';
     groups.forEach(function (g) {
       var items = g.items.filter(function (it) { return g.gone ? has(it.id) : true; }); if (!items.length) return;
+      if (!subDone && isAcc(g) && rows) { subDone = true; rows += '<tr class="sssub"><td>Sous-total sapins</td>' + stands.map(function (s) { return '<td class="r num">' + fmtQ(tot[s.id] || 0) + '</td>'; }).join('') + '<td class="r num">' + fmtQ(tot._ || 0) + '</td></tr>'; }
       rows += '<tr class="ssgrp"><td colspan="' + cols + '">' + esc(g.nom) + '</td></tr>' + items.map(function (it) {
         var sum = 0, any = has(it.id);
-        var tds = stands.map(function (s) { var c = C.get(s.id, it.id); sum += c.rest; tot[s.id] = (tot[s.id] || 0) + c.rest; var t = c.liv || c.inn || c.out || c.sold;
+        var tds = stands.map(function (s) { var c = C.get(s.id, it.id); sum += c.rest; tot[s.id] = (tot[s.id] || 0) + c.rest; var t = c.liv || c.inn || c.out || c.sold || c.cmd;
           return '<td class="r num' + (c.rest < 0 ? ' neg' : '') + '">' + (t ? fmtQ(c.rest) : '—') + '</td>'; }).join('');
         tot._ = (tot._ || 0) + sum;
         return '<tr' + (any ? '' : ' class="off"') + '><td>' + esc(it.libelle) + (it.actif ? '' : '<span class="sub">masqué en caisse</span>') + '</td>' + tds + '<td class="r num' + (sum < 0 ? ' neg' : '') + '"><b>' + (any ? fmtQ(sum) : '—') + '</b></td></tr>';
@@ -1616,12 +1623,13 @@ function vSsStands(doc) {
     });
     if (rows) rows += '<tr class="sstot"><td>Total</td>' + stands.map(function (s) { return '<td class="r num">' + fmtQ(tot[s.id] || 0) + '</td>'; }).join('') + '<td class="r num">' + fmtQ(tot._ || 0) + '</td></tr>';
   } else {
-    cols = 6; var K = ['liv', 'inn', 'out', 'sold', 'rest'];
-    head = '<tr><th>Article</th><th class="r">Livré</th><th class="r">Reçu</th><th class="r">Envoyé</th><th class="r">Vendu</th><th class="r">Restant</th></tr>';
+    var wc = sel === doc.depot.id || !!(C.cmd.per && C.cmd.per[sel]), K = wc ? ['liv', 'inn', 'out', 'sold', 'cmd', 'rest'] : ['liv', 'inn', 'out', 'sold', 'rest']; cols = K.length + 1;
+    head = '<tr><th>Article</th><th class="r">Livré</th><th class="r">Reçu</th><th class="r">Envoyé</th><th class="r">Vendu</th>' + (wc ? '<th class="r">Commandes</th>' : '') + '<th class="r">Restant</th></tr>';
     groups.forEach(function (g) {
-      var items = g.items.filter(function (it) { var c = C.get(sel, it.id); return !g.gone || c.liv || c.inn || c.out || c.sold; }); if (!items.length) return;
-      rows += '<tr class="ssgrp"><td colspan="6">' + esc(g.nom) + '</td></tr>' + items.map(function (it) {
-        var c = C.get(sel, it.id), any = c.liv || c.inn || c.out || c.sold;
+      var items = g.items.filter(function (it) { var c = C.get(sel, it.id); return !g.gone || c.liv || c.inn || c.out || c.sold || c.cmd; }); if (!items.length) return;
+      if (!subDone && isAcc(g) && rows) { subDone = true; rows += '<tr class="sssub"><td>Sous-total sapins</td>' + K.map(function (k) { return '<td class="r num">' + fmtQ(tot[k] || 0) + '</td>'; }).join('') + '</tr>'; }
+      rows += '<tr class="ssgrp"><td colspan="' + cols + '">' + esc(g.nom) + '</td></tr>' + items.map(function (it) {
+        var c = C.get(sel, it.id), any = c.liv || c.inn || c.out || c.sold || c.cmd;
         K.forEach(function (k) { tot[k] = (tot[k] || 0) + c[k]; });
         return '<tr' + (any ? '' : ' class="off"') + '><td>' + esc(it.libelle) + '</td>' + K.map(function (k) { return '<td class="r num' + (k === 'rest' && c.rest < 0 ? ' neg' : '') + '">' + (k === 'rest' ? '<b>' + (any ? fmtQ(c.rest) : '—') + '</b>' : c[k] ? fmtQ(c[k]) : '—') + '</td>'; }).join('') + '</tr>';
       }).join('');
@@ -1630,8 +1638,8 @@ function vSsStands(doc) {
   }
   var neg = []; stands.forEach(function (s) { groups.forEach(function (g) { g.items.forEach(function (it) { if (C.get(s.id, it.id).rest < 0) neg.push(s.nom + ' : ' + it.libelle); }); }); });
   return '<section><div class="row-between"><h3>' + (sel === 'all' ? 'Stock restant par stand' : 'Stock de ' + esc(ssStandName(doc, sel))) + '</h3>' + ssActs() + '</div>' +
-    '<p class="lead">' + (sel === 'all' ? 'Restant = livré + reçu des autres stands − envoyé − vendu. Choisissez un stand pour le détail.' : 'Détail du stand : livraisons, transferts reçus et envoyés, ventes de la caisse.') + '</p>' +
-    chips + svLine(doc, C) +
+    '<p class="lead">' + (sel === 'all' ? 'Restant = livré + reçu des autres stands − envoyé − vendu − commandes (livraison : au stand de stockage ; retrait : au stand du retrait). Choisissez un stand pour le détail.' : 'Détail du stand : livraisons, transferts reçus et envoyés, ventes de la caisse' + (sel === doc.depot.id ? ', commandes en livraison et à retirer ici' : C.cmd.per && C.cmd.per[sel] ? ', commandes à retirer ici' : '') + '.') + '</p>' +
+    chips + svLine(doc, C) + (C.cmd.n ? '<p class="hint">Commandes ' + esc(C.cmd.year) + ' retirées du stock (sauf annulées) : ' + Object.keys(C.cmd.per).map(function (sid) { var pp = C.cmd.per[sid]; return esc(ssStandName(doc, sid)) + ' ' + ssPcs(pp.pcs) + ' (' + [pp.liv ? pp.liv + ' en livraison' : '', pp.ret ? pp.ret + ' à retirer' : ''].filter(Boolean).join(', ') + ')'; }).join(' · ') + '. <button class="ghost sm" data-a="sub" data-v="sapin/commandes">Voir les commandes</button></p>' : '') +
     (neg.length ? '<div class="alert">Stock négatif : ' + neg.slice(0, 6).map(esc).join(' · ') + (neg.length > 6 ? ' …' : '') + '. Il manque peut-être une livraison ou un transfert.</div>' : '') +
     (rows ? '<div class="scroll"><table class="stab bil sstab ssgrid"><thead>' + head + '</thead><tbody>' + rows + '</tbody></table></div>' : '<p class="empty">Aucun article : le catalogue de la Caisse Sapins est vide ou n’a pas pu être lu.</p>') + '</section>';
 }
@@ -1812,7 +1820,7 @@ document.addEventListener('click', function (e) {
   if (a === 'view') { SS.view = v; SS.form = null; SS.confirm = null; if (!SS.cur) SS.view = 'season'; render(); }
   else if (a === 'season') ssOpen(v);
   else if (a === 'newSeason') { SS.view = 'season'; SS.newSeason = null; render(); }
-  else if (a === 'reload') { SS.loaded = false; SV.loaded = false; render(); }
+  else if (a === 'reload') { SS.loaded = false; SV.loaded = false; COR = {}; render(); }
   else if (a === 'save') ssSave();
   else if (a === 'newLiv') { SS.form = { type: 'livraison', mid: null, date: todayIso(), q: {}, na: null }; SS.view = 'form'; render(); }
   else if (a === 'newTr') { var d0 = ssDoc(), st = ssStands(d0, ssCompute(d0).used), de = SS.standSel !== 'all' ? SS.standSel : d0.depot.id, vers = (st.filter(function (s) { return s.id !== de; })[0] || {}).id || '';
@@ -1821,7 +1829,7 @@ document.addEventListener('click', function (e) {
   else if (a === 'force') ssSubmitLiv(true);
   else if (a === 'stand') { SS.standSel = v; render(); }
   else if (a === 'mvf') { SS.mvFilter = v; render(); }
-  else if (a === 'sales') svLoad();
+  else if (a === 'sales') { COR = {}; svLoad(); }
   else if (a === 'askDel') { SS.confirm = { id: v }; render(); }
   else if (a === 'cancel') { SS.confirm = null; render(); }
   else if (a === 'delLiv') { var t0 = (ssDoc().mouvements[v] || {}).type; SS.confirm = null; ssOp([{ t: 'mv', id: v, v: null }]); toast(t0 === 'transfert' ? 'Transfert supprimé' : 'Livraison supprimée'); }
@@ -1892,7 +1900,7 @@ function hsLocal(file) {
 }
 function hsDisc(r) { if (!r) return ''; return r.type === 'pourcentage' ? '−' + String(r.valeur).replace('.', ',') + ' %' : '−' + money(+r.valeur || 0); }
 function hsNum(id) { var m = /-(\d+)$/.exec(id || ''); return m ? String(+m[1]) : (id || '?'); }
-function hsPay(p) { p = p || {}; return p.mode === 'a-facturer' ? 'À facturer' : p.mode === 'cash' ? 'Cash' : p.mode === 'bancontact' ? 'Bancontact' : p.mode === 'mixte' ? 'Mixte · cash ' + money(+p.cash || 0) + ' + Bancontact ' + money(+p.bancontact || 0) : esc(p.mode || ''); }
+function hsPay(p) { p = p || {}; return p.mode === 'a-facturer' ? 'À facturer' : p.mode === 'deja-paye' ? 'Déjà payé (commande)' : p.mode === 'cash' ? 'Cash' : p.mode === 'bancontact' ? 'Bancontact' : p.mode === 'mixte' ? 'Mixte · cash ' + money(+p.cash || 0) + ' + Bancontact ' + money(+p.bancontact || 0) : esc(p.mode || ''); }
 function hsDm(iso) { return iso ? iso.slice(8, 10) + '/' + iso.slice(5, 7) : ''; }
 function renderSapHist() {
   var el = document.getElementById('mod');
@@ -1937,6 +1945,7 @@ function vSapHist(d) {
     if (la) notes.push('<span class="hsliv">Livraison ajoutée le ' + esc(hsDm(la.horodatage)) + ' à ' + esc(String(la.horodatage || '').slice(11, 16)) + ' · ' + money(+la.montant || 0) + (la.paiement ? ' (' + hsPay(la.paiement) + ')' : '') + '</span>');
     if (v.venteLiee) notes.push('<span class="hsliv">Livraison de la vente n° ' + esc(hsNum(v.venteLiee)) + (ids[v.venteLiee] ? ' (' + esc(ids[v.venteLiee].horodatage.slice(11, 16)) + ')' : '') + '</span>');
     all.forEach(function (o) { if (o.venteLiee === v.id && !o.annulation) notes.push('<span class="hsliv">Livraison payée à part : vente n° ' + esc(hsNum(o.id)) + ' (' + esc(o.horodatage.slice(11, 16)) + ')</span>'); });
+    if (v.commande && typeof v.commande === 'object') notes.push('<span class="hsliv">Commande n° ' + esc(v.commande.numero || '?') + ' retirée' + (+v.commande.dejaPaye ? ' · ' + money(+v.commande.dejaPaye) + ' déjà payés à la commande' : '') + ' (stock déjà retiré par la commande)</span>');
     if (v.livraison && typeof v.livraison === 'object') notes.push('<span class="hsliv">Livrer à ' + esc([v.livraison.nom, v.livraison.adresse, v.livraison.telephone].filter(Boolean).join(' · ')) + '</span>');
     if (v.facture && typeof v.facture === 'object') { var fst = faStatus(v, day); notes.push('<span class="hsfac">Facture : ' + esc([v.facture.societe, v.facture.tva].filter(Boolean).join(' · ') || 'données incomplètes') + ' · ' + esc(fst.t) + (v.facture.modifieeLe ? ' · corrigée le ' + esc(hsDm(v.facture.modifieeLe)) : '') + '</span>'); }
     if (an) notes.push('<span class="hsann">Annulée à ' + esc(String(an.horodatage || '').slice(11, 16)) + (an.horodatage && an.horodatage.slice(0, 10) !== day ? ' le ' + esc(hsDm(an.horodatage)) : '') + (an.motif ? ' · ' + esc(an.motif) : '') + '</span>');
@@ -2272,12 +2281,17 @@ function coSave(tries) {
   CO.saving = true; CO.err = null; render();
   ssGet(path).then(function (r) {
     var base = r ? coNorm(r.json) : coNorm({ format: CO_FMT, formatVersion: 1, annee: +year, creeLe: new Date().toISOString() });
-    ops.forEach(function (o) { if (o.t === 'set' && o.v && !o.v.numero) { o.v.numero = coNextNum(base); } coApply(base, o); });
+    ops.forEach(function (o) {
+      if (o.t === 'set' && o.v && !o.v.numero) { o.v.numero = coNextNum(base); }
+      var cur = o.t === 'set' && o.v && base.commandes[o.id];
+      if (cur && cur.encaissement && !o.v.encaissement) { o.v.encaissement = cur.encaissement; o.v.paye = cur.paye; o.v.statut = cur.statut; o.v.historique = cur.historique; }
+      coApply(base, o);
+    });
     base.majLe = new Date().toISOString(); base.majPar = 'admin';
     return ssPut(path, base, r && r.sha, 'Commandes ' + year + ' (Admin)').then(function () { return base; });
   }).then(function (doc) {
     if (CO.path !== path) { CO.saving = false; return; }
-    CO.saving = false; CO.doc = doc; CO.ops = CO.ops.slice(ops.length); coPersist(); render(); if (CO.ops.length) coSave();
+    CO.saving = false; CO.doc = doc; CO.ops = CO.ops.slice(ops.length); COR[year] = { doc: doc, loaded: true }; coPersist(); render(); if (CO.ops.length) coSave();
   }, function (e) {
     CO.saving = false;
     if ((e.status === 409 || e.status === 422) && (tries || 0) < 2) { coSave((tries || 0) + 1); return; }
@@ -2298,6 +2312,30 @@ function coProducts() {
 }
 
 /* ---------- Rendu ---------- */
+/* Commandes d'une année pour le stock et les livraisons : la version ouverte dans l'onglet Commandes (avec ses modifications locales), sinon une lecture seule */
+var COR = {};
+function coDocFor(y) {
+  y = String(y);
+  if (CO.path === coPath(y) && (CO.doc || CO.ops.length)) return coDoc();
+  var r = COR[y];
+  if (!r) {
+    r = COR[y] = { doc: null, loading: false, loaded: false };
+    var loc = null; try { loc = JSON.parse(lsGet(coKey(coPath(y))) || 'null'); } catch (e) {}
+    if (loc && loc.doc) { var d0 = coNorm(clone(loc.doc)); (loc.ops || []).forEach(function (o) { coApply(d0, o); }); r.doc = d0; }
+    if (getToken()) { r.loading = true; ssGet(coPath(y)).then(function (x) { r.loading = false; r.loaded = true; if (x) r.doc = coNorm(x.json); render(); }, function () { r.loading = false; r.loaded = true; }); }
+  }
+  return coNorm(clone(r.doc || {}));
+}
+/* Quantités des commandes (non annulées) par stand et par article, hors ligne Livraison :
+   livraison -> stand de stockage (depotId), retrait -> stand du retrait. Les ventes de la caisse liées à une commande (vente.commande) ne sont pas déduites une 2e fois (svSummary). */
+function coStandOf(c, depotId) { return c.mode === 'retrait' ? (c.retrait && c.retrait.stand && c.retrait.stand.id) || null : depotId; }
+function coQty(doc, depotId) {
+  var q = {}, per = {}, names = {}, n = 0, pcs = 0;
+  Object.keys(doc.commandes).forEach(function (id) { var c = doc.commandes[id]; if (!c || c.statut === 'annulee') return; var sid = coStandOf(c, depotId); if (!sid) return; var used = 0;
+    (c.lignes || []).forEach(function (l) { if (!l.produitId || isLivLine(l)) return; var o = q[sid] || (q[sid] = {}), k = +l.quantite || 0; o[l.produitId] = (o[l.produitId] || 0) + k; used += k; });
+    if (used) { n++; pcs += used; var pp = per[sid] || (per[sid] = { n: 0, pcs: 0, liv: 0, ret: 0 }); pp.n++; pp.pcs += used; pp[c.mode === 'retrait' ? 'ret' : 'liv']++; if (c.mode === 'retrait' && c.retrait.stand.nom) names[sid] = c.retrait.stand.nom; } });
+  return { q: q, per: per, names: names, n: n, pcs: pcs };
+}
 function renderSapCommandes() {
   var el = document.getElementById('mod');
   if (!CO.year) CO.year = String(new Date().getFullYear());
@@ -2330,7 +2368,8 @@ function renderSapCommandes() {
   }).sort(function (a, b) { var da = coDate(a) || '9999', db = coDate(b) || '9999'; return da < db ? -1 : da > db ? 1 : (a.numero || 0) - (b.numero || 0); });
   var h = '<section><div class="row-between"><h3>Commandes ' + esc(CO.year) + '</h3><div class="cbtns"><button class="pick" data-co="new">+ Nouvelle commande</button><button class="btn" data-co="csv"' + (all.length ? '' : ' disabled') + '>Exporter pour Excel</button></div></div>' +
     '<div class="rsel sschips" role="group" aria-label="Statut">' + F0.map(function (f) { return '<button class="chip' + (CO.filter === f[0] ? ' on' : '') + '" data-co="filter" data-v="' + f[0] + '">' + f[1] + ' <span class="num">(' + cnt[f[0]] + ')</span></button>'; }).join('') + '</div>' +
-    '<input type="text" class="cosearch" data-co-q placeholder="Rechercher : nom, téléphone, n°, adresse…" value="' + esc(CO.q) + '" autocomplete="off">';
+    '<input type="text" class="cosearch" data-co-q placeholder="Rechercher : nom, téléphone, n°, adresse…" value="' + esc(CO.q) + '" autocomplete="off">' +
+    '<p class="hint">Stock (sauf commandes annulées) : une commande en livraison est retirée du stand de stockage et apparaît dans l’onglet Livraisons ; une commande en retrait est retirée du stock du stand choisi, et la Caisse Sapins de ce stand l’encaisse sans la retirer une deuxième fois.</p>';
   if (!list.length) h += '<p class="empty">' + (all.length ? 'Aucune commande ne correspond.' : 'Aucune commande pour ' + esc(CO.year) + '.') + '</p>';
   var lastD = null;
   list.forEach(function (c) {
@@ -2341,18 +2380,18 @@ function renderSapCommandes() {
   el.innerHTML = band + '<main>' + main + h + '</section></main>' + vToast();
 }
 function vCoCard(c) {
-  var st = c.statut || 'a-preparer', cl = c.client || {}, reste = coReste(c), conf = CO.confirm && CO.confirm.id === c.id ? CO.confirm.kind : null;
+  var st = c.statut || 'a-preparer', cl = c.client || {}, reste = coReste(c), conf = CO.confirm && CO.confirm.id === c.id ? CO.confirm.kind : null, enc = c.encaissement && typeof c.encaissement === 'object' ? c.encaissement : null;
   var where = c.mode === 'retrait' ? 'Retrait à <strong>' + esc((c.retrait && c.retrait.stand && c.retrait.stand.nom) || '?') + '</strong>' : 'Livraison : <strong>' + esc((c.livraison && c.livraison.adresse) || '?') + '</strong>' + (c.livraison && c.livraison.creneau ? ' · ' + esc(c.livraison.creneau) : '');
-  var next = st === 'a-preparer' ? ['prete', 'Marquer prête'] : st === 'prete' ? ['livree', c.mode === 'retrait' ? 'Marquer retirée' : 'Marquer livrée'] : null;
+  var next = enc ? null : st === 'a-preparer' ? ['prete', 'Marquer prête'] : st === 'prete' ? ['livree', c.mode === 'retrait' ? 'Marquer retirée' : 'Marquer livrée'] : null;
   return '<div class="cocard st-' + st + (conf ? ' danger' : '') + '"><div class="row-between"><span><strong>n° ' + esc(c.numero || '…') + ' · ' + esc(cl.nom || '?') + '</strong>' + (cl.tel ? ' · <a href="tel:' + esc(cl.tel.replace(/\s/g, '')) + '">' + esc(cl.tel) + '</a>' : '') + (cl.email ? ' · <a href="mailto:' + esc(cl.email) + '">' + esc(cl.email) + '</a>' : '') + '</span>' +
     '<span class="costat st-' + st + '">' + esc(c.mode === 'retrait' && st === 'livree' ? 'Retirée' : st === 'livree' ? 'Livrée' : coStatut(st)) + '</span></div>' +
     '<p>' + where + '</p>' +
     '<p class="coart">' + (c.lignes || []).map(function (l) { return esc(l.quantite + ' × ' + l.libelle); }).join(' · ') + '</p>' +
     '<p class="num"><strong>' + money(+c.total || 0) + '</strong>' + (c.paye && +c.paye.montant ? ' · payé ' + money(+c.paye.montant) + (c.paye.mode ? ' (' + esc((CO_PAY.filter(function (x) { return x.id === c.paye.mode; })[0] || {}).nom || c.paye.mode) + ')' : '') : '') + (reste > 0.004 ? ' · <span class="bad">reste ' + money(reste) + '</span>' : reste < -0.004 ? ' · <span class="warnt">trop payé ' + money(-reste) + '</span>' : ' · <span class="good">payé</span>') + '</p>' +
-    (c.note ? '<p class="faint">' + esc(c.note) + '</p>' : '') +
-    (conf ? '<div class="cbtns"><span>' + (conf === 'del' ? 'Supprimer définitivement cette commande ?' : 'Annuler cette commande ?') + '</span><button class="btn danger sm" data-co="' + (conf === 'del' ? 'del' : 'cancelOrder') + '" data-v="' + esc(c.id) + '">' + (conf === 'del' ? 'Supprimer' : 'Annuler la commande') + '</button><button class="btn sm" data-co="noconf">Non</button></div>'
-      : '<div class="cbtns">' + (next ? '<button class="pick sm2" data-co="status" data-v="' + esc(c.id) + '" data-s="' + next[0] + '">' + next[1] + '</button>' : '') + '<button class="btn sm" data-co="edit" data-v="' + esc(c.id) + '">Modifier</button>' +
-        (st !== 'annulee' && st !== 'livree' ? '<button class="btn sm" data-co="askCancel" data-v="' + esc(c.id) + '">Annuler</button>' : '<button class="btn sm" data-co="status" data-v="' + esc(c.id) + '" data-s="a-preparer">Remettre à préparer</button>') +
+    (c.note ? '<p class="faint">' + esc(c.note) + '</p>' : '') + (enc ? '<p class="coenc">Encaissée à la caisse' + (enc.pointDeVente && enc.pointDeVente.nom ? ' de ' + esc(enc.pointDeVente.nom) : '') + (enc.horodatage ? ' le ' + esc(hsDm(enc.horodatage)) + ' à ' + esc(String(enc.horodatage).slice(11, 16)) : '') + (enc.venteId ? ' · vente n° ' + esc(hsNum(enc.venteId)) : '') + (enc.montant != null ? ' · ' + money(+enc.montant || 0) + (enc.paiement && enc.paiement.mode ? ' (' + esc(hsPayTxt(enc.paiement)) + ')' : '') : '') + '</p>' : '') +
+    (conf ? '<div class="cbtns"><span>' + (conf === 'del' ? (enc ? 'Cette commande a déjà été encaissée à la caisse. ' : '') + 'Supprimer définitivement cette commande ?' : 'Annuler cette commande ?') + '</span><button class="btn danger sm" data-co="' + (conf === 'del' ? 'del' : 'cancelOrder') + '" data-v="' + esc(c.id) + '">' + (conf === 'del' ? 'Supprimer' : 'Annuler la commande') + '</button><button class="btn sm" data-co="noconf">Non</button></div>'
+      : '<div class="cbtns">' + (next ? '<button class="pick sm2" data-co="status" data-v="' + esc(c.id) + '" data-s="' + next[0] + '">' + next[1] + '</button>' : '') + (enc ? '' : '<button class="btn sm" data-co="edit" data-v="' + esc(c.id) + '">Modifier</button>' +
+        (st !== 'annulee' && st !== 'livree' ? '<button class="btn sm" data-co="askCancel" data-v="' + esc(c.id) + '">Annuler</button>' : '<button class="btn sm" data-co="status" data-v="' + esc(c.id) + '" data-s="a-preparer">Remettre à préparer</button>')) +
         '<button class="x" data-co="askDel" data-v="' + esc(c.id) + '">Supprimer</button></div>') + '</div>';
 }
 function coTotal(f) { var t = 0; Object.keys(f.q).forEach(function (pid) { var n = parseQ(f.q[pid]); var p = f.prix[pid]; if (n > 0 && p != null) t += n * p; }); return Math.round(t * 100) / 100; }
@@ -2410,10 +2449,10 @@ function coSetStatus(id, s) {
   coOp({ t: 'set', id: id, v: v });
 }
 function coCsv() {
-  var rows = [['N°', 'Statut', 'Client', 'Téléphone', 'E-mail', 'Mode', 'Adresse / stand', 'Date', 'Créneau', 'Articles', 'Total (€)', 'Payé (€)', 'Paiement', 'Reste (€)', 'Remarque']];
+  var rows = [['N°', 'Statut', 'Client', 'Téléphone', 'E-mail', 'Mode', 'Adresse / stand', 'Date', 'Créneau', 'Articles', 'Total (€)', 'Payé (€)', 'Paiement', 'Reste (€)', 'Remarque', 'Encaissée à la caisse']];
   coList(coDoc()).sort(function (a, b) { return (a.numero || 0) - (b.numero || 0); }).forEach(function (c) {
     var cl = c.client || {};
-    rows.push([c.numero || '', coStatut(c.statut), cl.nom || '', cl.tel || '', cl.email || '', c.mode === 'retrait' ? 'Retrait' : 'Livraison', c.mode === 'retrait' ? (c.retrait && c.retrait.stand && c.retrait.stand.nom) || '' : (c.livraison && c.livraison.adresse) || '', coDate(c), c.livraison && c.livraison.creneau || '', (c.lignes || []).map(function (l) { return l.quantite + ' x ' + l.libelle; }).join(', '), +c.total || 0, c.paye && +c.paye.montant || 0, c.paye && c.paye.mode || '', coReste(c), c.note || '']);
+    rows.push([c.numero || '', coStatut(c.statut), cl.nom || '', cl.tel || '', cl.email || '', c.mode === 'retrait' ? 'Retrait' : 'Livraison', c.mode === 'retrait' ? (c.retrait && c.retrait.stand && c.retrait.stand.nom) || '' : (c.livraison && c.livraison.adresse) || '', coDate(c), c.livraison && c.livraison.creneau || '', (c.lignes || []).map(function (l) { return l.quantite + ' x ' + l.libelle; }).join(', '), +c.total || 0, c.paye && +c.paye.montant || 0, c.paye && c.paye.mode || '', coReste(c), c.note || '', c.encaissement ? [c.encaissement.pointDeVente && c.encaissement.pointDeVente.nom, c.encaissement.horodatage && String(c.encaissement.horodatage).slice(0, 16).replace('T', ' '), c.encaissement.venteId].filter(Boolean).join(' · ') : '']);
   });
   download('commandes-sapins_' + CO.year + '.csv', rows); toast('Fichier pour Excel téléchargé');
 }
@@ -2527,7 +2566,7 @@ function faStatus(v, day) {
   if (f.paiement) return { k: 'later', t: 'Payée au stand le ' + hsDm(f.paiement.horodatage) + (f.paiement.mode ? ' (' + hsPayTxt(f.paiement) + ')' : ''), np: 0 };
   return { k: 'ok', t: 'Payée au stand', np: 0 };
 }
-function hsPayTxt(p) { p = p || {}; return p.mode === 'cash' ? 'cash' : p.mode === 'bancontact' ? 'Bancontact' : p.mode === 'mixte' ? 'cash ' + money(+p.cash || 0) + ' + Bancontact ' + money(+p.bancontact || 0) : p.mode === 'a-facturer' ? 'à facturer' : String(p.mode || ''); }
+function hsPayTxt(p) { p = p || {}; return p.mode === 'cash' ? 'cash' : p.mode === 'bancontact' ? 'Bancontact' : p.mode === 'mixte' ? 'cash ' + money(+p.cash || 0) + ' + Bancontact ' + money(+p.bancontact || 0) : p.mode === 'a-facturer' ? 'à facturer' : p.mode === 'deja-paye' ? 'déjà payé' : String(p.mode || ''); }
 
 /* ---------- Gestion sapin › Factures ---------- */
 var FA = { year: null, files: null, data: {}, loading: false, err: null, at: null, f: { stand: 'all', pay: 'all', est: 'all', from: '', to: '' }, open: null };
@@ -2676,29 +2715,34 @@ function lvAll() {
   var best = {};
   (FA.files || []).forEach(function (f) { var s = FA.data[f.sha]; if (!s || !s.ok) return; if (!best[s.key] || s.maj > best[s.key].maj) best[s.key] = s; });
   var seen = {}, out = [];
-  Object.keys(best).forEach(function (k) { best[k].ventes.forEach(function (x) { if (!(x.v.lignes || []).some(isLivLine) || seen[x.v.id]) return; seen[x.v.id] = 1; out.push({ v: x.v, day: x.v.horodatage.slice(0, 10), pvId: x.pv.id || '?', pvNom: x.pv.nom || x.pv.id || '?' }); }); });
-  return out.sort(function (a, b) { return a.v.horodatage < b.v.horodatage ? -1 : a.v.horodatage > b.v.horodatage ? 1 : 0; });
+  Object.keys(best).forEach(function (k) { best[k].ventes.forEach(function (x) { if (!(x.v.lignes || []).some(isLivLine) || seen[x.v.id]) return; seen[x.v.id] = 1; out.push({ v: x.v, id: x.v.id, yr: x.v.horodatage.slice(0, 4), day: x.v.horodatage.slice(0, 10), t: x.v.horodatage.slice(11, 16), pvId: x.pv.id || '?', pvNom: x.pv.nom || x.pv.id || '?' }); }); });
+  if (LV.year) { var cd = coDocFor(LV.year); coList(cd).forEach(function (c) { if (c.mode !== 'livraison' || c.statut === 'annulee') return; var L = c.livraison || {};
+    out.push({ cmd: c, id: c.id, yr: LV.year, day: L.date || '', t: L.creneau || '', pvId: '_cmd', pvNom: 'Commandes' }); }); }
+  return out.sort(function (a, b) { var da = a.day || '9999', db = b.day || '9999'; return da < db ? -1 : da > db ? 1 : a.t < b.t ? -1 : a.t > b.t ? 1 : 0; });
 }
 function lvArts(v) { return (v.lignes || []).filter(function (l) { return !isLivLine(l); }).map(function (l) { return (+l.quantite || 0) + ' × ' + (l.libelle || ''); }); }
 function lvPay(x) { var np = vNonPaye(x.v); if (!np) return { k: 'ok', t: 'Payée' }; if (x.v.facture && fsGet(x.v.id, x.day).virement) return { k: 'ok', t: 'Payée (virement)' }; return { k: 'np', t: 'Reste à payer ' + money(np) }; }
+function lvDone(x) { return x.cmd ? x.cmd.statut === 'livree' : !!LSUIVI.get(x.id, x.day).livree; }
 function lvFiltered(all) {
   var f = LV.f, q = (f.q || '').trim().toLowerCase();
   return all.filter(function (x) {
-    if (x.day.slice(0, 4) !== LV.year) return false;
+    if (x.yr !== LV.year) return false;
     if (f.from && x.day < f.from) return false; if (f.to && x.day > f.to) return false;
     if (f.stand !== 'all' && x.pvId !== f.stand) return false;
-    var done = !!LSUIVI.get(x.v.id, x.day).livree;
+    var done = lvDone(x);
     if (f.st === 'todo' && done) return false; if (f.st === 'done' && !done) return false;
-    if (q) { var c = x.v.livraison || {}, hay = [c.nom, c.adresse, c.telephone, hsNum(x.v.id), x.pvNom].join(' ').toLowerCase(); if (hay.indexOf(q) < 0) return false; }
+    if (q) { var c = x.cmd ? { nom: (x.cmd.client || {}).nom, adresse: (x.cmd.livraison || {}).adresse, telephone: (x.cmd.client || {}).tel } : x.v.livraison || {}, hay = [c.nom, c.adresse, c.telephone, x.cmd ? 'commande ' + x.cmd.numero : hsNum(x.v.id), x.pvNom].join(' ').toLowerCase(); if (hay.indexOf(q) < 0) return false; }
     return true;
   });
 }
 function renderSapLivraisons() {
   var el = document.getElementById('mod');
   if (FA.files === null && !FA.loading && getToken()) { faLoad(); return; }
+  if (!LV.year) { var ys = {}; lvAll().forEach(function (x) { if (x.yr) ys[x.yr] = 1; }); LV.year = Object.keys(ys).sort().reverse()[0] || String(new Date().getFullYear()); }
+  if (CO.path !== coPath(LV.year) && !CO.loading && !CO.saving && !CO.form && !CO.ops.length) { CO.year = LV.year; coOpen(); return; }
   var all = lvAll(), years = {};
-  all.forEach(function (x) { years[x.day.slice(0, 4)] = 1; });
-  var yl = Object.keys(years).sort().reverse(); if (!LV.year) LV.year = yl[0] || String(new Date().getFullYear()); if (yl.indexOf(LV.year) < 0) yl.unshift(LV.year);
+  all.forEach(function (x) { if (x.yr) years[x.yr] = 1; });
+  var yl = Object.keys(years).sort().reverse(); if (yl.indexOf(LV.year) < 0) yl.unshift(LV.year);
   var st = LSUIVI.ensure(LV.year); fsEnsure(LV.year);
   var f = LV.f;
   var stat = st.saving ? '<span class="sv">Enregistrement…</span>' : st.ops.length ? '<span class="sv warn">' + st.ops.length + ' modification' + (st.ops.length > 1 ? 's' : '') + ' pas encore sur GitHub</span>' : '';
@@ -2712,9 +2756,9 @@ function renderSapLivraisons() {
   if (st.err) alerts.push('<div class="alert err">Suivi des livraisons : ' + st.err + ' <button class="btn sm" data-lv="retry">Réessayer</button></div>');
   var main = alerts.length ? '<div class="alerts">' + alerts.join('') + '</div>' : '';
   if (FA.loading && !FA.files) { el.innerHTML = band + '<main>' + main + '<section><p class="empty">Lecture des fichiers de ventes de la Caisse Sapins…</p></section></main>' + vToast(); return; }
-  var ofYear = all.filter(function (x) { return x.day.slice(0, 4) === LV.year; }), stands = {}, cnt = { all: 0, todo: 0, done: 0 };
+  var ofYear = all.filter(function (x) { return x.yr === LV.year; }), stands = {}, cnt = { all: 0, todo: 0, done: 0 };
   ofYear.forEach(function (x) { stands[x.pvId] = x.pvNom; });
-  var f0 = LV.f.st; LV.f.st = 'all'; lvFiltered(all).forEach(function (x) { cnt.all++; LSUIVI.get(x.v.id, x.day).livree ? cnt.done++ : cnt.todo++; }); LV.f.st = f0;
+  var f0 = LV.f.st; LV.f.st = 'all'; lvFiltered(all).forEach(function (x) { cnt.all++; lvDone(x) ? cnt.done++ : cnt.todo++; }); LV.f.st = f0;
   var list = lvFiltered(all);
   function chips(key, opts) { return opts.map(function (o) { return '<button class="chip' + (f[key] === o[0] ? ' on' : '') + '" data-lv="f" data-k="' + key + '" data-v="' + esc(o[0]) + '">' + o[1] + '</button>'; }).join(''); }
   var sk = Object.keys(stands).sort(function (a, b) { return String(a).localeCompare(String(b), undefined, { numeric: true }); });
@@ -2725,7 +2769,7 @@ function renderSapLivraisons() {
     '<input type="text" class="cosearch" data-lv-q placeholder="Rechercher : nom, adresse, téléphone, n° de vente…" value="' + esc(f.q) + '" autocomplete="off"></div>';
   if (!list.length) h += '<p class="empty">' + (ofYear.length ? 'Aucune livraison ne correspond aux filtres.' : 'Aucune livraison en ' + esc(LV.year) + ' dans les fichiers de la Caisse Sapins.') + '</p>';
   var last = null;
-  list.forEach(function (x) { if (x.day !== last) { var n = list.filter(function (y) { return y.day === x.day; }).length; h += '<h4 class="codate cap">' + esc(longDate(x.day)) + ' ' + esc(x.day.slice(0, 4)) + ' <span class="faint num">· ' + n + ' livraison' + (n > 1 ? 's' : '') + '</span></h4>'; last = x.day; } h += vLvCard(x); });
+  list.forEach(function (x) { if (x.day !== last) { var n = list.filter(function (y) { return y.day === x.day; }).length; h += '<h4 class="codate' + (x.day ? ' cap' : '') + '">' + (x.day ? esc(longDate(x.day)) + ' ' + esc(x.day.slice(0, 4)) : 'Date de livraison non fixée') + ' <span class="faint num">· ' + n + ' livraison' + (n > 1 ? 's' : '') + '</span></h4>'; last = x.day; } h += x.cmd ? vLvCmdCard(x) : vLvCard(x); });
   el.innerHTML = band + '<main>' + main + h + '</section></main>' + vToast();
 }
 function vLvCard(x) {
@@ -2738,9 +2782,24 @@ function vLvCard(x) {
     '<div class="fasuivi"><label class="chk"><input type="checkbox" data-lv-c="1" data-id="' + id + '" data-day="' + dd + '"' + (done ? ' checked' : '') + '> Livrée</label>' +
     '<input type="text" class="lvnote" placeholder="Remarque (facultatif)" data-lv-n="1" data-id="' + id + '" data-day="' + dd + '" value="' + esc(sv.note || '') + '" maxlength="200" autocomplete="off" aria-label="Remarque"></div></div>';
 }
+function vLvCmdCard(x) {
+  var c = x.cmd, cl = c.client || {}, L = c.livraison || {}, done = c.statut === 'livree', sv = LSUIVI.get(c.id, x.day || x.yr), reste = coReste(c), id = esc(c.id);
+  var last = done && (c.historique || []).filter(function (h) { return h.statut === 'livree'; }).pop();
+  return '<div class="lvcard cmd' + (done ? ' done' : '') + '"><div class="row-between"><span><span class="mvtag tr">Commande</span> <strong>n° ' + esc(c.numero || '…') + '</strong>' + (L.creneau ? ' · ' + esc(L.creneau) : '') + '</span>' +
+    '<span class="lvstat' + (done ? ' done' : '') + '">' + (done ? 'Livrée' + (last ? ' le ' + esc(hsDm(last.le)) : '') : c.statut === 'prete' ? 'À livrer · prête' : 'À livrer · à préparer') + '</span></div>' +
+    '<p><strong>' + esc(cl.nom || '?') + '</strong>' + (L.adresse ? ' · ' + esc(L.adresse) : '') + (cl.tel ? ' · <a href="tel:' + esc(String(cl.tel).replace(/\s/g, '')) + '">' + esc(cl.tel) + '</a>' : '') + '</p>' +
+    '<p class="coart">' + ((c.lignes || []).filter(function (l) { return !isLivLine(l); }).map(function (l) { return esc(l.quantite + ' × ' + l.libelle); }).join(' · ') || '—') + '</p>' +
+    '<p class="num">' + (reste > 0.004 ? '<span class="bad">Reste à payer ' + money(reste) + '</span>' : '<span class="good">Payée</span>') + (c.note ? ' · <span class="faint">' + esc(c.note) + '</span>' : '') + '</p>' +
+    '<div class="fasuivi"><label class="chk"><input type="checkbox" data-lv-cmd="' + id + '"' + (done ? ' checked' : '') + '> Livrée</label>' +
+    '<input type="text" class="lvnote" placeholder="Remarque (facultatif)" data-lv-n="1" data-id="' + id + '" data-day="' + esc(x.day || x.yr) + '" value="' + esc(sv.note || '') + '" maxlength="200" autocomplete="off" aria-label="Remarque">' +
+    '<button class="btn sm" data-a="sub" data-v="sapin/commandes">Voir les commandes</button></div></div>';
+}
 function lvCsv() {
   var rows = [['Jour', 'Heure', 'Stand', 'N° vente', 'Nom', 'Adresse', 'Téléphone', 'Articles à livrer', 'Paiement', 'Reste à payer (€)', 'Livraison ajoutée après coup', 'Statut', 'Livrée le', 'Remarque']];
-  lvFiltered(lvAll()).forEach(function (x) { var v = x.v, c = v.livraison || {}, sv = LSUIVI.get(v.id, x.day), pay = lvPay(x);
+  lvFiltered(lvAll()).forEach(function (x) {
+    if (x.cmd) { var k = x.cmd, kc = k.client || {}, kl = k.livraison || {}, ks = LSUIVI.get(k.id, x.day || x.yr), kr = coReste(k);
+      rows.push([x.day, kl.creneau || '', 'Commande', 'commande ' + (k.numero || ''), kc.nom || '', kl.adresse || '', kc.tel || '', (k.lignes || []).filter(function (l) { return !isLivLine(l); }).map(function (l) { return l.quantite + ' x ' + l.libelle; }).join(', '), kr > 0.004 ? 'Reste à payer' : 'Payée', kr > 0.004 ? kr : '', '', k.statut === 'livree' ? 'Livrée' : 'À livrer', '', ks.note || k.note || '']); return; }
+    var v = x.v, c = v.livraison || {}, sv = LSUIVI.get(v.id, x.day), pay = lvPay(x);
     rows.push([x.day, v.horodatage.slice(11, 16), x.pvNom, hsNum(v.id), c.nom || '', c.adresse || '', c.telephone || '', lvArts(v).join(', '), pay.t.replace(/ /g, ' '), pay.k === 'np' ? vNonPaye(v) : '', v.livraisonAjoutee ? 'oui' : '', sv.livree ? 'Livrée' : 'À livrer', sv.livreeLe ? String(sv.livreeLe).slice(0, 10) : '', sv.note || '']); });
   download('livraisons-sapins_' + LV.year + (LV.f.from || LV.f.to ? '_' + (LV.f.from || 'debut') + '_' + (LV.f.to || 'fin') : '') + '.csv', rows); toast('Liste des livraisons téléchargée');
 }
@@ -2758,6 +2817,7 @@ document.addEventListener('click', function (e) {
 document.addEventListener('change', function (e) {
   var t = e.target; if (!t.getAttribute) return;
   if (t.hasAttribute('data-lv-d')) { LV.f[t.getAttribute('data-lv-d')] = t.value; render(); }
+  else if (t.hasAttribute('data-lv-cmd')) { var cid = t.getAttribute('data-lv-cmd'), cc = coDoc().commandes[cid]; if (!cc || CO.path !== coPath(LV.year)) { toast('Commande introuvable : actualisez'); render(); return; } coSetStatus(cid, t.checked ? 'livree' : 'prete'); toast(t.checked ? 'Commande marquée livrée' : 'Commande remise « à livrer »'); }
   else if (t.hasAttribute('data-lv-c')) { LSUIVI.op(t.getAttribute('data-id'), t.getAttribute('data-day'), { livree: t.checked, livreeLe: t.checked ? new Date().toISOString() : null }); toast(t.checked ? 'Livraison marquée livrée' : 'Livraison remise « à livrer »'); }
   else if (t.hasAttribute('data-lv-n')) { var cur = LSUIVI.get(t.getAttribute('data-id'), t.getAttribute('data-day')); if ((cur.note || '') !== t.value.trim()) { LSUIVI.op(t.getAttribute('data-id'), t.getAttribute('data-day'), { note: t.value.trim() }); toast('Remarque enregistrée'); } }
 });
