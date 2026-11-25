@@ -2406,8 +2406,8 @@ function vCoForm() {
     '<div class="cogrid"><div><label class="fl" for="coNom">Nom du client<span class="req" aria-hidden="true"> *</span></label><input type="text" id="coNom" data-cof="nom" value="' + esc(f.nom) + '" required autocomplete="off"></div>' +
     '<div><label class="fl" for="coTel">Téléphone</label><input type="text" inputmode="tel" id="coTel" data-cof="tel" value="' + esc(f.tel) + '" autocomplete="off"></div>' +
     '<div><label class="fl" for="coMail">E-mail</label><input type="text" inputmode="email" id="coMail" data-cof="email" value="' + esc(f.email) + '" autocomplete="off"></div></div>' +
-    '<span class="fl">Remise au client</span><div class="rsel"><button type="button" class="chip' + (f.mode === 'livraison' ? ' on' : '') + '" data-co="mode" data-v="livraison">Livraison</button><button type="button" class="chip' + (f.mode === 'retrait' ? ' on' : '') + '" data-co="mode" data-v="retrait">Retrait sur un stand</button></div>' +
-    (f.mode === 'livraison'
+    '<span class="fl">Remise au client<span class="req" aria-hidden="true"> *</span></span><div class="rsel" role="group" aria-label="Remise au client (obligatoire)"><button type="button" class="chip' + (f.mode === 'livraison' ? ' on' : '') + '" data-co="mode" data-v="livraison">Livraison</button><button type="button" class="chip' + (f.mode === 'retrait' ? ' on' : '') + '" data-co="mode" data-v="retrait">Retrait sur un stand</button></div>' +
+    (!f.mode ? '<p class="hint">Choisissez Livraison ou Retrait sur un stand.</p>' : f.mode === 'livraison'
       ? '<div class="cogrid"><div class="wide"><label class="fl" for="coAdr">Adresse de livraison<span class="req" aria-hidden="true"> *</span></label><input type="text" id="coAdr" data-cof="adresse" aria-required="true" value="' + esc(f.adresse) + '" autocomplete="off"></div><div><label class="fl" for="coDate">Date de livraison</label><input type="date" id="coDate" data-cof="date" value="' + esc(f.date) + '"></div><div><label class="fl" for="coCren">Créneau</label><input type="text" id="coCren" data-cof="creneau" value="' + esc(f.creneau) + '" placeholder="Ex. 14h–16h" autocomplete="off"></div></div>'
       : '<div class="cogrid"><div><label class="fl" for="coStand">Stand</label><select id="coStand" data-cof="stand">' + stands.map(function (p) { return '<option value="' + esc(p.id) + '"' + (f.stand === p.id ? ' selected' : '') + '>' + esc(p.nom) + '</option>'; }).join('') + '</select></div><div><label class="fl" for="coDate">Date de retrait</label><input type="date" id="coDate" data-cof="date" value="' + esc(f.date) + '"></div></div>') +
     '<span class="fl">Articles<span class="req" aria-hidden="true"> *</span> <span class="faint">(au moins un)</span></span>' + (rows ? '<div class="scroll"><table class="stab bil sstab"><thead><tr><th>Article</th><th class="r">Prix</th><th class="r">Quantité</th></tr></thead><tbody>' + rows + '</tbody></table></div>' : '<p class="empty">Catalogue de la Caisse Sapins indisponible.</p>') +
@@ -2419,9 +2419,18 @@ function vCoForm() {
     '<div class="cbtns"><button class="pick" type="submit">' + (f.id ? 'Enregistrer les modifications' : 'Enregistrer la commande') + '</button><button class="btn" type="button" data-co="cancelForm">Annuler</button></div></form></section>';
 }
 function coAfter() { var f = CO.form; if (f && f.focus) { var i = document.getElementById(f.focus); f.focus = null; if (i) i.focus(); } }
+/* Article « Livraison » du catalogue : quantité 1 par défaut quand on choisit Livraison, retirée si on repasse en retrait (si elle avait été mise automatiquement) */
+function coLivId() { var id = null; if (CO.cat) CO.cat.categories.forEach(function (k) { k.produits.forEach(function (p) { if (!id && p.actif !== false && isLivProduct(p)) id = p.id; }); }); return id; }
+function coSetMode(m) {
+  var f = CO.form, lid = coLivId(); f.mode = m; if (!lid) return;
+  var cur = parseQ(f.q[lid] || '');
+  if (m === 'livraison' && !cur) { f.q[lid] = '1'; f.livAuto = true; }
+  else if (m === 'retrait' && f.livAuto && String(f.q[lid]) === '1') { delete f.q[lid]; f.livAuto = false; }
+}
 function coSubmit() {
   var f = CO.form, nom = (f.nom || '').trim();
   if (!nom) { toast('Indiquez le nom du client'); return; }
+  if (f.mode !== 'livraison' && f.mode !== 'retrait') { toast('Choisissez la remise au client : livraison ou retrait'); return; }
   var lignes = [], bad = false;
   Object.keys(f.q).forEach(function (pid) { var n = parseQ(f.q[pid]); if (n == null || n === 0) return; if (isNaN(n) || n < 0 || Math.round(n) !== n) { bad = true; return; } var pu = +f.prix[pid] || 0; lignes.push({ produitId: pid, libelle: f.lib[pid] || pid, prixUnitaire: pu, quantite: n, total: Math.round(pu * n * 100) / 100 }); });
   if (bad) { toast('Quantités : nombres entiers'); return; }
@@ -2457,7 +2466,7 @@ function coCsv() {
   download('commandes-sapins_' + CO.year + '.csv', rows); toast('Fichier pour Excel téléchargé');
 }
 function coFormFrom(c) {
-  var f = { id: c ? c.id : null, numero: c ? c.numero : null, nom: '', tel: '', email: '', mode: 'livraison', adresse: '', date: '', creneau: '', stand: '', q: {}, prix: {}, lib: {}, paye: '', pmode: '', statut: 'a-preparer', note: '', focus: 'coNom' };
+  var f = { id: c ? c.id : null, numero: c ? c.numero : null, nom: '', tel: '', email: '', mode: '', adresse: '', date: '', creneau: '', stand: '', q: {}, prix: {}, lib: {}, paye: '', pmode: '', statut: 'a-preparer', note: '', focus: 'coNom' };
   var st = CO.cat ? CO.cat.pointsDeVente.filter(function (p) { return p.actif !== false; }) : [];
   f.stand = (st.filter(function (p) { return /spy/i.test(p.nom); })[0] || st[0] || {}).id || '';
   if (c) {
@@ -2479,7 +2488,7 @@ document.addEventListener('click', function (e) {
   else if (a === 'new') { CO.form = coFormFrom(null); render(); window.scrollTo(0, 0); }
   else if (a === 'edit') { var c = coDoc().commandes[v]; if (c) { CO.form = coFormFrom(Object.assign({ id: v }, c)); render(); window.scrollTo(0, 0); } }
   else if (a === 'cancelForm') { CO.form = null; render(); }
-  else if (a === 'mode') { CO.form.mode = v; render(); }
+  else if (a === 'mode') { coSetMode(v); render(); }
   else if (a === 'status') { coSetStatus(v, b.getAttribute('data-s')); toast(coStatut(b.getAttribute('data-s'))); }
   else if (a === 'askCancel') { CO.confirm = { id: v, kind: 'cancel' }; render(); }
   else if (a === 'askDel') { CO.confirm = { id: v, kind: 'del' }; render(); }
