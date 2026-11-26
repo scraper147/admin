@@ -243,7 +243,7 @@ td>.sub{display:block;font-size:12px;color:var(--muted);font-weight:400}
 .lvcard{border:1px solid var(--line);border-left:5px solid var(--gold);border-radius:12px;padding:12px 14px;margin:0 0 10px;background:var(--surface)}
 .lvcard.done{border-left-color:var(--green)}.lvcard p{margin:6px 0 0;overflow-wrap:anywhere}.lvcard .row-between{gap:8px;flex-wrap:wrap}.lvcard a{color:inherit}
 .lvstat{font-size:13px;font-weight:700;padding:3px 10px;border-radius:12px;background:var(--gold);color:#1A1408}.lvstat.done{background:var(--green);color:#fff}
-.lvnote{flex:1 1 200px;max-width:420px}.coenc{color:var(--green);font-weight:600}.copays{font-size:14px;color:var(--muted)}.cogood{border-color:var(--green);color:var(--green)}.copay{margin-top:10px;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--soft)}.copay input,.copay select{width:100%;max-width:260px}.copay .rsel{margin:4px 0 8px}.lvcard.cmd{border-left-style:double;border-left-width:6px}
+.lvnote{flex:1 1 200px;max-width:420px}.coenc{color:var(--green);font-weight:600}.hstidy{max-width:1180px;margin:10px auto 0;display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center;color:var(--band-muted);font-size:14px}.copays{font-size:14px;color:var(--muted)}.cogood{border-color:var(--green);color:var(--green)}.copay{margin-top:10px;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--soft)}.copay input,.copay select{width:100%;max-width:260px}.copay .rsel{margin:4px 0 8px}.lvcard.cmd{border-left-style:double;border-left-width:6px}
 .sssub td{font-weight:700;background:var(--soft);border-top:2px solid var(--line)}
 @media print{body.printliv .lvcard{break-inside:avoid;border-color:#999}body.printliv .lvnote:placeholder-shown{display:none}}
 .req{color:var(--red);font-weight:700}.reqnote{margin:8px 0 0;font-size:13px;color:var(--muted)}.coform form>.cbtns{margin-top:18px}
@@ -1871,6 +1871,30 @@ document.addEventListener('keydown', function (e) {
    Un fichier de ventes de la Caisse Sapins (dépôt ventes, dossier sapin/, ou fichier de l'appareil),
    affiché comme l'Historique de la caisse, mais de la première à la dernière vente de la journée. */
 var HS = { files: null, loading: false, err: null, sel: null, data: null, name: null, busy: false, loadErr: null };
+/* Fichier de ventes Sapins à l'ancien emplacement (racine de sapin/, avant la caisse v42) */
+function svIsOld(path) { return /^sapin\/[^/]+\.json$/i.test(path || ''); }
+/* Ranger les anciens fichiers : GET (contenu + sha), PUT au nouveau chemin (si absent), puis DELETE de l'ancien avec son sha */
+function svTidy() {
+  var tok = getToken(); if (!tok || (HS.mv && HS.mv.busy)) return;
+  var old = (HS.files || []).filter(function (f) { return svIsOld(f.path); }), have = {};
+  (HS.files || []).forEach(function (f) { if (/^sapin\/ventes\/[^/]+$/i.test(f.path)) have[f.path.split('/').pop()] = 1; });
+  HS.mv = { busy: true, done: 0, total: old.length }; render();
+  var moved = 0, skipped = 0, failed = 0, i = 0;
+  function enc(p) { return p.split('/').map(encodeURIComponent).join('/'); }
+  function next() {
+    if (i >= old.length) {
+      HS.mv = { res: moved + ' fichier' + (moved > 1 ? 's' : '') + ' rangé' + (moved > 1 ? 's' : '') + ' dans sapin/ventes/' + (skipped ? ', ' + skipped + ' laissé' + (skipped > 1 ? 's' : '') + ' (déjà présent' + (skipped > 1 ? 's' : '') + ' sous le même nom)' : '') + (failed ? ', ' + failed + ' en erreur' : '') + '.' };
+      HS.files = null; SV.loaded = false; FA.files = null; hsList(); return;
+    }
+    var f = old[i++], name = f.path.split('/').pop(), np = 'sapin/ventes/' + name;
+    if (have[name]) { skipped++; HS.mv.done++; render(); next(); return; }
+    ghFetch('/repos/' + SALES_REPO + '/contents/' + enc(f.path), {}, tok).then(function (j) {
+      return ghFetch('/repos/' + SALES_REPO + '/contents/' + enc(np), { method: 'PUT', body: JSON.stringify({ message: 'Rangement dans sapin/ventes/ (Admin)', content: String(j.content || '').replace(/\s/g, '') }) }, tok)
+        .then(function () { return ghFetch('/repos/' + SALES_REPO + '/contents/' + enc(f.path), { method: 'DELETE', body: JSON.stringify({ message: 'Rangement dans sapin/ventes/ (Admin) : ancien fichier', sha: j.sha }) }, tok); });
+    }).then(function () { moved++; }, function (e) { if (e && e.status === 422) skipped++; else failed++; }).then(function () { HS.mv.done++; render(); next(); });
+  }
+  next();
+}
 function hsParse(f) {
   var name = f.path.split('/').pop(), m = /^(\d{4}-\d{2}-\d{2})_([^_]+)_([^_]+)_([^_.]+)\.json$/i.exec(name), b = bghParse(f.path);
   var stand = m ? m[3].replace(/-/g, ' ') : b.label;
@@ -1920,13 +1944,19 @@ function renderSapHist() {
     var byDay = {}; HS.files.forEach(function (f) { var k = f.date || 'sans-date'; (byDay[k] = byDay[k] || []).push(f); });
     opts = '<select id="hsSel" data-hs="sel" aria-label="Fichier de ventes">' + (HS.sel ? '' : '<option value="">Choisir un fichier…</option>') + Object.keys(byDay).sort().reverse().map(function (d) {
       return '<optgroup label="' + esc(d === 'sans-date' ? 'Sans date' : longDate(d) + ' ' + d.slice(0, 4)) + '">' + byDay[d].map(function (f) {
-        return '<option value="' + esc(f.path) + '"' + (HS.sel === f.path ? ' selected' : '') + '>' + esc((f.date ? shortDate(f.date) + ' · ' : '') + f.stand + (f.app ? ' (appareil ' + f.app + ')' : '')) + '</option>'; }).join('') + '</optgroup>';
+        return '<option value="' + esc(f.path) + '"' + (HS.sel === f.path ? ' selected' : '') + '>' + esc((f.date ? shortDate(f.date) + ' · ' : '') + f.stand + (f.app ? ' (appareil ' + f.app + ')' : '') + (svIsOld(f.path) ? ' · ancien emplacement' : '')) + '</option>'; }).join('') + '</optgroup>';
     }).join('') + '</select>';
   }
   var picker = '<div class="hspick">' + (opts ? '<label class="fl" for="hsSel">Fichier de ventes</label>' + opts : '') +
     '<div class="cbtns">' + (getToken() ? '<button class="ghost sm" data-hs="reload"' + (HS.loading ? ' disabled' : '') + '>' + (HS.loading ? 'Chargement…' : 'Actualiser la liste') + '</button>' : '') +
     '<label class="ghost sm lab">Ouvrir un fichier de l’appareil<input type="file" accept=".json,application/json" data-hsfile></label></div></div>';
-  var band = '<div class="band"><div class="band-top"><h1>Historique de vente</h1></div>' + picker + '</div>';
+  var nOld = (HS.files || []).filter(function (f) { return svIsOld(f.path); }).length;
+  var mv = HS.mv;
+  var tidy = !getToken() || !(nOld || mv) ? '' : '<div class="hstidy">' + (mv && mv.busy ? '<span>Rangement… ' + mv.done + ' / ' + mv.total + '</span>'
+    : mv && mv.res ? '<span>' + esc(mv.res) + '</span> <button class="ghost sm" data-hs="mvOk">OK</button>'
+    : mv && mv.ask ? '<span>Déplacer ' + nOld + ' fichier' + (nOld > 1 ? 's' : '') + ' de <span class="mono">sapin/</span> vers <span class="mono">sapin/ventes/</span> ? Un fichier déjà présent dans <span class="mono">sapin/ventes/</span> sous le même nom n’est pas touché.</span> <button class="ghost sm" data-hs="mvGo">Ranger</button> <button class="ghost sm" data-hs="mvNo">Annuler</button>'
+    : '<span>' + nOld + ' fichier' + (nOld > 1 ? 's' : '') + ' de ventes à l’ancien emplacement (<span class="mono">sapin/</span>).</span> <button class="ghost sm" data-hs="mvAsk">Ranger les anciens fichiers de ventes</button>') + '</div>';
+  var band = '<div class="band"><div class="band-top"><h1>Historique de vente</h1></div>' + picker + tidy + '</div>';
   var main = '';
   if (!getToken()) main += '<div class="alerts"><div class="alert">Appareil verrouillé : la liste des fichiers du dépôt n’est pas disponible. <button class="btn sm" data-a="go" data-v="parametres">Déverrouiller</button> Vous pouvez aussi ouvrir un fichier de l’appareil.</div></div>';
   if (HS.err) main += '<div class="alerts"><div class="alert err">' + HS.err + '</div></div>';
@@ -1966,7 +1996,11 @@ function vSapHist(d) {
 }
 document.addEventListener('click', function (e) {
   var b = e.target.closest('[data-hs]'); if (!b || b.disabled || b.tagName === 'SELECT') return;
-  if (b.getAttribute('data-hs') === 'reload') { HS.files = null; hsList(); }
+  var ha = b.getAttribute('data-hs');
+  if (ha === 'reload') { HS.files = null; hsList(); }
+  else if (ha === 'mvAsk') { HS.mv = { ask: true }; render(); }
+  else if (ha === 'mvNo' || ha === 'mvOk') { HS.mv = null; render(); }
+  else if (ha === 'mvGo') svTidy();
 });
 document.addEventListener('change', function (e) {
   var t = e.target;
@@ -2017,7 +2051,8 @@ function cxSalesCash(d) {
 function cxLoadSales() {
   var date = CX.date, pdv = CX.pdv, tok = getToken(); if (!tok) return;
   CX.salesLoading = true;
-  ghFetch('/repos/' + SALES_REPO + '/contents/sapin', {}, tok).then(function (l) {
+  var lst = function (dir) { return ghFetch('/repos/' + SALES_REPO + '/contents/' + dir, {}, tok).then(function (l) { return Array.isArray(l) ? l : []; }, function (e) { if (e.status === 404) return []; throw e; }); };
+  Promise.all([lst('sapin/ventes'), lst('sapin')]).then(function (ls) { return ls[0].concat(ls[1]); }).then(function (l) {
     var hits = (Array.isArray(l) ? l : []).filter(function (f) { return f.type === 'file' && f.name.indexOf(date + '_' + pdv + '_') === 0 && /\.json$/i.test(f.name); });
     return Promise.all(hits.map(function (f) { return bghRaw(f.path, tok).then(function (t) { try { return JSON.parse(t); } catch (e) { return null; } }); }));
   }, function (e) { if (e.status === 404) return []; throw e; }).then(function (docs) {
@@ -4118,6 +4153,7 @@ function bghParse(path) {
   var label = name.replace(/\.json$/i, '').replace(/(\d{4})-?(\d{2})-?(\d{2})/, '').replace(/^ventes/i, '').replace(/[_\-]+/g, ' ').trim();
   var parts = path.split('/'), top = parts.length > 1 ? parts[0] : '', sub = parts.length > 2 ? parts.slice(1, -1).join('/') : '';
   if (top === 'soiree') label = label.replace(/\s+[a-z0-9]{3,8}$/i, '') || label;
+  if (top === 'sapin') sub = sub === 'ventes' ? '' : sub === '' ? 'ancien emplacement' : sub; // v55 : ventes Sapins rangées dans sapin/ventes/ (caisse v42)
   return { path: path, name: name, date: date, label: label || name, dir: sub, top: top };
 }
 function bghOpen() {
