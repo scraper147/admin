@@ -243,7 +243,7 @@ td>.sub{display:block;font-size:12px;color:var(--muted);font-weight:400}
 .lvcard{border:1px solid var(--line);border-left:5px solid var(--gold);border-radius:12px;padding:12px 14px;margin:0 0 10px;background:var(--surface)}
 .lvcard.done{border-left-color:var(--green)}.lvcard p{margin:6px 0 0;overflow-wrap:anywhere}.lvcard .row-between{gap:8px;flex-wrap:wrap}.lvcard a{color:inherit}
 .lvstat{font-size:13px;font-weight:700;padding:3px 10px;border-radius:12px;background:var(--gold);color:#1A1408}.lvstat.done{background:var(--green);color:#fff}
-.lvnote{flex:1 1 200px;max-width:420px}.coenc{color:var(--green);font-weight:600}.lvcard.cmd{border-left-style:double;border-left-width:6px}
+.lvnote{flex:1 1 200px;max-width:420px}.coenc{color:var(--green);font-weight:600}.copays{font-size:14px;color:var(--muted)}.cogood{border-color:var(--green);color:var(--green)}.copay{margin-top:10px;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--soft)}.copay input,.copay select{width:100%;max-width:260px}.copay .rsel{margin:4px 0 8px}.lvcard.cmd{border-left-style:double;border-left-width:6px}
 .sssub td{font-weight:700;background:var(--soft);border-top:2px solid var(--line)}
 @media print{body.printliv .lvcard{break-inside:avoid;border-color:#999}body.printliv .lvnote:placeholder-shown{display:none}}
 .req{color:var(--red);font-weight:700}.reqnote{margin:8px 0 0;font-size:13px;color:var(--muted)}.coform form>.cbtns{margin-top:18px}
@@ -2397,12 +2397,46 @@ function vCoCard(c) {
     '<span class="costat st-' + st + '">' + esc(c.mode === 'retrait' && st === 'livree' ? 'Retirée' : st === 'livree' ? 'Livrée' : coStatut(st)) + '</span></div>' +
     '<p>' + where + '</p>' +
     '<p class="coart">' + (c.lignes || []).map(function (l) { return esc(l.quantite + ' × ' + l.libelle); }).join(' · ') + '</p>' +
-    '<p class="num"><strong>' + money(+c.total || 0) + '</strong>' + (c.paye && +c.paye.montant ? ' · payé ' + money(+c.paye.montant) + (c.paye.mode ? ' (' + esc((CO_PAY.filter(function (x) { return x.id === c.paye.mode; })[0] || {}).nom || c.paye.mode) + ')' : '') : '') + (reste > 0.004 ? ' · <span class="bad">reste ' + money(reste) + '</span>' : reste < -0.004 ? ' · <span class="warnt">trop payé ' + money(-reste) + '</span>' : ' · <span class="good">payé</span>') + '</p>' +
+    '<p class="num"><strong>' + money(+c.total || 0) + '</strong>' + (c.paye && +c.paye.montant ? ' · payé ' + money(+c.paye.montant) + (c.paye.mode && !(Array.isArray(c.paye.paiements) && c.paye.paiements.length) ? ' (' + esc((CO_PAY.filter(function (x) { return x.id === c.paye.mode; })[0] || {}).nom || c.paye.mode) + ')' : '') : '') + (reste > 0.004 ? ' · <span class="bad">reste ' + money(reste) + '</span>' : reste < -0.004 ? ' · <span class="warnt">trop payé ' + money(-reste) + '</span>' : ' · <span class="good">payé</span>') + '</p>' +
+    (c.paye && Array.isArray(c.paye.paiements) && c.paye.paiements.length ? '<p class="copays">' + c.paye.paiements.map(function (x) { return esc(coPayTxt(x)); }).join(' · ') + '</p>' : '') +
     (c.note ? '<p class="faint">' + esc(c.note) + '</p>' : '') + (enc ? '<p class="coenc">Encaissée à la caisse' + (enc.pointDeVente && enc.pointDeVente.nom ? ' de ' + esc(enc.pointDeVente.nom) : '') + (enc.horodatage ? ' le ' + esc(hsDm(enc.horodatage)) + ' à ' + esc(String(enc.horodatage).slice(11, 16)) : '') + (enc.venteId ? ' · vente n° ' + esc(hsNum(enc.venteId)) : '') + (enc.montant != null ? ' · ' + money(+enc.montant || 0) + (enc.paiement && enc.paiement.mode ? ' (' + esc(hsPayTxt(enc.paiement)) + ')' : '') : '') + '</p>' : '') +
-    (conf ? '<div class="cbtns"><span>' + (conf === 'del' ? (enc ? 'Cette commande a déjà été encaissée à la caisse. ' : '') + 'Supprimer définitivement cette commande ?' : 'Annuler cette commande ?') + '</span><button class="btn danger sm" data-co="' + (conf === 'del' ? 'del' : 'cancelOrder') + '" data-v="' + esc(c.id) + '">' + (conf === 'del' ? 'Supprimer' : 'Annuler la commande') + '</button><button class="btn sm" data-co="noconf">Non</button></div>'
-      : '<div class="cbtns">' + (next ? '<button class="pick sm2" data-co="status" data-v="' + esc(c.id) + '" data-s="' + next[0] + '">' + next[1] + '</button>' : '') + (enc ? '' : '<button class="btn sm" data-co="edit" data-v="' + esc(c.id) + '">Modifier</button>' +
+    (CO.payForm && CO.payForm.id === c.id ? vCoPayForm(c) : conf ? '<div class="cbtns"><span>' + (conf === 'del' ? (enc ? 'Cette commande a déjà été encaissée à la caisse. ' : '') + 'Supprimer définitivement cette commande ?' : 'Annuler cette commande ?') + '</span><button class="btn danger sm" data-co="' + (conf === 'del' ? 'del' : 'cancelOrder') + '" data-v="' + esc(c.id) + '">' + (conf === 'del' ? 'Supprimer' : 'Annuler la commande') + '</button><button class="btn sm" data-co="noconf">Non</button></div>'
+      : '<div class="cbtns">' + (next ? '<button class="pick sm2" data-co="status" data-v="' + esc(c.id) + '" data-s="' + next[0] + '">' + next[1] + '</button>' : '') +
+        (!enc && st !== 'annulee' && reste > 0.004 ? '<button class="btn sm cogood" data-co="payOpen" data-v="' + esc(c.id) + '">Marquer payée</button>' : '') + (enc ? '' : '<button class="btn sm" data-co="edit" data-v="' + esc(c.id) + '">Modifier</button>' +
         (st !== 'annulee' && st !== 'livree' ? '<button class="btn sm" data-co="askCancel" data-v="' + esc(c.id) + '">Annuler</button>' : '<button class="btn sm" data-co="status" data-v="' + esc(c.id) + '" data-s="a-preparer">Remettre à préparer</button>')) +
         '<button class="x" data-co="askDel" data-v="' + esc(c.id) + '">Supprimer</button></div>') + '</div>';
+}
+/* Paiement noté après coup (ex. après la livraison) : au stand, par virement ou au livreur */
+var CO_VIA = [{ id: 'stand', nom: 'Au stand' }, { id: 'virement', nom: 'Par virement' }, { id: 'livreur', nom: 'Au livreur' }];
+function coPayTxt(x) {
+  var via = x.via === 'stand' ? 'au stand' + (x.stand && x.stand.nom ? ' de ' + x.stand.nom : '') : x.via === 'livreur' ? 'au livreur' : x.via === 'virement' ? 'par virement' : x.via === 'caisse' ? 'à la caisse' : 'à la commande';
+  return (money(+x.montant || 0) + ' ' + via + (x.mode ? ' (' + (x.mode === 'cash' ? 'cash' : x.mode === 'bancontact' ? 'Bancontact' : x.mode) + ')' : '') + (x.le ? ' le ' + hsDm(x.le) : '')).replace(/ /g, ' ');
+}
+function vCoPayForm(c) {
+  var f = CO.payForm, stands = CO.cat ? CO.cat.pointsDeVente.filter(function (p) { return p.actif !== false; }) : [], reste = coReste(c);
+  return '<div class="copay"><span class="fl">Paiement reçu<span class="req" aria-hidden="true"> *</span></span><div class="rsel" role="group" aria-label="Où le paiement a été fait (obligatoire)">' +
+    CO_VIA.map(function (v) { return '<button type="button" class="chip' + (f.via === v.id ? ' on' : '') + '" data-co="payVia" data-v="' + v.id + '">' + v.nom + '</button>'; }).join('') + '</div>' +
+    (f.via === 'stand' ? '<label class="fl" for="coPayStand">Stand</label><select id="coPayStand" data-copf="stand">' + stands.map(function (p) { return '<option value="' + esc(p.id) + '"' + (f.stand === p.id ? ' selected' : '') + '>' + esc(p.nom) + '</option>'; }).join('') + '</select>' : '') +
+    (f.via === 'stand' || f.via === 'livreur' ? '<span class="fl">Mode</span><div class="rsel"><button type="button" class="chip' + (f.mode === 'cash' ? ' on' : '') + '" data-co="payMode" data-v="cash">Cash</button><button type="button" class="chip' + (f.mode === 'bancontact' ? ' on' : '') + '" data-co="payMode" data-v="bancontact">Bancontact</button></div>' : '') +
+    '<label class="fl" for="coPayM">Montant (€)</label><input type="text" inputmode="decimal" id="coPayM" data-copf="montant" value="' + esc(f.montant) + '" autocomplete="off"><p class="hint">Reste à payer : ' + money(reste) + '. Un montant plus petit note un paiement partiel.</p>' +
+    (f.via === 'stand' ? '<p class="hint">Ce paiement est seulement noté sur la commande : il n’entre pas dans la caisse du stand.</p>' : '') +
+    '<div class="cbtns"><button class="pick sm2" data-co="paySave" data-v="' + esc(c.id) + '"' + (f.via ? '' : ' disabled') + '>Enregistrer le paiement</button><button class="btn sm" data-co="payCancel">Annuler</button></div></div>';
+}
+function coPaySave(id) {
+  var f = CO.payForm, c = coDoc().commandes[id]; if (!c || !f) return;
+  if (!f.via) { toast('Choisissez où le paiement a été fait'); return; }
+  var m = parsePrice(f.montant); if (isNaN(m) || m <= 0) { toast('Montant invalide'); return; }
+  var stand = f.via === 'stand' ? (CO.cat ? CO.cat.pointsDeVente : []).filter(function (p) { return p.id === f.stand; })[0] : null;
+  var v = clone(c), now = new Date().toISOString(), pay = v.paye && typeof v.paye === 'object' ? v.paye : { montant: 0, mode: '' };
+  var entry = { le: now, montant: Math.round(m * 100) / 100, via: f.via, source: 'admin' };
+  if (stand) entry.stand = { id: stand.id, nom: stand.nom };
+  if (f.via === 'stand' || f.via === 'livreur') entry.mode = f.mode || 'cash';
+  pay.paiements = (Array.isArray(pay.paiements) ? pay.paiements : (+pay.montant ? [{ montant: +pay.montant, via: pay.mode === 'virement' ? 'virement' : 'commande', mode: pay.mode && pay.mode !== 'virement' ? pay.mode : undefined }] : [])).concat([entry]);
+  pay.montant = Math.round(((+pay.montant || 0) + entry.montant) * 100) / 100;
+  pay.mode = f.via === 'virement' ? 'virement' : entry.mode; pay.lieu = f.via;
+  v.paye = pay; v.modifieLe = now; v.historique = (v.historique || []).concat([{ paiement: entry.montant, via: f.via, le: now }]);
+  CO.payForm = null; coOp({ t: 'set', id: id, v: v });
+  toast(coReste(v) > 0.004 ? 'Paiement partiel noté · reste ' + money(coReste(v)) : 'Commande marquée payée');
 }
 function coTotal(f) { var t = 0; Object.keys(f.q).forEach(function (pid) { var n = parseQ(f.q[pid]); var p = f.prix[pid]; if (n > 0 && p != null) t += n * p; }); return Math.round(t * 100) / 100; }
 function vCoForm() {
@@ -2458,6 +2492,7 @@ function coSubmit() {
     paye: { montant: Math.round(paye * 100) / 100, mode: paye > 0 ? f.pmode || '' : '' }, statut: st, note: (f.note || '').trim(),
     historique: (old && old.historique ? old.historique.slice() : []).concat(!old ? [{ statut: st, le: now }] : old.statut !== st ? [{ statut: st, le: now }] : []) };
   if (old) v.modifieLe = now;
+  if (old && old.paye && Array.isArray(old.paye.paiements) && Math.abs((+old.paye.montant || 0) - v.paye.montant) < 0.005) { v.paye.paiements = old.paye.paiements; v.paye.mode = old.paye.mode; v.paye.lieu = old.paye.lieu; } // détail des paiements gardé si le montant payé n'a pas changé
   var id = f.id || 'cmd-' + now.replace(/\D/g, '').slice(0, 14) + '-' + Math.random().toString(36).slice(2, 6);
   CO.form = null; coOp({ t: 'set', id: id, v: v });
   toast(old ? 'Commande modifiée' : 'Commande enregistrée');
@@ -2468,10 +2503,10 @@ function coSetStatus(id, s) {
   coOp({ t: 'set', id: id, v: v });
 }
 function coCsv() {
-  var rows = [['N°', 'Statut', 'Client', 'Téléphone', 'E-mail', 'Mode', 'Adresse / stand', 'Date', 'Créneau', 'Articles', 'Total (€)', 'Payé (€)', 'Paiement', 'Reste (€)', 'Remarque', 'Encaissée à la caisse']];
+  var rows = [['N°', 'Statut', 'Client', 'Téléphone', 'E-mail', 'Mode', 'Adresse / stand', 'Date', 'Créneau', 'Articles', 'Total (€)', 'Payé (€)', 'Paiement', 'Reste (€)', 'Remarque', 'Encaissée à la caisse', 'Paiements']];
   coList(coDoc()).sort(function (a, b) { return (a.numero || 0) - (b.numero || 0); }).forEach(function (c) {
     var cl = c.client || {};
-    rows.push([c.numero || '', coStatut(c.statut), cl.nom || '', cl.tel || '', cl.email || '', c.mode === 'retrait' ? 'Retrait' : 'Livraison', c.mode === 'retrait' ? (c.retrait && c.retrait.stand && c.retrait.stand.nom) || '' : (c.livraison && c.livraison.adresse) || '', coDate(c), c.livraison && c.livraison.creneau || '', (c.lignes || []).map(function (l) { return l.quantite + ' x ' + l.libelle; }).join(', '), +c.total || 0, c.paye && +c.paye.montant || 0, c.paye && c.paye.mode || '', coReste(c), c.note || '', c.encaissement ? [c.encaissement.pointDeVente && c.encaissement.pointDeVente.nom, c.encaissement.horodatage && String(c.encaissement.horodatage).slice(0, 16).replace('T', ' '), c.encaissement.venteId].filter(Boolean).join(' · ') : '']);
+    rows.push([c.numero || '', coStatut(c.statut), cl.nom || '', cl.tel || '', cl.email || '', c.mode === 'retrait' ? 'Retrait' : 'Livraison', c.mode === 'retrait' ? (c.retrait && c.retrait.stand && c.retrait.stand.nom) || '' : (c.livraison && c.livraison.adresse) || '', coDate(c), c.livraison && c.livraison.creneau || '', (c.lignes || []).map(function (l) { return l.quantite + ' x ' + l.libelle; }).join(', '), +c.total || 0, c.paye && +c.paye.montant || 0, c.paye && c.paye.mode || '', coReste(c), c.note || '', c.encaissement ? [c.encaissement.pointDeVente && c.encaissement.pointDeVente.nom, c.encaissement.horodatage && String(c.encaissement.horodatage).slice(0, 16).replace('T', ' '), c.encaissement.venteId].filter(Boolean).join(' · ') : '', c.paye && Array.isArray(c.paye.paiements) ? c.paye.paiements.map(coPayTxt).join(' ; ') : '']);
   });
   download('commandes-sapins_' + CO.year + '.csv', rows); toast('Fichier pour Excel téléchargé');
 }
@@ -2503,6 +2538,11 @@ document.addEventListener('click', function (e) {
   else if (a === 'askCancel') { CO.confirm = { id: v, kind: 'cancel' }; render(); }
   else if (a === 'askDel') { CO.confirm = { id: v, kind: 'del' }; render(); }
   else if (a === 'noconf') { CO.confirm = null; render(); }
+  else if (a === 'payOpen') { var pc = coDoc().commandes[v]; if (pc) { var st0 = CO.cat ? CO.cat.pointsDeVente.filter(function (p) { return p.actif !== false; }) : [], sd = pc.mode === 'retrait' && pc.retrait && pc.retrait.stand ? pc.retrait.stand.id : ((st0.filter(function (p) { return /spy/i.test(p.nom); })[0] || st0[0] || {}).id || ''); CO.confirm = null; CO.payForm = { id: v, via: '', stand: sd, mode: 'cash', montant: String(coReste(Object.assign({ id: v }, pc))).replace('.', ',') }; render(); } }
+  else if (a === 'payVia') { CO.payForm.via = v; render(); }
+  else if (a === 'payMode') { CO.payForm.mode = v; render(); }
+  else if (a === 'payCancel') { CO.payForm = null; render(); }
+  else if (a === 'paySave') coPaySave(v);
   else if (a === 'cancelOrder') { CO.confirm = null; coSetStatus(v, 'annulee'); toast('Commande annulée'); }
   else if (a === 'del') { CO.confirm = null; coOp({ t: 'del', id: v }); toast('Commande supprimée'); }
   else if (a === 'csv') coCsv();
@@ -2514,7 +2554,8 @@ document.addEventListener('input', function (e) {
   if (t.hasAttribute('data-cof')) CO.form[t.getAttribute('data-cof')] = t.value;
   else if (t.hasAttribute('data-coq')) { CO.form.q[t.getAttribute('data-coq')] = t.value; var el = document.getElementById('coTot'); if (el) el.innerHTML = 'Total : <strong>' + money(coTotal(CO.form)) + '</strong>'; }
 });
-document.addEventListener('change', function (e) { var t = e.target; if (CO.form && t.hasAttribute && t.hasAttribute('data-cof') && t.tagName === 'SELECT') CO.form[t.getAttribute('data-cof')] = t.value; });
+document.addEventListener('change', function (e) { var t = e.target; if (CO.form && t.hasAttribute && t.hasAttribute('data-cof') && t.tagName === 'SELECT') CO.form[t.getAttribute('data-cof')] = t.value; if (CO.payForm && t.hasAttribute && t.hasAttribute('data-copf')) CO.payForm[t.getAttribute('data-copf')] = t.value; });
+document.addEventListener('input', function (e) { var t = e.target; if (CO.payForm && t.hasAttribute && t.hasAttribute('data-copf')) CO.payForm[t.getAttribute('data-copf')] = t.value; });
 document.addEventListener('submit', function (e) { if (!e.target.closest('[data-co-form]')) return; e.preventDefault(); coSubmit(); });
 document.addEventListener('keydown', function (e) {
   var t = e.target; if (e.key !== 'Enter' || !t.hasAttribute || !t.hasAttribute('data-coq')) return;
