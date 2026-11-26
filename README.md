@@ -4,7 +4,7 @@ Application d'administration des caisses. Le menu principal a un module par acti
 
 - **Bar** : Catalogue, Bilan (Caisse Bar).
 - **Chlorophylle Night** : Catalogue, Stock (comptage par événement), Bilan (Caisse Soirée).
-- **Gestion sapin** : Catalogue, Stock, Caisse, Commandes, Factures, Livraisons, Bilan, Historique de vente (Caisse Sapins).
+- **Gestion sapin** : Catalogue, Stock, Caisse, Commandes, Factures, Livraisons, Bilan, Historique de vente, Ticket (Caisse Sapins).
 - **Paramètres**.
 
 Chaque Bilan et chaque Catalogue ne montre que sa caisse : un fichier d'une autre caisse est refusé avec un message qui indique où l'ouvrir.
@@ -121,6 +121,8 @@ Tout ce qui concerne la vente des sapins est regroupé dans le menu **Gestion sa
   - Les anciens fichiers (sans caisse ni tiroir) s'affichent sans ces sections. Ce Bilan est séparé de celui du menu Bilan : chacun garde ses propres fichiers. Un fichier de la Caisse Bar ou Soirée déposé ici est refusé avec un message (et inversement).
 
 - **Historique de vente** : choisissez un fichier de ventes (liste du dossier `sapin` du dépôt `ventes`, ou **Ouvrir un fichier de l'appareil**). Les ventes s'affichent comme dans l'Historique de la Caisse Sapins, mais de la première à la dernière de la journée : heure, numéro de vente, articles (remises, articles libres), remise ticket, livraison ajoutée ou payée à part, annulation et motif, paiement, total. En tête : nombre de ventes, total, cash et Bancontact.
+
+- **Ticket** : apparence du ticket imprimé par la Caisse Sapins : logo (taille ou image propre), nom, coordonnées, message d'en-tête, lignes affichées (n°, date, point de vente, nombre d'articles, paiement, reçu et rendu), TVA incluse, séparateurs, message de fin, message saisonnier (avec période), texte libre, QR code et son texte, mention, largeur du papier. Aperçu à côté. Chaque modification est publiée automatiquement dans `ticket.json` (dépôt `sapin`, à côté du catalogue) ; les caisses le reprennent avec le catalogue (après leur mise à jour).
 
 ## Mettre à jour l'app
 

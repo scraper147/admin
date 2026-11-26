@@ -247,6 +247,16 @@ td>.sub{display:block;font-size:12px;color:var(--muted);font-weight:400}
 .sssub td{font-weight:700;background:var(--soft);border-top:2px solid var(--line)}
 @media print{body.printliv .lvcard{break-inside:avoid;border-color:#999}body.printliv .lvnote:placeholder-shown{display:none}}
 .req{color:var(--red);font-weight:700}.reqnote{margin:8px 0 0;font-size:13px;color:var(--muted)}.coform form>.cbtns{margin-top:18px}
+.tkwrap{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr);gap:20px;margin-top:6px}@media (max-width:760px){.tkwrap{grid-template-columns:1fr}}
+.tkform input[type=text],.tkform select,.tkform textarea{width:100%}.tkform textarea{font:inherit;padding:10px;border:1px solid var(--line);border-radius:10px;background:var(--surface);color:var(--ink);resize:vertical}
+.tkside{position:sticky;top:12px;align-self:start}.tkh{margin:18px 0 4px;font-size:15px;border-top:1px solid var(--line);padding-top:12px}.tkh:first-child{margin-top:0;border-top:0;padding-top:0}
+.tkgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.tkgrid>div{min-width:0}.tkrow2{display:flex;gap:10px;align-items:center;flex-wrap:wrap}.tkrow2 input[type=file]{max-width:100%}
+.tkchks{display:grid;grid-template-columns:1fr 1fr;gap:6px 14px;margin:6px 0}.tkchk{display:flex;gap:8px;align-items:center;font-weight:600;cursor:pointer}.tkchk input{width:20px;height:20px}
+.tkpap{background:#fff;color:#111;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;line-height:1.5;padding:14px;border:1px dashed #bbb;border-radius:8px;margin:0 auto;overflow-wrap:anywhere}
+.tkpap img{max-height:110px;object-fit:contain;display:block;margin:0 auto 6px}.tkrow{display:flex;justify-content:space-between;gap:10px}.tkrow span{white-space:pre}.tkl{text-align:left}.tksep{color:#999;overflow:hidden;white-space:nowrap}
+.tktot{font-weight:800;font-size:15px}.tkbig{font-weight:800;font-size:18px;margin:4px 0}.tkmiss{color:#999;font-style:italic}.tkmsg{margin:6px 0}
+.tkqr{display:inline-block;width:64px;height:64px;line-height:64px;border:5px double #111;font-weight:800;margin:6px 0;background:repeating-linear-gradient(45deg,#fff 0 5px,#eee 5px 10px)}
+@media (max-width:420px){.tkgrid,.tkchks{grid-template-columns:1fr}}
 .cbadges{display:flex;flex-wrap:wrap;gap:4px;margin-top:4px}
 .cbadge{display:inline-block;font-size:11px;font-weight:700;padding:1px 7px;border-radius:6px;background:var(--soft);color:var(--muted);white-space:nowrap}
 .cbadge.warn{background:var(--gold-soft);color:var(--ink)}
@@ -1245,7 +1255,7 @@ var MOD = 'accueil';
 var SUBS = {
   bar: [{ id: 'catalogue', nom: 'Catalogue', render: function () { renderCatalogue(); } }, { id: 'bilan', nom: 'Bilan', render: function () { renderBilan(); } }],
   chloro: [{ id: 'catalogue', nom: 'Catalogue', render: function () { renderCatalogue(); } }, { id: 'stock', nom: 'Stock', render: function () { renderStock(); } }, { id: 'bilan', nom: 'Bilan', render: function () { renderBilan(); } }],
-  sapin: [{ id: 'catalogue', nom: 'Catalogue', render: function () { renderCatalogue(); } }, { id: 'stock', nom: 'Stock', render: function () { renderSapStock(); } }, { id: 'caisse', nom: 'Caisse', render: function () { renderSapCaisse(); } }, { id: 'commandes', nom: 'Commandes', render: function () { renderSapCommandes(); } }, { id: 'factures', nom: 'Factures', render: function () { renderSapFactures(); } }, { id: 'livraisons', nom: 'Livraisons', render: function () { renderSapLivraisons(); } }, { id: 'bilan', nom: 'Bilan', render: function () { renderBilan(); } }, { id: 'hist', nom: 'Historique de vente', render: function () { renderSapHist(); } }]
+  sapin: [{ id: 'catalogue', nom: 'Catalogue', render: function () { renderCatalogue(); } }, { id: 'stock', nom: 'Stock', render: function () { renderSapStock(); } }, { id: 'caisse', nom: 'Caisse', render: function () { renderSapCaisse(); } }, { id: 'commandes', nom: 'Commandes', render: function () { renderSapCommandes(); } }, { id: 'factures', nom: 'Factures', render: function () { renderSapFactures(); } }, { id: 'livraisons', nom: 'Livraisons', render: function () { renderSapLivraisons(); } }, { id: 'bilan', nom: 'Bilan', render: function () { renderBilan(); } }, { id: 'hist', nom: 'Historique de vente', render: function () { renderSapHist(); } }, { id: 'ticket', nom: 'Ticket', render: function () { renderSapTicket(); } }]
 };
 var SUB = { bar: 'catalogue', chloro: 'catalogue', sapin: 'catalogue' };
 /* Anciennes adresses (#bilan, #catalogue, #stock) : renvoyées vers le nouveau menu */
@@ -2835,6 +2845,162 @@ document.addEventListener('input', function (e) {
   LV.f.q = t.value; var pos = t.selectionStart; render(); var i = document.querySelector('[data-lv-q]'); if (i) { i.focus(); try { i.setSelectionRange(pos, pos); } catch (er) {} }
 });
 document.addEventListener('keydown', function (e) { if (e.key === 'Enter' && e.target.hasAttribute && e.target.hasAttribute('data-lv-n')) e.target.blur(); });
+
+/* ================= Gestion sapin › Ticket : apparence du ticket de la Caisse Sapins =================
+   Fichier ticket.json publié dans le dépôt de la caisse (scraper147/sapin), à côté de catalogue.json : la caisse le relit
+   avec le catalogue. Rien de secret (tout est imprimé sur le ticket). Publication automatique ~1,5 s après une modification. */
+var TK_FMT = 'agri-garden-caisse/ticket', TK_FILE = 'ticket.json', TK_DRAFT = 'admin-ticket-brouillon';
+var TK_DEF = { logoTaille: 'moyen', logo: '', nom: 'Agri-Garden', nomGrand: false, entete: 'centre',
+  activite: 'Vente de sapins de Noël', adresse: ['Rue de Soye, 6', '5190 Spy'], telephone: '0494 36 36 74', email: 'vaerman_xavier@hotmail.com', tva: 'BE 0782.523.348', site: '',
+  messageEntete: '', afficher: { numero: true, date: true, pdv: true, nbArticles: true, paiement: true, rendu: true },
+  separateur: '-', tauxTVA: 0, merci: 'Merci et joyeuses fêtes !', saison: '', saisonDu: '', saisonAu: '',
+  message: '', qrLien: '', qrTexte: '', mention: 'Ce ticket n’est pas une facture.', papier: '80' };
+var TK = { loaded: false, loading: false, sha: null, version: 0, pub: null, draft: null, pending: false, busy: false, err: null, loadErr: null, timer: null, publieLe: null };
+var LOGO_TK_PREV = 'data:image/png;base64,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';
+function tkNorm(t) {
+  var o = clone(TK_DEF); t = t && typeof t === 'object' ? t : {};
+  Object.keys(TK_DEF).forEach(function (k) { if (t[k] === undefined) return; if (k === 'afficher') Object.keys(TK_DEF.afficher).forEach(function (a) { if (t.afficher && t.afficher[a] !== undefined) o.afficher[a] = !!t.afficher[a]; }); else if (k === 'adresse') o.adresse = [String((t.adresse || [])[0] || ''), String((t.adresse || [])[1] || '')]; else o[k] = t[k]; });
+  if (['aucun', 'petit', 'moyen', 'grand'].indexOf(o.logoTaille) < 0) o.logoTaille = 'moyen';
+  if (o.papier !== '58') o.papier = '80'; if (o.entete !== 'gauche') o.entete = 'centre'; if (!/^[-.=*~]$/.test(o.separateur)) o.separateur = '-';
+  o.tauxTVA = Math.max(0, Math.min(30, +o.tauxTVA || 0));
+  return o;
+}
+function tkCur() { return TK.draft || TK.pub || clone(TK_DEF); }
+function tkLoad() {
+  if (TK.loading) return; TK.loading = true; TK.loadErr = null;
+  try { var d = JSON.parse(lsGet(TK_DRAFT) || 'null'); if (d && d.t) { TK.draft = tkNorm(d.t); TK.pending = true; } } catch (e) {}
+  ghFetch('/repos/' + SAPIN_REPO + '/contents/' + TK_FILE, {}, getToken()).then(function (j) { return { sha: j.sha, json: JSON.parse(b64utf8(j.content)) }; }, function (e) { if (e.status === 404) return { sha: null, json: null }; throw e; })
+    .then(function (r) {
+      TK.loading = false; TK.loaded = true; TK.sha = r.sha;
+      if (r.json && r.json.format === TK_FMT) { TK.pub = tkNorm(r.json.ticket); TK.version = +r.json.version || 0; TK.publieLe = r.json.majLe || null; } else TK.pub = null;
+      render(); if (TK.pending) tkSchedule(300);
+    }, function (e) { TK.loading = false; TK.loaded = true; TK.loadErr = ghErrText(e, 'de lire'); render(); });
+}
+function tkSet(path, v) {
+  var t = clone(tkCur()), k = path.split('.');
+  if (k[0] === 'adr1' || k[0] === 'adr2') t.adresse[k[0] === 'adr1' ? 0 : 1] = v;
+  else if (k[0] === 'afficher') t.afficher[k[1]] = !!v;
+  else t[k[0]] = k[0] === 'tauxTVA' ? (v === '' ? 0 : +v) : v;
+  TK.draft = tkNorm(t); TK.pending = true; TK.err = null; lsSet(TK_DRAFT, JSON.stringify({ t: TK.draft }));
+  tkRefresh(); tkSchedule(1500);
+}
+function tkSchedule(ms) { clearTimeout(TK.timer); TK.timer = setTimeout(tkPublish, ms); }
+function tkPublish() {
+  if (!TK.pending) return;
+  if (TK.busy) { tkSchedule(800); return; }
+  if (!getToken()) { TK.err = 'Appareil verrouillé : déverrouillez-le dans Paramètres pour publier.'; tkRefresh(); return; }
+  TK.busy = true; tkRefresh();
+  var snap = JSON.stringify(TK.draft), url = '/repos/' + SAPIN_REPO + '/contents/' + TK_FILE;
+  ghFetch(url, {}, getToken()).then(function (j) { return { sha: j.sha, json: JSON.parse(b64utf8(j.content)) }; }, function (e) { if (e.status === 404) return { sha: null, json: null }; throw e; })
+    .then(function (r) {
+      var v = Math.max(r.json && +r.json.version || 0, TK.version || 0) + 1, file = { format: TK_FMT, formatVersion: 1, version: v, majLe: new Date().toISOString(), majPar: 'admin', ticket: JSON.parse(snap) };
+      var body = { message: 'Ticket v' + v + ' (Admin)', content: utf8b64(JSON.stringify(file, null, 1) + '\n') }; if (r.sha) body.sha = r.sha;
+      return ghFetch(url, { method: 'PUT', body: JSON.stringify(body) }, getToken()).then(function (res) { return { file: file, sha: res && res.content && res.content.sha }; });
+    })
+    .then(function (x) {
+      TK.busy = false; TK.version = x.file.version; TK.publieLe = x.file.majLe; TK.sha = x.sha || TK.sha; TK.pub = tkNorm(x.file.ticket);
+      if (JSON.stringify(TK.draft) === snap) { TK.pending = false; TK.draft = null; lsSet(TK_DRAFT, null); } else tkSchedule(300);
+      tkRefresh();
+    }, function (e) { TK.busy = false; TK.err = e && e.status === 409 ? 'Conflit : réessai…' : ghErrText(e, 'de publier'); if (e && (e.status === 409 || e.status === 422)) tkSchedule(800); tkRefresh(); });
+}
+window.addEventListener('online', function () { if (TK.pending) tkSchedule(300); });
+function tkStatus() {
+  if (TK.busy) return '<span class="faint">Publication…</span>';
+  if (TK.pending) return '<span class="warnt">Pas encore publié' + (TK.err ? ' : ' + esc(TK.err) : '') + '</span> <button class="btn sm" data-tk="pub">Publier maintenant</button>';
+  if (TK.version) return '<span class="good">Publié pour les caisses · version ' + TK.version + (TK.publieLe ? ' du ' + esc(dmy(TK.publieLe.slice(0, 10)).slice(0, 5)) + ' à ' + esc(new Date(TK.publieLe).toTimeString().slice(0, 5)) : '') + '</span>';
+  return '<span class="faint">Rien de publié : les caisses gardent leur ticket intégré (valeurs ci-dessous).</span>';
+}
+function tkRefresh() { var p = document.getElementById('tkPrev'); if (p) p.innerHTML = vTkPreview(tkCur()); var s = document.getElementById('tkStatus'); if (s) s.innerHTML = tkStatus(); }
+/* Aperçu : même mise en page que la Caisse Sapins (vente d'exemple : 2 sapins, une croix, livraison, payé en cash) */
+function vTkPreview(T) {
+  var W = T.papier === '58' ? 32 : 48, sep = Array(W + 1).join(T.separateur), sep2 = Array(W + 1).join('='), A = T.afficher, al = T.entete === 'gauche' ? 'left' : 'center';
+  var lw = { petit: 45, moyen: 66, grand: 88 }[T.logoTaille] || 66;
+  function row(a, b, cls) { return '<div class="tkrow' + (cls ? ' ' + cls : '') + '"><span>' + esc(a) + '</span><span>' + esc(b) + '</span></div>'; }
+  function opt(v, lab) { return v ? '<div>' + esc(v) + '</div>' : '<div class="tkmiss">[' + lab + ' à compléter]</div>'; }
+  var saisonOn = T.saison && tkSaisonActive(T);
+  var h = '<div class="tkpap" style="max-width:' + (W === 32 ? 230 : 320) + 'px"><div style="text-align:' + al + '">' +
+    (T.logoTaille !== 'aucun' ? '<img src="' + (T.logo || LOGO_TK_PREV) + '" alt="" style="width:' + lw + '%;filter:grayscale(1) contrast(1.5)">' : '') +
+    (T.logoTaille === 'aucun' || T.nomGrand ? '<div class="tkbig">' + esc(T.nom || 'Agri-Garden') + '</div>' : '') +
+    (T.activite ? '<div><b>' + esc(T.activite) + '</b></div>' : '') + opt(T.adresse[0], 'Adresse') + (T.adresse[1] ? '<div>' + esc(T.adresse[1]) + '</div>' : '') +
+    opt(T.telephone, 'Téléphone') + opt(T.email, 'E-mail') + opt(T.tva ? 'TVA ' + T.tva : '', 'N° TVA') + (T.site ? '<div>' + esc(T.site) + '</div>' : '') +
+    (T.messageEntete ? '<div style="margin-top:6px"><b>' + esc(T.messageEntete) + '</b></div>' : '') + '</div><br>' +
+    (A.numero || A.date ? row(A.numero ? 'Ticket n° 12' : '', A.date ? '05/12/2026 14:32' : '') : '') + (A.pdv ? '<div class="tkl">Point de vente : Spy</div>' : '') +
+    '<div class="tksep">' + sep2 + '</div>' + '<div class="tkl">Nordmann 150–175 cm</div>' + row('   2 x 49,00', '98,00') + row('Croix en bois', '10,00') + '<div class="tkl">----------</div>' + row('Livraison', '5,00') +
+    '<div class="tksep">' + sep + '</div>' + row('TOTAL', '113,00 EUR', 'tktot') + (T.tauxTVA > 0 ? row('dont TVA ' + String(T.tauxTVA).replace('.', ',') + ' %', money(113 - 113 / (1 + T.tauxTVA / 100)).replace(/\s?€/, '')) : '') +
+    (A.nbArticles ? '<div class="tkl">4 articles</div>' : '') + '<div class="tksep">' + sep + '</div>' + (A.paiement ? row('Cash', '113,00') : '') + (A.rendu ? row('Reçu', '120,00') + row('Rendu', '7,00') : '') + '<br>' +
+    '<div style="text-align:center">' + (T.saison ? '<div><b>' + esc(T.saison) + '</b>' + (saisonOn ? '' : ' <span class="tkmiss">(hors période)</span>') + '</div>' : '') +
+    (T.merci ? '<div><b>' + esc(T.merci) + '</b></div>' : '') + (T.message ? '<div class="tkmsg">' + esc(T.message).replace(/\n/g, '<br>') + '</div>' : '') +
+    (T.qrLien ? '<div><span class="tkqr" title="' + esc(T.qrLien) + '">QR</span></div>' + (T.qrTexte ? '<div>' + esc(T.qrTexte) + '</div>' : '') : '') +
+    (T.mention ? '<div class="tkmiss" style="font-style:normal">' + esc(T.mention) + '</div>' : '') + '</div></div>';
+  return h;
+}
+function tkSaisonActive(T) {
+  if (!T.saisonDu || !T.saisonAu) return true;
+  function md(s) { var m = /^(\d{1,2})\/(\d{1,2})$/.exec(String(s).trim()); return m ? (+m[2]) * 100 + (+m[1]) : null; }
+  var a = md(T.saisonDu), b = md(T.saisonAu), d = new Date(), n = (d.getMonth() + 1) * 100 + d.getDate();
+  if (a == null || b == null) return true; return a <= b ? n >= a && n <= b : n >= a || n <= b;
+}
+function renderSapTicket() {
+  var el = document.getElementById('mod');
+  if (!TK.loaded && !TK.loading) { if (getToken()) { tkLoad(); } else { TK.loaded = true; try { var d0 = JSON.parse(lsGet(TK_DRAFT) || 'null'); if (d0 && d0.t) { TK.draft = tkNorm(d0.t); TK.pending = true; } } catch (e) {} } }
+  var T = tkCur();
+  function fld(lab, path, val, ph, extra) { return '<label class="fl">' + lab + '</label><input type="text" data-tk-f="' + path + '" value="' + esc(val == null ? '' : val) + '" placeholder="' + esc(ph || '') + '"' + (extra || '') + ' autocomplete="off">'; }
+  function sel(lab, path, val, opts) { return '<label class="fl">' + lab + '</label><select data-tk-f="' + path + '">' + opts.map(function (o) { return '<option value="' + o[0] + '"' + (String(o[0]) === String(val) ? ' selected' : '') + '>' + esc(o[1]) + '</option>'; }).join('') + '</select>'; }
+  function chk(lab, path, on) { return '<label class="tkchk"><input type="checkbox" data-tk-f="' + path + '"' + (on ? ' checked' : '') + '> ' + esc(lab) + '</label>'; }
+  function hd(x) { return '<h4 class="tkh">' + x + '</h4>'; }
+  var band = '<div class="band"><div class="band-top"><h1>Ticket</h1></div><p class="soon-lead">Apparence du ticket imprimé par la Caisse Sapins. Publié dans <span class="mono">ticket.json</span>, à côté du catalogue : les caisses le reprennent avec le catalogue.</p></div>';
+  var alerts = [];
+  if (!getToken()) alerts.push('<div class="alert">Appareil verrouillé : les modifications sont gardées ici et publiées après le déverrouillage. <button class="btn sm" data-a="go" data-v="parametres">Déverrouiller</button></div>');
+  if (TK.loadErr) alerts.push('<div class="alert err">' + TK.loadErr + ' <button class="btn sm" data-tk="reload">Réessayer</button></div>');
+  if (TK.loading) { el.innerHTML = band + '<main><section><p class="empty">Lecture du ticket publié…</p></section></main>' + vToast(); return; }
+  var form = hd('Logo et en-tête') +
+    '<label class="fl">Logo du ticket</label><div class="tkrow2"><input type="file" id="tkLogo" accept="image/*">' + (T.logo ? '<button class="btn sm danger" data-tk="logoDel">Retirer (logo Agri-Garden)</button>' : '') + '</div><p class="hint">Sans logo propre : le logo Agri-Garden de la caisse. Préférez un logo noir sur fond blanc, bien contrasté (imprimé en noir et blanc).</p>' +
+    '<div class="tkgrid"><div>' + sel('Taille du logo', 'logoTaille', T.logoTaille, [['aucun', 'Pas de logo'], ['petit', 'Petit'], ['moyen', 'Moyen'], ['grand', 'Grand']]) + '</div><div>' + sel('En-tête', 'entete', T.entete, [['centre', 'Centré'], ['gauche', 'À gauche']]) + '</div></div>' +
+    fld('Nom en grand (sans logo, ou sous le logo)', 'nom', T.nom, 'Agri-Garden') + chk('Nom en grand aussi sous le logo', 'nomGrand', T.nomGrand) +
+    hd('Coordonnées') + fld('Activité (sous le logo)', 'activite', T.activite, 'Ex. Vente de sapins de Noël') +
+    fld('Adresse, ligne 1', 'adr1', T.adresse[0], 'Rue…') + fld('Adresse, ligne 2', 'adr2', T.adresse[1], 'Code postal et commune') +
+    '<div class="tkgrid"><div>' + fld('Téléphone', 'telephone', T.telephone, '', ' inputmode="tel"') + '</div><div>' + fld('E-mail', 'email', T.email, '', ' inputmode="email"') + '</div></div>' +
+    '<div class="tkgrid"><div>' + fld('N° de TVA', 'tva', T.tva, 'BE 0000.000.000') + '</div><div>' + fld('Site', 'site', T.site, 'Vide = non imprimé') + '</div></div>' +
+    fld('Message d’en-tête', 'messageEntete', T.messageEntete, 'Ex. Bienvenue chez Agri-Garden !') +
+    hd('Contenu') + '<div class="tkchks">' + chk('N° de ticket', 'afficher.numero', T.afficher.numero) + chk('Date et heure', 'afficher.date', T.afficher.date) + chk('Point de vente', 'afficher.pdv', T.afficher.pdv) +
+    chk('Nombre d’articles', 'afficher.nbArticles', T.afficher.nbArticles) + chk('Mode de paiement', 'afficher.paiement', T.afficher.paiement) + chk('Montant reçu et rendu', 'afficher.rendu', T.afficher.rendu) + '</div>' +
+    '<div class="tkgrid"><div>' + fld('TVA incluse (%)', 'tauxTVA', T.tauxTVA || '', '0 = ne pas afficher', ' inputmode="decimal"') + '</div><div>' + sel('Séparateurs', 'separateur', T.separateur, [['-', '- - - tirets'], ['.', '. . . points'], ['=', '= = = doubles'], ['*', '* * * étoiles'], ['~', '~ ~ ~ vagues']]) + '</div></div>' +
+    '<p class="hint">Toujours imprimés : articles, livraison en dernier, total, commande, livraison ajoutée, « à facturer », duplicata, vente annulée.</p>' +
+    hd('Bas du ticket') + fld('Message de fin', 'merci', T.merci, 'Ex. Merci et joyeuses fêtes !') +
+    fld('Message saisonnier', 'saison', T.saison, 'Ex. Joyeux Noël !') + '<div class="tkgrid"><div>' + fld('Du (JJ/MM)', 'saisonDu', T.saisonDu, '01/12') + '</div><div>' + fld('Au (JJ/MM)', 'saisonAu', T.saisonAu, '31/12') + '</div></div>' +
+    '<label class="fl">Texte libre</label><textarea data-tk-f="message" rows="3" maxlength="400" placeholder="Ex. Conseil : arrosez votre sapin chaque jour.">' + esc(T.message) + '</textarea>' +
+    fld('Lien du QR code', 'qrLien', T.qrLien, 'Ex. lien du formulaire newsletter') + fld('Texte sous le QR code', 'qrTexte', T.qrTexte, 'Ex. Inscrivez-vous à notre newsletter') +
+    fld('Mention', 'mention', T.mention, 'Ex. Ce ticket n’est pas une facture.') +
+    hd('Imprimante') + sel('Largeur du papier', 'papier', T.papier, [['80', '80 mm (48 caractères)'], ['58', '58 mm (32 caractères)']]) +
+    '<p class="hint">Champs vides : non imprimés. Le QR code est dessiné par l’imprimante (ici un carré « QR »). Les caisses reprennent le ticket publié à l’ouverture, avec la vérification du catalogue.</p>' +
+    '<div class="cbtns"><button class="btn" data-tk="reset">Revenir au ticket d’origine</button>' + (TK.pending && TK.pub ? '<button class="btn" data-tk="undo">Annuler les modifications non publiées</button>' : '') + '</div>';
+  el.innerHTML = band + '<main>' + (alerts.length ? '<div class="alerts">' + alerts.join('') + '</div>' : '') +
+    '<section><p class="hint" id="tkStatus">' + tkStatus() + '</p><div class="tkwrap"><div class="tkform">' + form + '</div><div class="tkside"><div class="fl">Aperçu</div><div id="tkPrev">' + vTkPreview(T) + '</div></div></div></section></main>' + vToast();
+}
+document.addEventListener('input', function (e) {
+  var t = e.target; if (!t.hasAttribute || !t.hasAttribute('data-tk-f') || t.tagName === 'SELECT' || t.type === 'checkbox') return;
+  tkSet(t.getAttribute('data-tk-f'), t.value);
+});
+document.addEventListener('change', function (e) {
+  var t = e.target; if (!t.getAttribute) return;
+  if (t.hasAttribute('data-tk-f') && (t.tagName === 'SELECT' || t.type === 'checkbox')) { tkSet(t.getAttribute('data-tk-f'), t.type === 'checkbox' ? t.checked : t.value); if (t.getAttribute('data-tk-f') === 'logoTaille') render(); }
+  else if (t.id === 'tkLogo' && t.files && t.files[0]) {
+    var fr = new FileReader(); fr.onload = function () { var im = new Image(); im.onload = function () {
+      var r = Math.min(1, 800 / im.width, 300 / im.height), cv = document.createElement('canvas'); cv.width = Math.round(im.width * r); cv.height = Math.round(im.height * r);
+      var g = cv.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, cv.width, cv.height); g.drawImage(im, 0, 0, cv.width, cv.height);
+      tkSet('logo', cv.toDataURL('image/png').length > 200000 ? cv.toDataURL('image/jpeg', 0.85) : cv.toDataURL('image/png')); render(); toast('Logo du ticket remplacé');
+    }; im.onerror = function () { toast('Image illisible'); }; im.src = fr.result; }; fr.readAsDataURL(t.files[0]);
+  }
+});
+document.addEventListener('click', function (e) {
+  var b = e.target.closest('[data-tk]'); if (!b || b.disabled) return;
+  var a = b.getAttribute('data-tk');
+  if (a === 'pub') tkPublish();
+  else if (a === 'reload') { TK.loaded = false; TK.loadErr = null; render(); }
+  else if (a === 'logoDel') { tkSet('logo', ''); render(); }
+  else if (a === 'reset') { TK.draft = clone(TK_DEF); TK.pending = true; lsSet(TK_DRAFT, JSON.stringify({ t: TK.draft })); tkSchedule(1500); render(); toast('Ticket d’origine remis'); }
+  else if (a === 'undo') { TK.draft = null; TK.pending = false; TK.err = null; lsSet(TK_DRAFT, null); clearTimeout(TK.timer); render(); toast('Modifications annulées'); }
+});
 
 function sapHomeStatus() {
   var st = BIL_CUR === 'sapin' ? { FILES: FILES } : BIL_ST.sapin;
