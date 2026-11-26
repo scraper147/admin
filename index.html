@@ -2406,8 +2406,8 @@ function vCoCard(c) {
         (st !== 'annulee' && st !== 'livree' ? '<button class="btn sm" data-co="askCancel" data-v="' + esc(c.id) + '">Annuler</button>' : '<button class="btn sm" data-co="status" data-v="' + esc(c.id) + '" data-s="a-preparer">Remettre à préparer</button>')) +
         '<button class="x" data-co="askDel" data-v="' + esc(c.id) + '">Supprimer</button></div>') + '</div>';
 }
-/* Paiement noté après coup (ex. après la livraison) : au stand, par virement ou au livreur */
-var CO_VIA = [{ id: 'stand', nom: 'Au stand' }, { id: 'virement', nom: 'Par virement' }, { id: 'livreur', nom: 'Au livreur' }];
+/* Paiement noté après coup (ex. après la livraison) : par virement ou au livreur. Un paiement au stand s'encode sur la tablette du stand (Commandes › Encaisser). */
+var CO_VIA = [{ id: 'virement', nom: 'Par virement' }, { id: 'livreur', nom: 'Au livreur' }];
 function coPayTxt(x) {
   var via = x.via === 'stand' ? 'au stand' + (x.stand && x.stand.nom ? ' de ' + x.stand.nom : '') : x.via === 'livreur' ? 'au livreur' : x.via === 'virement' ? 'par virement' : x.via === 'caisse' ? 'à la caisse' : 'à la commande';
   return (money(+x.montant || 0) + ' ' + via + (x.mode ? ' (' + (x.mode === 'cash' ? 'cash' : x.mode === 'bancontact' ? 'Bancontact' : x.mode) + ')' : '') + (x.le ? ' le ' + hsDm(x.le) : '')).replace(/ /g, ' ');
@@ -2416,21 +2416,20 @@ function vCoPayForm(c) {
   var f = CO.payForm, stands = CO.cat ? CO.cat.pointsDeVente.filter(function (p) { return p.actif !== false; }) : [], reste = coReste(c);
   return '<div class="copay"><span class="fl">Paiement reçu<span class="req" aria-hidden="true"> *</span></span><div class="rsel" role="group" aria-label="Où le paiement a été fait (obligatoire)">' +
     CO_VIA.map(function (v) { return '<button type="button" class="chip' + (f.via === v.id ? ' on' : '') + '" data-co="payVia" data-v="' + v.id + '">' + v.nom + '</button>'; }).join('') + '</div>' +
-    (f.via === 'stand' ? '<label class="fl" for="coPayStand">Stand</label><select id="coPayStand" data-copf="stand">' + stands.map(function (p) { return '<option value="' + esc(p.id) + '"' + (f.stand === p.id ? ' selected' : '') + '>' + esc(p.nom) + '</option>'; }).join('') + '</select>' : '') +
-    (f.via === 'stand' || f.via === 'livreur' ? '<span class="fl">Mode</span><div class="rsel"><button type="button" class="chip' + (f.mode === 'cash' ? ' on' : '') + '" data-co="payMode" data-v="cash">Cash</button><button type="button" class="chip' + (f.mode === 'bancontact' ? ' on' : '') + '" data-co="payMode" data-v="bancontact">Bancontact</button></div>' : '') +
+    (f.via === 'livreur' ? '<span class="fl">Mode</span><div class="rsel"><button type="button" class="chip' + (f.mode === 'cash' ? ' on' : '') + '" data-co="payMode" data-v="cash">Cash</button><button type="button" class="chip' + (f.mode === 'bancontact' ? ' on' : '') + '" data-co="payMode" data-v="bancontact">Bancontact</button></div>' : '') +
     '<label class="fl" for="coPayM">Montant (€)</label><input type="text" inputmode="decimal" id="coPayM" data-copf="montant" value="' + esc(f.montant) + '" autocomplete="off"><p class="hint">Reste à payer : ' + money(reste) + '. Un montant plus petit note un paiement partiel.</p>' +
-    (f.via === 'stand' ? '<p class="hint">Ce paiement est seulement noté sur la commande : il n’entre pas dans la caisse du stand.</p>' : '') +
+    '<p class="hint">Paiement au stand : il s’encode sur la tablette du stand (onglet Commandes › Encaisser), pas ici.</p>' +
     '<div class="cbtns"><button class="pick sm2" data-co="paySave" data-v="' + esc(c.id) + '"' + (f.via ? '' : ' disabled') + '>Enregistrer le paiement</button><button class="btn sm" data-co="payCancel">Annuler</button></div></div>';
 }
 function coPaySave(id) {
   var f = CO.payForm, c = coDoc().commandes[id]; if (!c || !f) return;
-  if (!f.via) { toast('Choisissez où le paiement a été fait'); return; }
+  if (f.via !== 'virement' && f.via !== 'livreur') { toast('Choisissez : par virement ou au livreur'); return; }
   var m = parsePrice(f.montant); if (isNaN(m) || m <= 0) { toast('Montant invalide'); return; }
   var stand = f.via === 'stand' ? (CO.cat ? CO.cat.pointsDeVente : []).filter(function (p) { return p.id === f.stand; })[0] : null;
   var v = clone(c), now = new Date().toISOString(), pay = v.paye && typeof v.paye === 'object' ? v.paye : { montant: 0, mode: '' };
   var entry = { le: now, montant: Math.round(m * 100) / 100, via: f.via, source: 'admin' };
   if (stand) entry.stand = { id: stand.id, nom: stand.nom };
-  if (f.via === 'stand' || f.via === 'livreur') entry.mode = f.mode || 'cash';
+  if (f.via === 'livreur') entry.mode = f.mode || 'cash';
   pay.paiements = (Array.isArray(pay.paiements) ? pay.paiements : (+pay.montant ? [{ montant: +pay.montant, via: pay.mode === 'virement' ? 'virement' : 'commande', mode: pay.mode && pay.mode !== 'virement' ? pay.mode : undefined }] : [])).concat([entry]);
   pay.montant = Math.round(((+pay.montant || 0) + entry.montant) * 100) / 100;
   pay.mode = f.via === 'virement' ? 'virement' : entry.mode; pay.lieu = f.via;
