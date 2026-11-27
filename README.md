@@ -4,7 +4,7 @@ Application d'administration des caisses. Le menu principal a un module par acti
 
 - **Bar** : Catalogue, Bilan (Caisse Bar).
 - **Chlorophylle Night** : Catalogue, Stock (comptage par événement), Bilan (Caisse Soirée).
-- **Gestion sapin** : Catalogue, Stock, Caisse, Commandes, Factures, Livraisons, Bilan, Historique de vente, Ticket (Caisse Sapins).
+- **Gestion sapin** : Catalogue, Offres, Stock, Caisse, Commandes, Factures, Livraisons, Bilan, Historique de vente, Ticket (Caisse Sapins).
 - **Paramètres**.
 
 Chaque Bilan et chaque Catalogue ne montre que sa caisse : un fichier d'une autre caisse est refusé avec un message qui indique où l'ouvrir.
@@ -93,6 +93,7 @@ Dans le comptage : champ **Rechercher un article**, filtres **À compter seuleme
 Tout ce qui concerne la vente des sapins est regroupé dans le menu **Gestion sapin**, avec cinq onglets :
 
 - **Catalogue** : produits, prix et points de vente de la Caisse Sapins, publiés sur GitHub (dépôt `sapin`), comme dans le menu Catalogue.
+- **Offres** : articles offerts automatiquement par la caisse d'un stand (ex. offre de lancement : 1 croix en bois offerte par vente, 50 au total, à Boninne). Libellé imprimé, article, stand, nombre total, maximum par vente, période ; Enregistrer et publier (fichier `offres.json` du dépôt `sapin`), Activer / Désactiver, Supprimer. Compteur « x / 50 offerts » d'après les ventes envoyées par les caisses. Les articles offerts sortent du stock et apparaissent dans le Bilan (valeur offerte). Les caisses appliquent les offres après leur mise à jour.
 - **Stock** : stock de la saison (un par année, par exemple « Sapins 2026 »), enregistré dans le dépôt privé `ventes`, fichier `sapin/stock/<saison>.json`.
   - **Créer la saison** : nom et stand de stockage (Spy), une seule fois par an.
   - **Encoder une livraison** : date, puis la quantité livrée pour chaque article (articles du catalogue de la Caisse Sapins, regroupés par catégorie, avec une recherche). Touche Entrée = article suivant.
