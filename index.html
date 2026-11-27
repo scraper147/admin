@@ -3147,8 +3147,8 @@ function vOfForm() {
   function fld(lab, k, val, extra, req) { return '<label class="fl" for="of-' + k + '">' + lab + (req ? '<span class="req" aria-hidden="true"> *</span>' : '') + '</label><input type="text" id="of-' + k + '" data-off="' + k + '" value="' + esc(val == null ? '' : val) + '"' + (extra || '') + ' autocomplete="off">'; }
   return '<section class="coform"><h3>' + (f.id ? 'Modifier l’offre' : 'Nouvelle offre') + '</h3>' +
     fld('Libellé (imprimé sur le ticket)', 'libelle', f.libelle, ' placeholder="Ex. Croix en bois offerte (offre de lancement)"', true) +
-    '<div class="cogrid"><div><label class="fl" for="of-produitId">Article offert<span class="req" aria-hidden="true"> *</span></label><select id="of-produitId" data-off="produitId">' + prods.map(function (p) { return '<option value="' + esc(p.id) + '"' + (f.produitId === p.id ? ' selected' : '') + '>' + esc(p.libelle) + ' (' + money(p.prix) + ')</option>'; }).join('') + '</select></div>' +
-    '<div><label class="fl" for="of-pdv">Stand<span class="req" aria-hidden="true"> *</span></label><select id="of-pdv" data-off="pdv">' + pdvs.map(function (p) { return '<option value="' + esc(p.id) + '"' + (f.pdv === p.id ? ' selected' : '') + '>' + esc(p.nom) + '</option>'; }).join('') + '</select></div></div>' +
+    '<div class="cogrid"><div><label class="fl" for="of-produitId">Article offert<span class="req" aria-hidden="true"> *</span></label><select id="of-produitId" data-off="produitId">' + (f.produitId ? '' : '<option value="" selected>— Choisir l’article —</option>') + prods.map(function (p) { return '<option value="' + esc(p.id) + '"' + (f.produitId === p.id ? ' selected' : '') + '>' + esc(p.libelle) + ' (' + money(p.prix) + ')</option>'; }).join('') + '</select></div>' +
+    '<div><label class="fl" for="of-pdv">Stand<span class="req" aria-hidden="true"> *</span></label><select id="of-pdv" data-off="pdv">' + (f.pdv ? '' : '<option value="" selected>— Choisir le stand —</option>') + pdvs.map(function (p) { return '<option value="' + esc(p.id) + '"' + (f.pdv === p.id ? ' selected' : '') + '>' + esc(p.nom) + '</option>'; }).join('') + '</select></div></div>' +
     '<div class="cogrid"><div>' + fld('Nombre offert au total', 'quantite', f.quantite, ' inputmode="numeric" placeholder="Vide = sans limite"') + '</div><div>' + fld('Au plus par vente', 'maxParVente', f.maxParVente, ' inputmode="numeric" placeholder="Vide = sans limite"') + '</div></div>' +
     '<div class="cogrid"><div><label class="fl" for="of-du">Du (facultatif)</label><input type="date" id="of-du" data-off="du" value="' + esc(f.du) + '"></div><div><label class="fl" for="of-au">Au (facultatif)</label><input type="date" id="of-au" data-off="au" value="' + esc(f.au) + '"></div></div>' +
     '<label class="tkchk"><input type="checkbox" data-off="actif"' + (f.actif ? ' checked' : '') + '> Offre active</label>' +
@@ -3171,10 +3171,7 @@ function ofSave() {
 document.addEventListener('click', function (e) {
   var b = e.target.closest('[data-of]'); if (!b || b.disabled) return;
   var a = b.getAttribute('data-of'), v = b.getAttribute('data-v');
-  if (a === 'new') {
-    var croix = ofProducts().filter(function (p) { return p.id === 'a1'; })[0] || ofProducts()[0] || {}, bon = (OF.cat ? OF.cat.pointsDeVente : []).filter(function (p) { return /boninne/i.test(p.nom); })[0] || (OF.cat ? OF.cat.pointsDeVente[0] : {}) || {};
-    OF.form = { id: null, libelle: (croix.libelle || 'Article') + ' offert' + (/croix/i.test(croix.libelle || '') ? 'e' : '') + ' (offre de lancement)', produitId: croix.id, pdv: bon.id, quantite: '50', maxParVente: '1', du: '', au: '', actif: true }; render();
-  }
+  if (a === 'new') { OF.form = { id: null, libelle: '', produitId: '', pdv: '', quantite: '', maxParVente: '', du: '', au: '', actif: true }; render(); }
   else if (a === 'edit') { var o = OF.list.filter(function (x) { return x.id === v; })[0]; if (o) { OF.form = { id: o.id, libelle: o.libelle, produitId: o.produitId, pdv: o.pdv && o.pdv.id, quantite: o.quantite ? String(o.quantite) : '', maxParVente: o.maxParVente ? String(o.maxParVente) : '', du: o.du || '', au: o.au || '', actif: !!o.actif, creeLe: o.creeLe }; render(); } }
   else if (a === 'cancel') { OF.form = null; render(); }
   else if (a === 'save') ofSave();
